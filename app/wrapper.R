@@ -3,6 +3,10 @@
 # Package de clustering R6
 #=========================================
 
+
+# Définition de la classe R6 (nécessite le package R6)
+# library(R6) 
+
 # ---------------------------------
 # 1. ClusteringFactory (Création des objets)
 # ---------------------------------
@@ -17,363 +21,284 @@ ClusteringFactory <- R6Class("ClusteringFactory",
       message("ClusteringFactory initialisée")
     },
     
-    #' @description Créer et ajuster un objet CAH_Kmeans (CORRIGÉ)
+    #' @description Créer et ajuster un objet CAH_Kmeans
+    #' @param X Data frame ou matrice de données
+    #' @param k Nombre de clusters
+    #' @param cr Booléen, centrer et réduire les données
+    #' @param fit_now Booléen, ajuster le modèle immédiatement
+    #' @param ... Paramètres additionnels passés à $new() ou $fit()
     #' @return Objet CAH_Kmeans
     create_cah_kmeans = function(X, k = 2, cr = TRUE, fit_now = TRUE, ...) {
-      # Utilise le nom de classe corrigé
+      # Assurez-vous que la classe CAH_Kmeans est disponible (définit ailleurs)
       obj <- CAH_Kmeans$new(k = k, cr = cr, ...)
       if (fit_now) {
-        obj$fit(X)
+        # On passe X et les arguments additionnels restants à $fit()
+        obj$fit(X, ...)
       }
       return(obj)
     },
     
-    #' @description Créer et ajuster un objet Kmeans (CORRIGÉ)
+    #' @description Créer et ajuster un objet Kmeans
+    #' @param X Data frame ou matrice de données
+    #' @param k Nombre de clusters
+    #' @param cr Booléen, centrer et réduire les données
+    #' @param fit_now Booléen, ajuster le modèle immédiatement
+    #' @param ... Paramètres additionnels passés à $new() ou $fit()
     #' @return Objet Kmeans
-    create_kmeans = function(X, k = 3, cr = TRUE, nstart = 10, fit_now = TRUE, ...) {
-      # Utilise le nom de classe 'Kmeans'
-      obj <- Kmeans$new(k = k, cr = cr, nstart = nstart)
+    create_kmeans = function(X, k = 3, cr = TRUE, fit_now = TRUE, ...) {
+      # Assurez-vous que la classe Kmeans est disponible (définit ailleurs)
+      obj <- Kmeans$new(k = k, cr = cr, ...)
       if (fit_now) {
-        obj$fit(X)
+        # On passe X et les arguments additionnels restants à $fit()
+        obj$fit(X, ...)
       }
       return(obj)
     },
     
     #' @description Créer et ajuster un objet ClustOfVar
+    #' @param X Data frame ou matrice de données
+    #' @param k Nombre de clusters
+    #' @param fit_now Booléen, ajuster le modèle immédiatement
+    #' @param ... Paramètres additionnels passés à $new() ou $fit()
     #' @return Objet ClustOfVar
-    create_clustofvar = function(X, k = 3, cr = TRUE, fit_now = TRUE, ...) {
-      obj <- ClustOfVar$new(k = k, cr = cr, ...)
+    create_clustofvar = function(X, k = 2, fit_now = TRUE, ...) {
+      # REMARQUE : Le paramètre 'cr' (centrage/réduction) est retiré de la signature
+      # car il n'est pas utilisé par ClustOfVar$new() (la standardisation est interne).
+      # Cela évite la redondance et clarifie l'API pour cette méthode.
+      
+      # Assurez-vous que la classe ClustOfVar est disponible (définit ailleurs)
+      obj <- ClustOfVar$new(k = k, ...)
+      
       if (fit_now) {
-        obj$fit(X)
+        # ClustOfVar$fit prend X, max_iter, tolerance etc.
+        obj$fit(X, ...)
       }
       return(obj)
     },
     
     #' @description Créer et ajuster un objet Kprototypes
+    #' @param X Data frame ou matrice de données
+    #' @param k Nombre de clusters
+    #' @param lambda Poids relatif des variables catégorielles (défaut: 0.5)
+    #' @param fit_now Booléen, ajuster le modèle immédiatement
+    #' @param ... Paramètres additionnels passés à $new() ou $fit()
     #' @return Objet Kprototypes
-    create_kprototypes = function(X, k = 3, cr = FALSE, fit_now = TRUE, ...) {
-      obj <- Kprototypes$new(k = k, cr = cr, ...)
+    create_kprototypes = function(X, k = 3, lambda = 0.5, fit_now = TRUE, ...) {
+      # Assurez-vous que la classe Kprototypes est disponible (définit ailleurs)
+      obj <- Kprototypes$new(k = k, lambda = lambda, ...)
+      
       if (fit_now) {
-        obj$fit(X)
+        # On passe X et les arguments additionnels restants à $fit()
+        obj$fit(X, ...)
       }
       return(obj)
     }
-  )
-)
-
-# ---------------------------------
-# 2. ClusteringComparator (Comparaison)
-# ---------------------------------
-
-#' @title ClusteringComparator
-#' @description Comparer les résultats de plusieurs algorithmes
-ClusteringComparator <- R6Class("ClusteringComparator",
-  private = list(
-    FData = NULL,
-    FK = 3,
-    FResults = list(),
-    FGroupes = list()
+    
+    # ... autres méthodes de la classe (ClusteringComparator, etc.)
   ),
   
-  public = list(
-    #' @description Initialiser
-    initialize = function(data, k = 3) {
-      private$FData <- data
-      private$FK <- k
-      message("ClusteringComparator initialisé pour k=", k)
-    },
-    
-    #' @description Ajouter un algorithme à la comparaison (CORRIGÉ)
-    add_algorithm = function(algorithm, ...) {
-      factory <- ClusteringFactory$new()
+  # ---------------------------------
+  # 2. ClusteringComparator (Comparaison de modèles)
+  # ---------------------------------
+  
+  #' @title ClusteringComparator
+  #' @description Outil pour comparer les performances de différents objets de clustering
+  ClusteringComparator <- R6Class("ClusteringComparator",
+    public = list(
       
-      # 🎯 CORRECTION : Utilisation de "cah_kmeans" comme étiquette et nom de fonction
-      obj <- switch(algorithm,
-        cah_kmeans = factory$create_cah_kmeans(private$FData, k = private$FK, fit_now = TRUE, ...),
-        kmeans = factory$create_kmeans(private$FData, k = private$FK, fit_now = TRUE, ...),
-        clustofvar = factory$create_clustofvar(private$FData, k = private$FK, fit_now = TRUE, ...),
-        kprototypes = factory$create_kprototypes(private$FData, k = private$FK, fit_now = TRUE, ...),
-        stop("Algorithme inconnu")
-      )
-      
-      private$FResults[[algorithm]] <- obj
-      # Stocke les groupes. Note: Pour clustofvar, ce seront les groupes de variables (4).
-      # Le bug de longueur sera géré par l'exclusion de clustofvar de la comparaison d'observations.
-      private$FGroupes[[algorithm]] <- obj$Groupes
-      
-      message("Algorithme '", algorithm, "' ajouté à la comparaison")
-      invisible(self)
-    },
-    
-    #' @description Afficher le tableau de comparaison des groupes
-    compare = function() {
-      algos <- names(private$FResults)
-      n_algos <- length(algos)
-      
-      if (n_algos < 2) {
-        stop("Ajoutez au moins deux algorithmes avec $add_algorithm()")
-      }
-      
-      cat("=== Comparaison de", n_algos, "algorithmes ===\n\n")
-      
-      # 1. Afficher la taille des groupes
-      for (algo in algos) {
-        cat("Algorithme:", algo, "\n")
-        print(table(private$FGroupes[[algo]]))
-        cat("\n")
-      }
-      
-      # 2. Afficher les tables de confusion (indice de similarité)
-      cat("\n--- Matrices de Confusion (Similarité des observations) ---\n")
-      
-      # 🎯 NOTE: Cette partie ne fonctionne que pour les clustering d'OBSERVATIONS
-      # => Exclure ClustOfVar lors de l'appel pour éviter 'all arguments must have the same length'
-      
-      for (i in 1:(n_algos - 1)) {
-        for (j in (i + 1):n_algos) {
-          # Vérification de la longueur (pour gérer le cas ClustOfVar non exclu)
-          if (length(private$FGroupes[[algos[i]]]) != length(private$FGroupes[[algos[j]]])) {
-            warning(paste("Comparaison", algos[i], "vs", algos[j], ": longueurs inégales. (Skipped)"))
-            next
-          }
+      #' @description Comparer les inerties
+      #' @param ... Objets de clustering à comparer
+      #' @return Un data frame de comparaison
+      compare_inertia = function(...) {
+        models <- list(...)
+        results <- list()
+        
+        for (i in seq_along(models)) {
+          model <- models[[i]]
+          model_name <- paste0("Modèle ", i, " (", class(model)[1], ")")
           
-          cat("\n", toupper(algos[i]), "vs", toupper(algos[j]), ":\n")
-          confusion <- table(private$FGroupes[[algos[i]]], private$FGroupes[[algos[j]]])
-          print(confusion)
+          # Tentative d'extraction de l'inertie
+          inertia_data <- tryCatch({
+            inertie <- model$inertie()
+            data.frame(
+              Modèle = model_name,
+              Inertie_Totale = inertie$totale,
+              Inertie_Intra = inertie$intra,
+              Inertie_Inter = inertie$inter,
+              Pct_Expliquee = inertie$pct_expliquee
+            )
+          }, error = function(e) {
+            data.frame(
+              Modèle = model_name,
+              Inertie_Totale = NA,
+              Inertie_Intra = NA,
+              Inertie_Inter = NA,
+              Pct_Expliquee = NA
+            )
+          })
           
-          # Calcul de l'indice de Rand ajusté
-          # N'est pas implémenté ici pour éviter de dépendre d'un package externe (ex: mclust)
-          
+          results[[i]] <- inertia_data
         }
+        
+        return(do.call(rbind, results))
       }
-      invisible(self)
-    },
-    
-    #' @description Récupérer un objet de clustering spécifique
-    get_result = function(algorithm) {
-      if (!algorithm %in% names(private$FResults)) {
-        stop(paste("Algorithme", algorithm, "non trouvé"))
-      }
-      return(private$FResults[[algorithm]])
-    }
-  )
-)
-
-# ---------------------------------
-# 3. ClusteringEvaluator (Évaluation de K)
-# ---------------------------------
-
-#' @title ClusteringEvaluator
-#' @description Évaluer la qualité du clustering et les métriques
-ClusteringEvaluator <- R6Class("ClusteringEvaluator",
-  private = list(
-    FData = NULL,
-    FResults = list()
+    )
   ),
   
-  public = list(
-    #' @description Initialiser
-    initialize = function(data) {
-      private$FData <- data
-      message("ClusteringEvaluator initialisé")
-    },
-    
-    #' @description Évaluer la qualité du clustering pour différentes valeurs de k (CORRIGÉ)
-    evaluate_k = function(k_range = 2:10, method = "kmeans", ...) {
-      results <- data.frame(k = k_range)
-      factory <- ClusteringFactory$new()
+  # ---------------------------------
+  # 3. ClusteringEvaluator (Evaluation du nombre de clusters)
+  # ---------------------------------
+  
+  #' @title ClusteringEvaluator
+  #' @description Outil pour évaluer le nombre optimal de clusters
+  ClusteringEvaluator <- R6Class("ClusteringEvaluator",
+    public = list(
       
-      # 🎯 CORRECTION : Inclure cah_kmeans pour le calcul d'inertie
-      if (method %in% c("kmeans", "cah_kmeans")) { 
-        inertie_expl <- numeric(length(k_range))
-        inertie_intra <- numeric(length(k_range))
-        inertie_inter <- numeric(length(k_range))
+      #' @description Initialiser
+      initialize = function() {
+        message("ClusteringEvaluator initialisé")
+      },
+      
+      #' @description Méthode du coude (Elbow Method)
+      #' @param X Data frame de données
+      #' @param max_k Nombre maximal de clusters à tester
+      #' @param method Méthode de clustering à utiliser (par défaut: "cah_kmeans")
+      #' @param ... Paramètres additionnels passés à la Factory
+      #' @return Liste contenant le graphique (ggplot) et les données
+      elbow_method = function(X, max_k = 10, method = "cah_kmeans", ...) {
         
-        message("Évaluation de ", method, " pour k = ", min(k_range), " à ", max(k_range))
-        
-        for (i in seq_along(k_range)) {
-          
-          # 🎯 Utiliser la bonne fonction de factory
-          if (method == "kmeans") {
-            obj <- factory$create_kmeans(private$FData, k = k_range[i], fit_now = TRUE, ...)
-          } else { # method == "cah_kmeans"
-            obj <- factory$create_cah_kmeans(private$FData, k = k_range[i], fit_now = TRUE, ...)
-          }
-          
-          # Vérifier que l'objet a la méthode inertie()
-          if (!"inertie" %in% names(obj)) {
-            stop("L'objet créé par la factory ne possède pas de méthode $inertie()")
-          }
-          
-          inertie_info <- obj$inertie()
-          inertie_expl[i] <- inertie_info$pct_expliquee
-          inertie_intra[i] <- inertie_info$intra
-          inertie_inter[i] <- inertie_info$inter
-          
-          private$FResults[[paste0(method, "_k", k_range[i])]] <- obj
+        if (max_k < 2) {
+          stop("max_k doit être >= 2")
         }
         
-        results$inertie_expliquee <- inertie_expl
-        results$inertie_intra <- inertie_intra
-        results$inertie_inter <- inertie_inter
+        factory <- ClusteringFactory$new()
+        inertias <- numeric(max_k)
         
-      } else if (method == "clustofvar") {
-        # Logique pour clustofvar (utilise l'homogénéité, pas l'inertie classique)
-        # La colonne 'inertie_expliquee' sera manquante, le tracé sera sauté.
-        message("ClustOfVar: utilise l'homogénéité. Evaluation par inertie non supportée pour le tracé automatique.")
-        
-      } else { 
-        message("La méthode '", method, "' n'est pas optimisée pour l'évaluation de k par inertie.")
-      }
-      
-      return(results)
-    },
-    
-    #' @description Déterminer le k optimal (méthode du coude) (AJOUTÉ)
-    get_best_k = function(df_results) {
-      if (!"inertie_expliquee" %in% names(df_results)) {
-        return(NA)
-      }
-      # Calculer le gain et la courbure (seconde dérivée approximée)
-      df_results$gain <- c(NA, diff(df_results$inertie_expliquee))
-      df_results$courbure <- c(NA, diff(df_results$gain))
-      
-      # Le coude est souvent le k où la courbure est la plus négative (plus grande décélération)
-      if (sum(!is.na(df_results$courbure)) > 0) {
-        best_k_index <- which.min(df_results$courbure)
-        best_k <- df_results$k[best_k_index]
-        
-        # S'assurer que le k retourné n'est pas le min(k_range)
-        if (best_k == min(df_results$k) && length(df_results$k) > 1) {
-          # Si le coude est k_min, on suggère k_min + 1
-          return(min(df_results$k) + 1)
+        for (k in 2:max_k) {
+          message(paste("Calcul pour k =", k))
+          
+          # Création et ajustement
+          model <- switch(method,
+            cah_kmeans = tryCatch({
+              factory$create_cah_kmeans(X, k = k, fit_now = TRUE, ...)
+            }, error = function(e) { warning(paste("Erreur CAH+Kmeans pour k=", k, ":", e$message)); NULL }),
+            kmeans = tryCatch({
+              factory$create_kmeans(X, k = k, fit_now = TRUE, ...)
+            }, error = function(e) { warning(paste("Erreur Kmeans pour k=", k, ":", e$message)); NULL }),
+            clustofvar = tryCatch({
+              # Utilise la nouvelle signature sans 'cr'
+              factory$create_clustofvar(X, k = k, fit_now = TRUE, ...) 
+            }, error = function(e) { warning(paste("Erreur ClustOfVar pour k=", k, ":", e$message)); NULL }),
+            kprototypes = tryCatch({
+              factory$create_kprototypes(X, k = k, fit_now = TRUE, ...)
+            }, error = function(e) { warning(paste("Erreur Kprototypes pour k=", k, ":", e$message)); NULL }),
+            stop(paste("Méthode non reconnue:", method))
+          )
+          
+          if (!is.null(model)) {
+            # Extraction de l'inertie intra-cluster
+            inertia_data <- tryCatch({
+              model$inertie()$intra
+            }, error = function(e) {
+              NA
+            })
+            inertias[k] <- inertia_data
+          }
         }
-        return(best_k)
+        
+        # Préparation des données pour le graphique
+        data_plot <- data.frame(k = 2:max_k, Inertie_Intra = inertias[2:max_k])
+        
+        # Création du graphique avec ggplot2 (nécessite le package ggplot2)
+        # Utilisation de ggplot2 pour une meilleure visualisation
+        if (requireNamespace("ggplot2", quietly = TRUE)) {
+          p <- ggplot2::ggplot(data_plot, ggplot2::aes(x = k, y = Inertie_Intra)) +
+            ggplot2::geom_point(color = "steelblue", size = 3) +
+            ggplot2::geom_line(color = "steelblue", size = 1) +
+            ggplot2::labs(
+              title = paste("Méthode du Coude pour", method),
+              x = "Nombre de Clusters (k)",
+              y = "Inertie Intra-Cluster"
+            ) +
+            ggplot2::theme_minimal() +
+            ggplot2::scale_x_continuous(breaks = 2:max_k)
+          
+          return(list(plot = p, data = data_plot))
+        } else {
+          # Si ggplot2 n'est pas installé, retourne un graphique R de base et un avertissement
+          warning("Le package 'ggplot2' n'est pas installé. Utilisation du graphique de base.")
+          plot(data_plot$k, data_plot$Inertie_Intra, type = 'b', 
+               main = paste("Méthode du Coude pour", method), 
+               xlab = "Nombre de Clusters (k)", ylab = "Inertie Intra-Cluster",
+               col = "steelblue", pch = 19)
+          return(list(plot = NULL, data = data_plot))
+        }
       }
+    )
+  ),
+  
+  # ---------------------------------
+  # 4. ClusteringHelper (Fonctions utilitaires)
+  # ---------------------------------
+  
+  #' @title ClusteringHelper
+  #' @description Fonctions utilitaires pour le package
+  ClusteringHelper <- R6Class("ClusteringHelper",
+    public = list(
       
-      return(NA)
-    },
-    
-    #' @description Tracer l'évaluation de k (AJOUTÉ)
-    plot_evaluation = function(df_results, criterion = "inertie_expliquee") {
-      if (!criterion %in% names(df_results)) {
-        stop("Le critère '", criterion, "' est absent des résultats. La méthode doit être kmeans ou cah_kmeans.")
-      }
-      
-      plot(df_results$k, df_results[[criterion]], type = "b", pch = 19,
-           main = paste("Méthode du Coude (Elbow Method) -", toupper(gsub("_", " ", criterion))),
-           xlab = "Nombre de groupes (k)",
-           ylab = paste(criterion, "(%)"))
-      
-      best_k <- self$get_best_k(df_results)
-      if (!is.na(best_k)) {
-        abline(v = best_k, col = "red", lty = 2)
-        text(best_k, max(df_results[[criterion]]) * 0.9, 
-             labels = paste("k suggéré =", best_k), pos = 4, col = "red")
-      }
-      
-      invisible(self)
-    }
-  )
-)
-
-# ---------------------------------
-# 4. ClusteringHelper (Export et Rapport)
-# ---------------------------------
-
-#' @title ClusteringHelper
-#' @description Fonctions utilitaires d'aide
-ClusteringHelper <- R6Class("ClusteringHelper",
-  public = list(
-    
-    #' @description Exporte les résultats
-    export_results = function(objet_clustering, donnees = NULL, inclure_donnees = TRUE) {
-      groupes <- objet_clustering$Groupes
-      
-      if (is.null(donnees) && inclure_donnees) {
-        # Tente de récupérer les données actives si non fournies
+      #' @description Génère un rapport textuel synthétique du clustering
+      #' @param objet_clustering Objet de clustering ajusté (e.g. CAH_Kmeans, Kmeans, ClustOfVar, Kprototypes)
+      #' @param file Chemin du fichier où écrire le rapport (NULL pour affichage console)
+      #' @return Invisiblement, l'objet lui-même. Affiche le rapport.
+      generate_report = function(objet_clustering, file = NULL) {
+        if (!is.null(file)) {
+          sink(file = file)
+        }
+        
+        cat("=========================================\n")
+        cat("       RAPPORT D'ANALYSE DE CLUSTERING\n")
+        cat("=========================================\n\n")
+        
+        # Résumé de base (appelle la méthode $summary() de l'objet)
+        cat("--- Résumé du Modèle ---\n")
         tryCatch({
-          donnees <- objet_clustering$ActiveData
+          objet_clustering$summary()
         }, error = function(e) {
-          inclure_donnees <<- FALSE
-          warning("Données actives non accessibles, l'export n'inclura que les groupes.")
+          cat("La méthode $summary() n'est pas disponible ou a échoué.\n")
         })
-      }
-      
-      if (inclure_donnees && !is.null(donnees)) {
-        resultats <- data.frame(donnees, Groupe = groupes)
-      } else {
-        resultats <- data.frame(Groupe = groupes)
-      }
-      
-      return(resultats)
-    },
-    
-    #' @description Calcule des statistiques par groupe
-    group_statistics = function(objet_clustering, donnees) {
-      if (!is.data.frame(donnees)) stop("'donnees' doit être un data frame")
-      groupes <- objet_clustering$Groupes
-      stats_list <- list()
-      
-      for (var_name in names(donnees)) {
-        variable <- donnees[[var_name]]
         
-        if (is.numeric(variable)) {
-          stats <- data.frame(
-            groupe = sort(unique(groupes)),
-            n = as.numeric(table(groupes)),
-            moyenne = tapply(variable, groupes, mean),
-            ecart_type = tapply(variable, groupes, sd),
-            min = tapply(variable, groupes, min),
-            max = tapply(variable, groupes, max)
-          )
-          rownames(stats) <- NULL
-          stats_list[[var_name]] <- stats
-        } else if (is.factor(variable) || is.character(variable)) {
-          tab <- table(Groupe = groupes, Variable = variable)
-          perc <- round(prop.table(tab, 1) * 100, 1)
-          stats_list[[var_name]] <- list(
-            contingence = tab,
-            pourcentages_ligne = perc
-          )
+        # Qualité
+        tryCatch({
+          inertie <- objet_clustering$inertie()
+          cat("\n--- Qualité du clustering (Inertie) ---\n")
+          cat("Inertie expliquée :", round(inertie$pct_expliquee, 2), "%\n")
+        }, error = function(e) {
+          cat("\n--- Qualité du clustering ---\n")
+          cat("Mesures d'inertie non disponibles pour cet algorithme.\n")
+        })
+        
+        # Taille des groupes
+        cat("\n--- Taille des Groupes ---\n")
+        if ("Groupes" %in% names(objet_clustering)) {
+          print(table(objet_clustering$Groupes))
+        } else {
+          cat("Propriété $Groupes non disponible.\n")
         }
+        
+        # Infos sur les variables (spécifique à ClustOfVar)
+        if (inherits(objet_clustering, "ClustOfVar")) {
+          cat("\n--- Homogénéité des Clusters (ClustOfVar) ---\n")
+          # Afficher la qualité des clusters (si disponible)
+          print(objet_clustering$Homogeneite)
+        }
+        
+        if (!is.null(file)) {
+          sink() # Rétablit l'affichage console
+          message(paste("Rapport généré dans:", file))
+        }
+        
+        invisible(objet_clustering)
       }
-      return(stats_list)
-    },
-    
-    #' @description Génère un rapport textuel complet
-    generate_report = function(objet_clustering, file = NULL) {
-      if (!is.null(file)) {
-        sink(file = file)
-      }
-      
-      cat("=========================================\n")
-      cat("     RAPPORT D'ANALYSE DE CLUSTERING\n")
-      cat("=========================================\n\n")
-      
-      # Résumé de base
-      objet_clustering$summary()
-      
-      # Qualité
-      tryCatch({
-        inertie <- objet_clustering$inertie()
-        cat("\n--- Qualité du clustering ---\n")
-        cat("Inertie expliquée :", round(inertie$pct_expliquee, 2), "%\n")
-      }, error = function(e) {})
-      
-      # Taille des groupes
-      cat("\n--- Taille des Groupes ---\n")
-      print(table(objet_clustering$Groupes))
-      
-      cat("\n=========================================\n")
-      
-      if (!is.null(file)) {
-        sink()
-        message("Rapport généré et sauvegardé dans : ", file)
-      }
-      
-      invisible(objet_clustering)
-    }
+    )
   )
 )
-
