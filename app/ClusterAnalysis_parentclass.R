@@ -95,6 +95,192 @@ ClusterAnalysis <- R6Class("ClusterAnalysis",
       stop("La méthode 'fit()' doit être implémentée dans la classe héritée.")
     },
     
+    #' @description Prédire l'appartenance aux clusters pour des variables illustratives
+    #' @param X Data frame de variables illustratives (même nombre d'observations)
+    #' @return Data frame avec les résultats de prédiction pour chaque variable
+    predict = function(X) {
+      if (!private$FFitted) {
+        stop("Le modèle doit être ajusté avec $fit() d'abord")
+      }
+      
+      if (!is.data.frame(X)) {
+        if (is.matrix(X)) X <- as.data.frame(X)
+        else stop("X doit être un data frame ou une matrice")
+      }
+      
+      if (nrow(X) != nrow(private$FX)) {
+        stop(paste0("X doit avoir ", nrow(private$FX), " observations (comme fit)"))
+      }
+      
+      groupes <- private$FGroupes
+      resultats <- data.frame(
+        variable = character(), type = character(), cluster_assigne = integer(),
+        indicateur = character(), valeur = numeric(), interpretation = character(),
+        stringsAsFactors = FALSE
+      )
+      
+      for (var_name in names(X)) {
+        var_data <- X[[var_name]]
+        
+        if (is.numeric(var_data)) {
+          correlations <- numeric(private$FNbGroupes)
+          for (k in 1:private$FNbGroupes) {
+            cluster_k <- as.numeric(groupes == k)
+            correlations[k] <- abs(cor(var_data, cluster_k, use = "pairwise.complete.obs"))
+          }
+          best_cluster <- which.max(correlations)
+          
+          var_total <- var(var_data, na.rm = TRUE)
+          if (var_total > 0) {
+            var_intra <- sum(tapply(var_data, groupes, var, na.rm = TRUE) * 
+                            table(groupes), na.rm = TRUE) / nrow(X)
+            eta_squared <- 1 - (var_intra / var_total)
+          } else {
+            eta_squared <- 0
+          }
+          
+          interpretation <- if (eta_squared > 0.3) {
+            paste0("Forte association (cluster ", best_cluster, " dominant)")
+          } else if (eta_squared > 0.1) {
+            paste0("Association modérée (cluster ", best_cluster, ")")
+          } else "Faible association"
+          
+          resultats <- rbind(resultats, data.frame(
+            variable = var_name, type = "numérique", cluster_assigne = best_cluster,
+            indicateur = "eta²", valeur = eta_squared, interpretation = interpretation,
+            stringsAsFactors = FALSE
+          ))
+        } else if (is.factor(var_data)) {
+          contingency <- table(groupes, var_data)
+          chi2 <- suppressWarnings(chisq.test(contingency, correct = FALSE)$statistic)
+          n <- sum(contingency)
+          min_dim <- min(nrow(contingency) - 1, ncol(contingency) - 1)
+          cramer_v <- sqrt(chi2 / (n * min_dim))
+          
+          proportions <- prop.table(contingency, 1)
+          best_cluster <- which.max(apply(proportions, 1, max))
+          
+          interpretation <- if (cramer_v > 0.3) {
+            paste0("Forte dépendance (cluster ", best_cluster, ")")
+          } else if (cramer_v > 0.1) {
+            paste0("Dépendance modérée (cluster ", best_cluster, ")")
+          } else "Faible dépendance"
+          
+          resultats <- rbind(resultats, data.frame(
+            variable = var_name, type = "catégorielle", cluster_assigne = best_cluster,
+            indicateur = "Cramer's V", valeur = cramer_v, interpretation = interpretation,
+            stringsAsFactors = FALSE
+          ))
+        }
+      }
+      return(resultats)
+    },
+    
+    #' @description Méthode du coude (Elbow) pour identifier k optimal
+    #' @param X Data frame de données numériques
+    #' @param k_max Nombre maximum de clusters (défaut: 10)
+    #' @param plot Afficher le graphique (défaut: TRUE)
+    #' @return Vecteur des inerties intra-cluster
+    elbow_method = function(X, k_max = 10, plot = TRUE) {
+      if (!is.data.frame(X) && !is.matrix(X)) stop("X doit être un data frame ou matrice")
+      X <- as.data.frame(X)
+      if (!all(sapply(X, is.numeric))) {
+        stop("Méthode du coude: données numériques uniquement")
+      }
+      if (k_max < 2) stop("k_max doit être >= 2")
+      if (k_max >= nrow(X)) {
+        warning("k_max trop grand, réduction")
+        k_max <- nrow(X) - 1
+      }
+      
+      message("Calcul méthode du coude k=1:", k_max, "...")
+      X_clean <- na.omit(X)
+      if (nrow(X_clean) < k_max) stop("Trop de NA")
+      X_scaled <- scale(X_clean)
+      
+      inerties <- numeric(k_max)
+      inerties[1] <- sum(X_scaled^2)
+      
+      for (k in 2:k_max) {
+        tryCatch({
+          km <- kmeans(X_scaled, centers = k, nstart = 10, iter.max = 100)
+          inerties[k] <- km$tot.withinss
+        }, error = function(e) {
+          warning("Erreur k=", k)
+          inerties[k] <- NA
+        })
+      }
+      
+      if (plot) {
+        plot(1:k_max, inerties, type = "b", pch = 19, 
+             xlab = "Nombre de clusters (k)", ylab = "Inertie intra-cluster",
+             main = "Méthode du coude (Elbow Method)", col = "steelblue", lwd = 2)
+        grid()
+        
+        if (k_max >= 3) {
+          diff2 <- diff(diff(inerties))
+          k_suggest <- which.max(abs(diff2)) + 1
+          abline(v = k_suggest, col = "red", lty = 2, lwd = 2)
+          legend("topright", legend = paste0("k suggéré = ", k_suggest),
+                 col = "red", lty = 2, lwd = 2)
+        }
+      }
+      message("✓ Terminé")
+      return(invisible(inerties))
+    },
+    
+    #' @description Méthode Silhouette pour identifier k optimal
+    #' @param X Data frame de données numériques
+    #' @param k_max Nombre maximum de clusters (défaut: 10)
+    #' @param plot Afficher le graphique (défaut: TRUE)
+    #' @return Vecteur des silhouettes moyennes
+    silhouette_method = function(X, k_max = 10, plot = TRUE) {
+      if (!requireNamespace("cluster", quietly = TRUE)) {
+        stop("Package 'cluster' requis. Installez: install.packages('cluster')")
+      }
+      if (!is.data.frame(X) && !is.matrix(X)) stop("X doit être data frame ou matrice")
+      X <- as.data.frame(X)
+      if (!all(sapply(X, is.numeric))) {
+        stop("Méthode silhouette: données numériques uniquement")
+      }
+      if (k_max < 2) stop("k_max >= 2")
+      if (k_max >= nrow(X)) {
+        warning("k_max trop grand")
+        k_max <- nrow(X) - 1
+      }
+      
+      message("Calcul silhouette k=2:", k_max, "...")
+      X_clean <- na.omit(X)
+      if (nrow(X_clean) < k_max) stop("Trop de NA")
+      X_scaled <- scale(X_clean)
+      
+      silhouettes <- numeric(k_max - 1)
+      for (k in 2:k_max) {
+        tryCatch({
+          km <- kmeans(X_scaled, centers = k, nstart = 10, iter.max = 100)
+          sil <- cluster::silhouette(km$cluster, dist(X_scaled))
+          silhouettes[k - 1] <- mean(sil[, 3])
+        }, error = function(e) {
+          warning("Erreur k=", k)
+          silhouettes[k - 1] <- NA
+        })
+      }
+      
+      if (plot) {
+        plot(2:k_max, silhouettes, type = "b", pch = 19,
+             xlab = "Nombre de clusters (k)", ylab = "Silhouette moyenne",
+             main = "Méthode de la Silhouette", col = "darkgreen", lwd = 2)
+        grid()
+        abline(h = c(0.5, 0.7), col = c("orange", "red"), lty = 2)
+        k_optimal <- which.max(silhouettes) + 1
+        abline(v = k_optimal, col = "blue", lty = 2, lwd = 2)
+        legend("topright", 
+               legend = c("Bonne (0.5)", "Forte (0.7)", paste0("k opt = ", k_optimal)),
+               col = c("orange", "red", "blue"), lty = 2, lwd = 2, cex = 0.8)
+      }
+      message("✓ Terminé. Interprétation: >0.7=forte, 0.5-0.7=bonne, 0.25-0.5=faible, <0.25=aucune")
+      return(invisible(silhouettes))
+    },
     #' @description Obtenir les valeurs test pour les modalités d'une variable catégorielle
     #' @param var_name Nom de la variable catégorielle
     #' @param modalite Modalité à tester

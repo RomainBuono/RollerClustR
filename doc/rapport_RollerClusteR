@@ -1,0 +1,686 @@
+\documentclass[11pt,a4paper]{article}
+
+% ============================================================
+% PACKAGES
+% ============================================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{fancyvrb} 
+\usepackage{parskip} % Espacement entre les paragraphes
+
+% ============================================================
+% CONFIGURATION
+% ============================================================
+\geometry{margin=2.5cm}
+
+% Configuration des listings R
+\lstset{
+ language=R,
+ basicstyle=\ttfamily\small,
+ keywordstyle=\color{blue},
+ commentstyle=\color{gray},
+ stringstyle=\color{red},
+ numbers=left,
+ numberstyle=\tiny\color{gray},
+ breaklines=true,
+ frame=single,
+ captionpos=b
+}
+
+% Commandes personnalisées
+\newcommand{\code}[1]{\texttt{#1}}
+\newtheorem{definition}{Définition}
+\newtheorem{theorem}{Théorème}
+\newtheorem{proposition}{Proposition}
+\newtheorem{note}{Note}
+\newcommand{\pkgname}{\textbf{\textsf{ClusterRTools}}}
+
+% ============================================================
+% TITRE
+% ============================================================
+\title{\textbf{Documentation Technique du Package R \pkgname{}} \\
+   \Large Algorithmes de Clustering et Outils d'Interprétation}
+\author{Projet Package R de Clustering -- M2 SISE}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Ce document fournit la documentation technique du package R \pkgname{}, une collection d'outils pour l'analyse de clustering en environnement R. Le package propose une architecture orientée objet (R6) incluant plusieurs algorithmes standards, des méthodes d'évaluation et un \textit{wrapper} pour simplifier l'accès et la sélection des modèles. L'accent est mis sur la classe parente abstraite et l'implémentation de la méthode d'interprétation \code{predict()}.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% ============================================================
+\section{Structure du Package \pkgname{}}
+% ============================================================
+
+Le package \pkgname{} adopte une architecture orientée objet basée sur le système de classes \textbf{R6}, facilitant l'héritage, la modularité et la gestion d'états (le modèle ajusté).
+
+\subsection{Architecture Orientée Objet (R6)}
+
+L'approche R6 permet de définir une classe parente abstraite (\code{ClusterAnalysis}) qui centralise les fonctionnalités transversales (évaluation, interprétation) et délègue les méthodes spécifiques à chaque algorithme (\code{fit}) aux classes filles.
+
+\begin{figure}[h]
+\centering
+\begin{verbatim}
+ClusterAnalysis (Classe Abstraite)
+|-- predict()
+|-- elbow_method()
+|-- silhouette_score()
+|-- ...
+|   |
+|   +-> Kmeans (Classe Fille)
+|   +-> CAH (Classe Fille)
+|   +-> Kprototypes (Classe Fille)
+|   +-> ClustOfVar (Classe Fille)
+|   +-> ...
+\end{verbatim}
+\caption{Hiérarchie des classes du package \pkgname{}}
+\label{fig:architecture}
+\end{figure}
+
+
+\subsection{Organisation des Fichiers}
+
+Le package est organisé autour des fichiers clés suivants :
+\begin{itemize}
+  \item \code{R/ClusterAnalysis.R} : Définition de la classe parente.
+  \item \code{R/algo\_*.R} : Définition de chaque algorithme de clustering.
+  \item \code{R/wrapper.R} : Implémentation des classes R6 du \textbf{Wrapper} (\code{Factory}, \code{Evaluator}, \code{Helper}).
+  \item \code{R/user\_functions.R} : Fonctions d'interface utilisateur (API).
+  \item \code{inst/shiny/} : Contient l'application Shiny.
+\end{itemize}
+
+% ============================================================
+\section{Classe Parentale \code{ClusterAnalysis}}
+% ============================================================
+
+La classe \code{ClusterAnalysis} est le cœur du package. Elle définit l'interface commune pour tous les algorithmes de clustering et implémente les outils d'interprétation et de validation.
+
+\subsection{Attributs et Méthodes}
+
+\begin{itemize}
+  \item \textbf{Attributs privés} : \code{private\$FX} (données d'entrée), \code{private\$FGroupes} (résultat de l'assignation), \code{private\$FNbGroupes} (nombre de clusters $K$), \code{private\$FFitted} (booléen indiquant l'ajustement du modèle).
+  \item \textbf{Méthode abstraite} : \code{public$fit(data)} : Doit être implémentée par chaque classe fille.
+  \item \textbf{Méthodes concrètes} : \code{public$predict(X)}, \code{public$get\_groups()}, \code{public$plot()}.
+\end{itemize}
+
+\subsection{Méthode d'Interprétation \code{predict(X)}}
+\label{sec:predict_latex}
+
+La méthode \code{predict(X)} est centrale et implémentée dans la classe parente pour être réutilisée par tous les algorithmes. Elle est dédiée à l'analyse de l'association entre des variables illustratives $X$ et la partition obtenue.
+
+% CONTENU DE predict_latex_part.tex RÉINSÉRÉ
+
+% ============================================================
+\section{Introduction de la méthode predict()}
+% ============================================================
+
+\subsection{Contexte et Motivation}
+
+En clustering non supervisé, l'interprétation des groupes obtenus constitue une étape cruciale de l'analyse. Une approche classique consiste à examiner l'association entre la partition et des \textbf{variables illustratives} (ou \textit{variables supplémentaires}), c'est-à-dire des variables qui n'ont pas été utilisées pour construire le clustering mais qui peuvent aider à caractériser et interpréter les groupes formés.
+
+\subsection{Objectif de la Méthode}
+
+La méthode \code{\$predict(X)} répond à la question suivante :
+
+\begin{quote}
+\textit{"Comment des variables externes $X$ (que je n'ai pas utilisées pour le clustering) sont-elles associées aux clusters que j'ai obtenus ?"}
+\end{quote}
+
+\subsection{Principe Fondamental}
+
+Malgré son nom, \code{predict()} ne réalise \textbf{aucune prédiction} au sens du machine learning supervisé. Il s'agit d'une \textbf{analyse d'association statistique a posteriori} entre :
+\begin{itemize}
+  \item Une ou plusieurs variables illustratives $X = (X_1, \ldots, X_p)$
+  \item La partition $\mathcal{P} = \{C_1, \ldots, C_K\}$ obtenue par clustering
+\end{itemize}
+
+Cette analyse est \textbf{indépendante de l'algorithme de clustering} utilisé (K-means, CAH, K-prototypes, etc.), car elle ne dépend que du vecteur d'assignation aux clusters.
+
+% ============================================================
+\section{Variables Numériques : Rapport de Corrélation ($\eta^2$)}
+% ============================================================
+
+\subsection{Définition et Interprétation}
+
+Le \textbf{rapport de corrélation} $\eta^2$ mesure l'association entre une variable numérique $X$ et une partition catégorielle $\mathcal{P}$.
+
+\begin{definition}[Rapport de corrélation]
+Le rapport de corrélation $\eta^2$ entre une variable numérique $X$ et une partition $\mathcal{P}$ est défini par :
+\begin{equation}
+\eta^2(X, \mathcal{P}) = \frac{\text{Var}_{\text{inter}}(X)}{\text{Var}_{\text{totale}}(X)} = 1 - \frac{\text{Var}_{\text{intra}}(X)}{\text{Var}_{\text{totale}}(X)}
+\end{equation}
+\end{definition}
+
+\textbf{Interprétation} : $\eta^2$ représente la \textbf{proportion de variance de $X$ expliquée par la partition} $\mathcal{P}$.
+
+\subsection{Formule de Calcul Implémentée}
+
+\begin{equation}
+\boxed{\eta^2 = 1 - \frac{\text{Var}_{\text{intra}}}{\text{Var}_{\text{totale}}} = 1 - \frac{\frac{1}{n} \sum_{k=1}^{K} n_k \sigma_k^2}{\text{Var}(X)}}
+\end{equation}
+
+% ============================================================
+\section{Variables Catégorielles : Coefficient V de Cramér}
+% ============================================================
+
+\subsection{Définition et Interprétation}
+
+Le \textbf{coefficient V de Cramér} mesure l'intensité de la dépendance entre deux variables catégorielles : la variable illustrative $X$ et la partition $\mathcal{P}$.
+
+\begin{definition}[Coefficient V de Cramér]
+Soit $X$ une variable catégorielle à $c$ modalités et $\mathcal{P}$ une partition en $K$ clusters. Le coefficient V de Cramér est défini par :
+\begin{equation}
+V = \sqrt{\frac{\chi^2}{n \times \min(K-1, c-1)}}
+\end{equation}
+où $\chi^2$ est la statistique du test du chi-deux d'indépendance.
+\end{definition}
+
+\textbf{Interprétation} : $V$ prend ses valeurs dans $[0, 1]$ :
+\begin{itemize}
+  \item $V = 0$ : Indépendance totale entre $X$ et $\mathcal{P}$
+  \item $V = 1$ : Dépendance maximale
+\end{itemize}
+
+% ============================================================
+\section{Implémentation Algorithmique}
+% ============================================================
+
+\subsection{Algorithme Général}
+
+\begin{algorithm}[H]
+\caption{Méthode \texttt{predict(X)} -- Analyse de variables illustratives}
+\begin{algorithmic}[1]
+\REQUIRE $X$ : data frame de variables illustratives ($n \times p$)
+\REQUIRE $g$ : vecteur d'assignation aux clusters ($n \times 1$)
+\REQUIRE $K$ : nombre de clusters
+\ENSURE Data frame avec les indicateurs d'association pour chaque variable
+\STATE Initialiser \textit{resultats} $\leftarrow$ data.frame vide
+\FOR{chaque variable $X_j$ dans $X$}
+  \IF{$X_j$ est numérique}
+    \STATE Calculer $\eta^2(X_j, g)$
+    \STATE Ajouter le résultat
+  \ELSIF{$X_j$ est catégorielle}
+    \STATE Calculer $V(X_j, g)$
+    \STATE Ajouter le résultat
+  \ENDIF
+\ENDFOR
+\RETURN \textit{resultats}
+\end{algorithmic}
+\end{algorithm}
+
+% ============================================================
+\section{Algorithme de Clustering 1 : K-means}
+% ============================================================
+
+\subsection{Classe \code{Kmeans}}
+
+\begin{itemize}
+  \item \textbf{Nature} : Clustering partitionnel, non supervisé.
+  \item \textbf{Distance} : Distance euclidienne.
+  \item \textbf{Prototype} : Moyenne (centre de gravité) du cluster.
+  \item \textbf{Conditions} : Ne fonctionne qu'avec des variables \textbf{numériques}.
+\end{itemize}
+
+\subsection{Implémentation R}
+
+La classe \code{Kmeans} hérite de \code{ClusterAnalysis} et surcharge la méthode \code{fit()}.
+
+\begin{lstlisting}[caption={Extrait de la méthode \code{fit()} de la classe Kmeans}]
+Kmeans <- R6::R6Class("Kmeans", inherit = ClusterAnalysis,
+ public = list(
+  initialize = function(k, nstart = 10) {
+   super$initialize(k)
+   private$FStart <- nstart
+  },
+  fit = function(data) {
+   if (!all(sapply(data, is.numeric))) {
+    stop("Kmeans ne peut etre applique qu'a des variables numeriques.")
+   }
+   # Utilisation de stats::kmeans
+   model_fit <- stats::kmeans(data, centers = private$FK, nstart = private$FStart)
+   private$FGroupes <- model_fit$cluster
+   private$FModel <- model_fit
+   private$FFitted <- TRUE
+   invisible(self)
+  }
+ )
+)
+\end{lstlisting}
+
+% ============================================================
+\section{Algorithme de Clustering 2 : CAH (Classification Ascendante Hiérarchique)}
+% ============================================================
+
+\subsection{Classe \code{CAH}}
+
+\begin{itemize}
+  \item \textbf{Nature} : Clustering hiérarchique, agglomératif.
+  \item \textbf{Distance} : Au choix (\code{euclidean}, \code{maximum}, etc.).
+  \item \textbf{Lien} : Au choix (\code{ward.D2}, \code{average}, etc.).
+  \item \textbf{Conditions} : Variables \textbf{numériques}. Le découpage final en $K$ clusters se fait \textit{a posteriori} (\code{cutree}).
+\end{itemize}
+
+\subsection{Implémentation R}
+
+\begin{lstlisting}[caption={Extrait de la méthode \code{fit()} de la classe CAH}]
+CAH <- R6::R6Class("CAH", inherit = ClusterAnalysis,
+ public = list(
+  initialize = function(k, method = "ward.D2", metric = "euclidean") {
+   super$initialize(k)
+   private$FMethod <- method
+   private$FMetric <- metric
+  },
+  fit = function(data) {
+   if (!all(sapply(data, is.numeric))) {
+    stop("CAH ne peut etre applique qu'a des variables numeriques.")
+   }
+   # 1. Calcul de la matrice de distance
+   d <- dist(data, method = private$FMetric)
+   # 2. Application de la CAH
+   model_fit <- hclust(d, method = private$FMethod)
+   # 3. Découpage en K groupes
+   private$FGroupes <- cutree(model_fit, k = private$FK)
+   private$FModel <- model_fit
+   private$FFitted <- TRUE
+   invisible(self)
+  }
+ )
+)
+\end{lstlisting}
+
+% ============================================================
+\section{Algorithme de Clustering 3 : K-Prototypes}
+% ============================================================
+
+\subsection{Classe \code{Kprototypes}}
+
+\begin{itemize}
+  \item \textbf{Nature} : Clustering partitionnel pour données mixtes.
+  \item \textbf{Distance} : Hybride (Euclidienne pour le numérique, Simple Matching pour le catégoriel).
+  \item \textbf{Prototype} : Moyenne (numérique) et Mode (catégoriel).
+  \item \textbf{Conditions} : Variables \textbf{numériques} et \textbf{catégorielles (factors)}. Nécessite la spécification d'un facteur de pondération $\lambda$ (\code{lambda}).
+\end{itemize}
+
+\subsection{Implémentation R}
+
+Nous utilisons le package \code{kproto} ou \code{kmodes} pour l'implémentation, en gérant la conversion des types de données.
+
+\begin{lstlisting}[caption={Extrait de la méthode \code{fit()} de la classe Kprototypes}]
+Kprototypes <- R6::R6Class("Kprototypes", inherit = ClusterAnalysis,
+ public = list(
+  initialize = function(k, lambda = "auto") {
+   super$initialize(k)
+   private$FLambda <- lambda
+  },
+  fit = function(data) {
+   if (!requireNamespace("kproto", quietly = TRUE)) {
+    stop("Le package 'kproto' est requis pour Kprototypes.")
+   }
+   # Séparer les colonnes numériques et catégorielles
+   num_cols <- sapply(data, is.numeric)
+   cat_cols <- sapply(data, is.factor)
+  
+   # Calcul automatique de lambda (si demandé)
+   lambda_val <- private$FLambda
+   if (lambda_val == "auto") {
+    # Valeur par défaut simplifiée pour l'exemple
+    lambda_val <- 0.5 
+   }
+  
+   # Application de k-prototypes
+   model_fit <- kproto::kproto(data, k = private$FK, lambda = lambda_val)
+   private$FGroupes <- model_fit$cluster
+   private$FModel <- model_fit
+   private$FFitted <- TRUE
+   invisible(self)
+  }
+ )
+)
+\end{lstlisting}
+
+% ============================================================
+\section{Algorithme de Clustering 4 : ClustOfVar (Clustering de Variables)}
+% ============================================================
+
+\subsection{Classe \code{ClustOfVar}}
+
+\begin{itemize}
+  \item \textbf{Nature} : Clustering des \textbf{variables} et non des individus.
+  \item \textbf{Objectif} : Réduction de dimensionnalité et interprétation. Regrouper les variables fortement corrélées (numériques) ou liées (catégorielles).
+  \item \textbf{Conditions} : Fonctionne sur données \textbf{mixtes}. Nécessite le package \code{ClustOfVar}.
+\end{itemize}
+
+\subsection{Note sur l'Implémentation}
+
+Comme ce n'est pas un clustering d'individus, la méthode \code{fit()} doit stocker le résultat du clustering de variables, et la méthode \code{predict()} héritée s'appliquera sur les individus en utilisant la partition des variables pour l'interprétation. Cependant, par simplicité et pour rester dans le cadre du plan, nous le présentons comme un algorithme standard.
+
+\begin{lstlisting}[caption={Extrait de la méthode \code{fit()} de la classe ClustOfVar}]
+ClustOfVar <- R6::R6Class("ClustOfVar", inherit = ClusterAnalysis,
+ public = list(
+  initialize = function(k) {
+   super$initialize(k)
+  },
+  fit = function(data) {
+   if (!requireNamespace("ClustOfVar", quietly = TRUE)) {
+    stop("Le package 'ClustOfVar' est requis.")
+   }
+   # Clustering des variables
+   model_var <- ClustOfVar::hclustvar(data)
+   # Découpage en K groupes de variables
+   groupes_var <- ClustOfVar::cutreevar(model_var, k = private$FK)
+  
+   # Pour une cohérence avec ClusterAnalysis, nous stockons l'assignation
+   # des variables (et non des individus) pour les méthodes d'analyse de variables illustratives.
+   private$FGroupes <- groupes_var$cluster # Ceci est l'assignation des colonnes/variables
+   private$FModel <- groupes_var
+   private$FFitted <- TRUE
+   invisible(self)
+  }
+ )
+)
+\end{lstlisting}
+
+% ============================================================
+\section{Le Wrapper (Outils d'Automatisation)} % TITRE MODIFIÉ
+% ============================================================
+
+Le système de \textbf{Wrapper} est une couche R6 qui fournit des outils d'aide à la décision (évaluation, comparaison) et des fonctions utilitaires (export, rapport), facilitant l'interaction avec les objets \code{ClusterAnalysis}.
+
+\subsection{La Classe \code{ClusteringFactory} (Création des objets)} % SUBSECTION MODIFIÉE
+
+La \code{ClusteringFactory} est responsable de l'initialisation et de l'ajustement immédiat des différents algorithmes de clustering (e.g., \code{create\_cah\_kmeans}, \code{create\_kprototypes}), gérant le paramétrage initial comme la standardisation (\code{cr}) et le démarrage de l'ajustement (\code{fit\_now}).
+
+\begin{lstlisting}[caption={Extrait de la classe \code{ClusteringFactory}}]
+ClusteringFactory <- R6Class("ClusteringFactory",
+  public = list(
+    create_cah_kmeans = function(X, k = 2, cr = TRUE, fit_now = TRUE, ...) {
+      obj <- CAH_Kmeans$new(k = k, cr = cr, ...)
+      if (fit_now) {
+        obj$fit(X, ...)
+      }
+      return(obj)
+    },
+    create_kprototypes = function(X, k = 3, lambda = 0.5, fit_now = TRUE, ...) {
+      obj <- Kprototypes$new(k = k, lambda = lambda, ...)
+      if (fit_now) {
+        obj$fit(X, ...)
+      }
+      return(obj)
+    }
+  )
+)
+\end{lstlisting}
+
+\subsection{La Classe \code{ClusteringEvaluator} (Évaluation de k)} % SUBSECTION MODIFIÉE
+
+Cette classe gère les méthodes d'évaluation interne, notamment l'identification du nombre optimal de clusters $K$ (méthode du Coude). Elle crée et teste dynamiquement des modèles pour une plage de valeurs de $K$ et agrège leurs métriques de qualité (inertie intra-cluster).
+
+\begin{lstlisting}[caption={Extrait de la méthode \code{elbow\_method()} de l'Evaluator}]
+ClusteringEvaluator <- R6Class("ClusteringEvaluator",
+  public = list(
+    elbow_method = function(X, max_k = 10, method = "cah_kmeans", ...) {
+      factory <- ClusteringFactory$new()
+      inertias <- numeric(max_k)
+      
+      for (k in 2:max_k) {
+        # Création du modèle via la Factory
+        model <- switch(method, ...) 
+        
+        if (!is.null(model)) {
+          inertia_data <- model$inertie()$intra
+          inertias[k] <- inertia_data
+        }
+      }
+      # ... Code pour la création du graphique ggplot2 ...
+      return(list(plot = p, data = data_plot))
+    }
+  )
+)
+\end{lstlisting}
+
+\subsection{La Classe \code{ClusteringComparator} (Comparaison de modèles)} % SUBSECTION MODIFIÉE
+
+La classe \code{ClusteringComparator} est dédiée à la comparaison des résultats entre différents objets de clustering (potentiellement de classes différentes) sur le même jeu de données, principalement en utilisant les métriques d'inertie.
+
+\begin{lstlisting}[caption={Extrait de la méthode \code{compare\_inertia} du Comparator}]
+ClusteringComparator <- R6Class("ClusteringComparator",
+  public = list(
+    compare_inertia = function(...) {
+      models <- list(...)
+      results <- list()
+      
+      for (i in seq_along(models)) {
+        model <- models[[i]]
+        # Tentative d'extraction de l'inertie
+        inertia_data <- tryCatch({
+          inertie <- model$inertie()
+          data.frame(
+            Modèle = model_name,
+            Inertie_Intra = inertie$intra,
+            Pct_Expliquee = inertie$pct_expliquee
+          )
+        }, error = function(e) { ... })
+        results[[i]] <- inertia_data
+      }
+      return(do.call(rbind, results))
+    }
+  )
+)
+\end{lstlisting}
+
+\subsection{La Classe \code{ClusteringHelper} (Rapport et export)} % SUBSECTION MODIFIÉE
+
+Le \code{ClusteringHelper} regroupe des fonctions utilitaires de fin de chaîne comme la génération de rapports synthétiques (\code{generate\_report}) et l'exportation des résultats.
+
+\begin{lstlisting}[caption={Extrait de la méthode \code{generate\_report} du Helper}]
+ClusteringHelper <- R6Class("ClusteringHelper",
+  public = list(
+    generate_report = function(objet_clustering, file = NULL) {
+      if (!is.null(file)) { sink(file = file) }
+      
+      cat("=========================================\n")
+      cat("       RAPPORT D'ANALYSE DE CLUSTERING\n")
+      
+      # Résumé de base (appelle la méthode $summary() de l'objet)
+      objet_clustering$summary()
+      
+      # Qualité et taille des groupes
+      tryCatch({ ... })
+      
+      if (!is.null(file)) { sink() }
+      invisible(objet_clustering)
+    }
+  )
+)
+\end{lstlisting}
+
+% ============================================================
+\section{Fonctions Utilisateurs (Interface Simplifiée)} % TITRE MODIFIÉ
+% ============================================================
+
+Ces fonctions sont l'interface utilisateur (API) du package, masquant la complexité des classes R6 sous-jacentes et des *Wrappers*.
+
+\subsection{Fonction $n^\circ 1$ : \code{faire\_clustering()} (Clustering Simplifié)} % SUBSECTION MODIFIÉE
+
+C'est la fonction principale de lancement. Elle choisit automatiquement l'algorithme (\code{Kmeans}, \code{Kprototypes}) en fonction du type de données (numériques vs mixtes) ou permet à l'utilisateur de spécifier la méthode. Elle utilise la \code{ClusteringFactory} en interne.
+
+\begin{lstlisting}[caption={Fonction \code{faire\_clustering()}}]
+faire_clustering <- function(data, k = 3, method = "auto", standardiser = TRUE, ...) {
+ # Validation
+ if (!is.data.frame(data)) { stop("'data' doit être un data frame") }
+ 
+ # Déterminer la méthode ('auto' ou spécifiée)
+ if (method == "auto") {
+  # ... Logique pour choisir "cah_kmeans" ou "kprototypes" ...
+ }
+ 
+ # Créer l'objet selon la méthode via la Factory
+ factory <- ClusteringFactory$new()
+ obj <- switch(method,
+  cah_kmeans = factory$create_cah_kmeans(data, k = k, cr = standardiser, fit_now = TRUE, ...),
+  kmeans = factory$create_kmeans(data, k = k, cr = standardiser, fit_now = TRUE, ...),
+  # ... autres méthodes ...
+  stop("Méthode inconnue...")
+ )
+ 
+ return(obj)
+}
+\end{lstlisting}
+
+\subsection{Fonction $n^\circ 2$ : \code{clustering\_complet()} (Workflow tout-en-un)} % SUBSECTION MODIFIÉE
+
+Cette fonction orchestre un pipeline complet d'analyse de clustering en quatre étapes : recherche du $K$ optimal, clustering final, analyse des variables illustratives et export des résultats/rapports.
+
+\begin{lstlisting}[caption={Extrait de la fonction \code{clustering\_complet()}}]
+clustering_complet <- function(data, 
+               variables_illustratives = NULL,
+               k_min = 2, k_max = 6, k_final = NULL,
+               method = "cah_kmeans", fichier_rapport = NULL) {
+ 
+ # Étape 1 : Trouver k optimal
+ resultats_k <- trouver_k_optimal(data, k_min = k_min, k_max = k_max, method = method)
+ evaluator <- ClusteringEvaluator$new(data)
+ k_final <- evaluator$get_best_k(resultats_k) # Sélectionne le meilleur k
+ 
+ # Étape 2 : Clustering final
+ objet_clustering <- faire_clustering(data, k = k_final, method = method)
+ 
+ # Étape 3 : Variables illustratives
+ if (!is.null(variables_illustratives)) {
+  analyser_illustratives(objet_clustering, variables_illustratives)
+ }
+ 
+ # Étape 4 : Export
+ generer_rapport(objet_clustering, fichier = fichier_rapport)
+ 
+ return(list(objet = objet_clustering, ...))
+}
+\end{lstlisting}
+
+\subsection{Fonction $n^\circ 3$ : \code{analyser\_illustratives()} (Interprétation)} % SUBSECTION MODIFIÉE
+
+Cette fonction enveloppe la méthode \code{\$predict()} de la classe mère pour analyser les variables externes (illustratives). Elle affiche le tableau des indicateurs de liaison ($\eta^2$, $V$ de Cramér) et fournit une interprétation textuelle simplifiée pour chaque variable.
+
+\begin{lstlisting}[caption={Fonction \code{analyser\_illustratives()}}]
+analyser_illustratives <- function(objet_clustering, 
+                 variables_illustratives, afficher = TRUE) {
+ # Validation
+ if (!inherits(objet_clustering, "ClusterAnalysis")) {
+  stop("objet_clustering doit hériter de ClusterAnalysis")
+ }
+ 
+ # Utiliser predict() de la classe R6
+ resultats <- objet_clustering$predict(variables_illustratives)
+ 
+ # Affichage et interprétation
+ if (afficher) {
+  cat("=== ANALYSE DES VARIABLES ILLUSTRATIVES ===\n\n")
+  print(resultats)
+  # ... Logique d'interprétation ...
+ }
+ 
+ return(invisible(resultats))
+}
+\end{lstlisting}
+
+\subsection{Fonction $n^\circ 4$ : \code{trouver\_k\_optimal()} (Évaluation)} % SUBSECTION MODIFIÉE
+
+Cette fonction utilise la classe \code{ClusteringEvaluator} pour calculer les métriques de qualité (e.g. Inertie expliquée) sur une plage de $K$ et, si l'option est activée, affiche le graphique de la méthode du Coude.
+
+\begin{lstlisting}[caption={Fonction \code{trouver\_k\_optimal()}}]
+trouver_k_optimal <- function(data, k_min = 2, k_max = 10, 
+              method = "cah_kmeans", 
+              afficher_graphique = TRUE, ...) {
+ evaluator <- ClusteringEvaluator$new(data)
+ resultats <- evaluator$evaluate_k(k_range = k_min:k_max, method = method, ...)
+ 
+ if (afficher_graphique && "inertie_expliquee" %in% names(resultats)) {
+  evaluator$plot_evaluation(resultats, criterion = "inertie_expliquee")
+ }
+ 
+ return(resultats)
+}
+\end{lstlisting}
+
+\subsection{Fonction $n^\circ n$ : Fonctions Utilitaires (Rapport et Export)} % SUBSECTION MODIFIÉE
+
+Le package fournit également des fonctions utilitaires clés pour la manipulation des résultats. Nous utilisons \code{exporter\_resultats} comme exemple représentatif de cette catégorie.
+
+\begin{lstlisting}[caption={Fonction \code{exporter\_resultats()}}]
+exporter_resultats <- function(objet_clustering, donnees = NULL, 
+               inclure_donnees = TRUE, fichier = NULL) {
+ helper <- ClusteringHelper$new()
+ resultats <- helper$export_results(objet_clustering, donnees, inclure_donnees)
+ 
+ if (!is.null(fichier)) {
+  write.csv(resultats, file = fichier, row.names = FALSE)
+  message("Résultats exportés dans : ", fichier)
+ }
+ 
+ return(resultats)
+}
+\end{lstlisting}
+
+% ============================================================
+\section{Application Shiny}
+% ============================================================
+
+Une application \textbf{Shiny} est fournie dans le répertoire \code{inst/shiny/} du package, offrant une interface utilisateur graphique (GUI) pour l'exploration interactive des fonctionnalités de \pkgname{}.
+
+\subsection{Architecture de l'Application}
+
+L'application est divisée en plusieurs onglets :
+
+\begin{enumerate}
+  \item \textbf{Importation des Données} : Permet le chargement de fichiers (\code{.csv}, \code{.txt}).
+  \item \textbf{Choix du Modèle} : Sélecteur d'algorithme (\code{Kmeans}, \code{CAH}, \code{Kprototypes}) et de $K$.
+  \item \textbf{Résultats} :
+  \begin{itemize}
+    \item Affichage du tableau d'assignation aux clusters.
+    \item Graphiques de visualisation (ACP, dendrogramme).
+  \end{itemize}
+  \item \textbf{Interprétation} : Interface pour sélectionner des variables illustratives et afficher les résultats de \code{predict()} sous forme de tableaux et de graphiques (barres pour le V de Cramér, boîtes à moustaches pour le $\eta^2$).
+\end{enumerate}
+
+\subsection{Avantages de l'Interface Graphique}
+
+\begin{itemize}
+  \item \textbf{Accessibilité} : Utilisation du package sans codage R intensif.
+  \item \textbf{Visualisation} : Interprétation rapide des clusters grâce aux outils graphiques interactifs.
+  \item \textbf{Exploration} : Essai rapide de différentes valeurs de $K$ et d'algorithmes.
+\end{itemize}
+
+\begin{lstlisting}[caption={Lancement de l'application Shiny}]
+# Lancement de l'application (si le package est installé)
+\pkgname{}::run\_shiny()
+\end{lstlisting}
+
+\newpage
+% ============================================================
+% REFERENCES
+% ============================================================
+\begin{thebibliography}{99}
+\bibitem{lebart2000statistique} L. Lebart, A. Morineau, et M. Piron, \textit{Statistique exploratoire multidimensionnelle}, Dunod, 2000.
+\bibitem{ricco2008} R. Rico, A. Saravia, et F. Martínez, \textit{Statistical analysis of cluster validity indexes}, Statistics and Computing, 2008.
+\bibitem{cramer1946mathematical} H. Cramér, \textit{Mathematical Methods of Statistics}, Princeton University Press, 1946.
+\end{thebibliography}
+
+\end{document}

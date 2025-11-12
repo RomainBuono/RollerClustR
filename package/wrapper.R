@@ -3,7 +3,6 @@
 # Package de clustering R6
 #=========================================
 
-
 # Définition de la classe R6 (nécessite le package R6)
 # library(R6) 
 
@@ -58,17 +57,13 @@ ClusteringFactory <- R6Class("ClusteringFactory",
     #' @description Créer et ajuster un objet ClustOfVar
     #' @param X Data frame ou matrice de données
     #' @param k Nombre de clusters
-    #' @param fit_now Booléen, ajuster le modèle immédiatement
     #' @param ... Paramètres additionnels passés à $new() ou $fit()
     #' @return Objet ClustOfVar
-    create_clustofvar = function(X, k = 2, fit_now = TRUE, ...) {
-      # REMARQUE : Le paramètre 'cr' (centrage/réduction) est retiré de la signature
-      # car il n'est pas utilisé par ClustOfVar$new() (la standardisation est interne).
-      # Cela évite la redondance et clarifie l'API pour cette méthode.
-      
+    create_clustofvar = function(X, k = 3, fit_now = TRUE, ...) {
+      # ClustOfVar ne prend pas 'cr' dans $new() car la standardisation 
+      # est gérée différemment. Cela évite la redondance et clarifie l'API pour cette méthode.
       # Assurez-vous que la classe ClustOfVar est disponible (définit ailleurs)
       obj <- ClustOfVar$new(k = k, ...)
-      
       if (fit_now) {
         # ClustOfVar$fit prend X, max_iter, tolerance etc.
         obj$fit(X, ...)
@@ -79,24 +74,41 @@ ClusteringFactory <- R6Class("ClusteringFactory",
     #' @description Créer et ajuster un objet Kprototypes
     #' @param X Data frame ou matrice de données
     #' @param k Nombre de clusters
-    #' @param lambda Poids relatif des variables catégorielles (défaut: 0.5)
+    #' @param cr Booléen, centrer et réduire les données
     #' @param fit_now Booléen, ajuster le modèle immédiatement
     #' @param ... Paramètres additionnels passés à $new() ou $fit()
     #' @return Objet Kprototypes
-    create_kprototypes = function(X, k = 3, lambda = 0.5, fit_now = TRUE, ...) {
+    create_kprototypes = function(X, k = 3, cr = TRUE, fit_now = TRUE, ...) {
       # Assurez-vous que la classe Kprototypes est disponible (définit ailleurs)
-      obj <- Kprototypes$new(k = k, lambda = lambda, ...)
-      
+      obj <- Kprototypes$new(k = k, cr = cr, ...)
       if (fit_now) {
         # On passe X et les arguments additionnels restants à $fit()
         obj$fit(X, ...)
       }
       return(obj)
+    },
+    
+    # NOUVEAU : Ajouter la méthode Factory pour VarClustAdvanced (metroid.R)
+    #' @description Créer et ajuster un objet VarClustAdvanced (Clustering de Variables Avancé)
+    #' @param X Data frame ou matrice de données
+    #' @param k Nombre de clusters
+    #' @param fit_now Booléen, ajuster le modèle immédiatement
+    #' @param ... Paramètres additionnels passés à $new() ou $fit() (y compris 'method' interne)
+    #' @return Objet VarClustAdvanced
+    create_varclustadvanced = function(X, k = 3, fit_now = TRUE, ...) {
+      # VarClustAdvanced prend des paramètres spécifiques dans $new() comme 'method', 'linkage', 'na_strategy', etc.
+      # L'initialisation est faite avec '...' pour passer tous ces paramètres.
+      # La classe 'VarClustAdvanced' est définie dans 'metroid.R'
+      obj <- VarClustAdvanced$new(k = k, ...) 
+      if (fit_now) {
+        obj$fit(X, ...)
+      }
+      return(obj)
     }
     
-    # ... autres méthodes de la classe (ClusteringComparator, etc.)
-  ),
-  
+  )
+)
+
   # ---------------------------------
   # 2. ClusteringComparator (Comparaison de modèles)
   # ---------------------------------
@@ -152,10 +164,18 @@ ClusteringFactory <- R6Class("ClusteringFactory",
   #' @title ClusteringEvaluator
   #' @description Outil pour évaluer le nombre optimal de clusters
   ClusteringEvaluator <- R6Class("ClusteringEvaluator",
+    private = list(
+      FData = NULL
+    ),
+    
     public = list(
       
-      #' @description Initialiser
-      initialize = function() {
+      #' @description Initialiser avec les données
+      #' @param data Data frame de données (optionnel)
+      initialize = function(data = NULL) {
+        if (!is.null(data)) {
+          private$FData <- data
+        }
         message("ClusteringEvaluator initialisé")
       },
       
@@ -232,6 +252,130 @@ ClusteringFactory <- R6Class("ClusteringFactory",
                xlab = "Nombre de Clusters (k)", ylab = "Inertie Intra-Cluster",
                col = "steelblue", pch = 19)
           return(list(plot = NULL, data = data_plot))
+        }
+      },
+      
+      #' @description Évaluer une plage de k
+      #' @param k_range Vecteur des valeurs de k à tester
+      #' @param method Méthode de clustering
+      #' @param ... Arguments supplémentaires
+      #' @return Data frame avec les résultats
+      evaluate_k = function(k_range = 2:10, method = "cah_kmeans", ...) {
+        
+        X <- if (!is.null(private$FData)) private$FData else stop("Données non fournies")
+        
+        factory <- ClusteringFactory$new()
+        resultats <- data.frame(
+          k = integer(),
+          inertie_totale = numeric(),
+          inertie_intra = numeric(),
+          inertie_inter = numeric(),
+          inertie_expliquee = numeric(),
+          stringsAsFactors = FALSE
+        )
+        
+        for (k in k_range) {
+          message(paste("Évaluation pour k =", k))
+          
+          # Création et ajustement
+          model <- switch(method,
+            cah_kmeans = tryCatch({
+              factory$create_cah_kmeans(X, k = k, fit_now = TRUE, ...)
+            }, error = function(e) { warning(paste("Erreur pour k=", k, ":", e$message)); NULL }),
+            kmeans = tryCatch({
+              factory$create_kmeans(X, k = k, fit_now = TRUE, ...)
+            }, error = function(e) { warning(paste("Erreur pour k=", k, ":", e$message)); NULL }),
+            clustofvar = tryCatch({
+              factory$create_clustofvar(X, k = k, fit_now = TRUE, ...)
+            }, error = function(e) { warning(paste("Erreur pour k=", k, ":", e$message)); NULL }),
+            kprototypes = tryCatch({
+              factory$create_kprototypes(X, k = k, fit_now = TRUE, ...)
+            }, error = function(e) { warning(paste("Erreur pour k=", k, ":", e$message)); NULL }),
+            stop(paste("Méthode non reconnue:", method))
+          )
+          
+          if (!is.null(model)) {
+            # Extraction de l'inertie
+            inertie <- tryCatch({
+              model$inertie()
+            }, error = function(e) {
+              list(totale = NA, intra = NA, inter = NA, pct_expliquee = NA)
+            })
+            
+            resultats <- rbind(resultats, data.frame(
+              k = k,
+              inertie_totale = inertie$totale,
+              inertie_intra = inertie$intra,
+              inertie_inter = inertie$inter,
+              inertie_expliquee = inertie$pct_expliquee
+            ))
+          }
+        }
+        
+        return(resultats)
+      },
+      
+      #' @description Visualiser l'évaluation
+      #' @param resultats Data frame de résultats
+      #' @param criterion Critère à visualiser (défaut: "inertie_expliquee")
+      plot_evaluation = function(resultats, criterion = "inertie_expliquee") {
+        
+        if (!criterion %in% names(resultats)) {
+          stop("Critère non trouvé dans les résultats")
+        }
+        
+        if (requireNamespace("ggplot2", quietly = TRUE)) {
+          p <- ggplot2::ggplot(resultats, ggplot2::aes_string(x = "k", y = criterion)) +
+            ggplot2::geom_point(color = "steelblue", size = 3) +
+            ggplot2::geom_line(color = "steelblue", size = 1) +
+            ggplot2::labs(
+              title = paste("Évaluation du nombre de clusters"),
+              x = "Nombre de Clusters (k)",
+              y = criterion
+            ) +
+            ggplot2::theme_minimal() +
+            ggplot2::scale_x_continuous(breaks = resultats$k)
+          
+          print(p)
+        } else {
+          plot(resultats$k, resultats[[criterion]], type = 'b',
+               main = "Évaluation du nombre de clusters",
+               xlab = "Nombre de Clusters (k)", ylab = criterion,
+               col = "steelblue", pch = 19)
+        }
+        
+        invisible(self)
+      },
+      
+      #' @description Obtenir le meilleur k selon un critère
+      #' @param resultats Data frame de résultats
+      #' @param criterion Critère (défaut: "inertie_expliquee")
+      #' @return Valeur de k recommandée
+      get_best_k = function(resultats, criterion = "inertie_expliquee") {
+        
+        if (!criterion %in% names(resultats)) {
+          warning("Critère non trouvé, retourne NA")
+          return(NA)
+        }
+        
+        # Méthode du coude simple : chercher le point où la pente change le plus
+        valeurs <- resultats[[criterion]]
+        k_values <- resultats$k
+        
+        if (length(valeurs) < 3) {
+          return(k_values[1])
+        }
+        
+        # Calculer les différences de second ordre
+        diff1 <- diff(valeurs)
+        diff2 <- diff(diff1)
+        
+        # Le meilleur k est où la courbure est maximale
+        if (length(diff2) > 0) {
+          idx <- which.max(abs(diff2))
+          return(k_values[idx + 1])
+        } else {
+          return(k_values[2])
         }
       }
     )
