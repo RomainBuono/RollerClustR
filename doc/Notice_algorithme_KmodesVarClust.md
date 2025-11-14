@@ -16,7 +16,7 @@ Le clustering de variables catégorielles présente des défis méthodologiques 
 
 2. **Hétérogénéité des modalités** : Chaque variable peut présenter un nombre différent de modalités, rendant problématique toute tentative de normalisation uniforme.
 
-3. **Nature transposée de l'espace** : Dans le clustering de variables, la matrice de données $$\mathbf{X}_{n \times p}$$ est conceptuellement transposée en $$\mathbf{X}^T_{p \times n}$$, où $p$ variables sont traitées comme observations et $n$ observations originales deviennent les caractéristiques.
+3. **Nature transposée de l'espace** : Dans le clustering de variables, la matrice de données $\mathbf{X}_{n \times p}$ est conceptuellement transposée en $\mathbf{X}^\top_{p \times n}$, où $p$ variables sont traitées comme observations et $n$ observations originales deviennent les caractéristiques.
 
 ### 1.3 Architecture Logicielle
 
