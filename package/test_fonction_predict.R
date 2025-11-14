@@ -1,7 +1,7 @@
 # =================================================================
 # SCRIPT DE TEST : Workflow et fonctionnalité $predict
 # =================================================================
-
+getwd()
 # 1. Chargement des dépendances et des fichiers du package
 
 # Installez R6 si ce n'est pas déjà fait : install.packages("R6")
