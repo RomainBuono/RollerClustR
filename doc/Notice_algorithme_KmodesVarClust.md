@@ -312,9 +312,81 @@ La complexité de prédiction est **$O(Knp')$**, linéaire en le nombre de nouve
 
 Les deux algorithmes présentent une complexité asymptotique identique, mais K-Modes évite les opérations arithmétiques coûteuses (calculs de moyennes, distances euclidiennes) au profit de comparaisons logiques simples.
 
-## 6. Limitations et Extensions Possibles
 
-### 6.1 Limitations Actuelles
+## 6. Illustration Algorithmique sur un Exemple Canonique
+
+Nous utilisons trois variables catégorielles du Titanic et un extrait de 5 passagers (O₁ à O₅) pour les regrouper en K = 2 clusters de variables.
+
+| Variable | Description                      |
+|----------|----------------------------------|
+| V₁       | Classe du passager (1re, 2e, 3e) |
+| V₂       | Sexe (Homme, Femme)              |
+| V₃       | Statut de Survie (Oui, Non)      |
+
+### 6.1 Le Jeu de Données Initial
+
+| Observation | V₁ (Classe) | V₂ (Sexe) | V₃ (Survie) |
+|-------------|-------------|-----------|-------------|
+| O₁          | 1ère        | Femme     | Oui         |
+| O₂          | 3ème        | Homme     | Non         |
+| O₃          | 1ère        | Homme     | Oui         |
+| O₄          | 3ème        | Femme     | Oui         |
+| O₅          | 2ème        | Homme     | Non         |
+
+### 6.2 Étape de Transformation : Transposition de la Matrice
+
+Les variables deviennent les lignes (objets à clusteriser) et les observations les colonnes (caractéristiques).
+
+| Variables (Lignes) | O₁    | O₂    | O₃    | O₄    | O₅    |
+|--------------------|-------|-------|-------|-------|-------|
+| V₁ (Classe)        | 1ère  | 3ème  | 1ère  | 3ème  | 2ème  |
+| V₂ (Sexe)          | Femme | Homme | Homme | Femme | Homme |
+| V₃ (Survie)        | Oui   | Non   | Oui   | Oui   | Non   |
+
+### 6.3 Déroulement de l'Algorithme K-Modes (Itérations)
+
+#### 6.3.1 Initialisation (K = 2)
+
+Modes initiaux : M₁ = V₁ ; M₂ = V₃.
+
+#### 6.3.2 Itération 1 - Étape 1 : Assignation par Dissimilarité
+
+| Variable | Vs M₁ (V₁)   | Vs M₂ (V₃)   | Assignation |
+|----------|--------------|--------------|-------------|
+| V₁       | 0 désaccord  | 3 désaccords | Cluster 1   |
+| V₂       | 5 désaccords | 3 désaccords | Cluster 2   |
+| V₃       | 3 désaccords | 0 désaccord  | Cluster 2   |
+
+**Groupes après assignation** :
+- Cluster 1 : {V₁ (Classe)}
+- Cluster 2 : {V₂ (Sexe), V₃ (Survie)}
+
+#### 6.3.3 Itération 1 - Étape 2 : Mise à Jour des Modes
+
+**Nouveau Mode M'₁ (Cluster 1 : V₁)**
+
+M'₁ = (1ère, 3ème, 1ère, 3ème, 2ème)
+
+**Nouveau Mode M'₂ (Cluster 2 : V₂, V₃)**
+
+En appliquant une règle de tie-break (choix arbitraire de V₂ pour ce cluster), le nouveau mode M'₂ devient :
+
+M'₂ = (Femme, Homme, Homme, Femme, Homme)
+
+#### 6.3.4 Itération 2 - Réassignation et Convergence
+
+L'assignation des variables n'a pas changé. L'algorithme a convergé.
+
+**Partition finale** :
+- Cluster 1 : {V₁ (Classe)}
+- Cluster 2 : {V₂ (Sexe), V₃ (Survie)}
+
+---
+
+
+## 7. Limitations et Extensions Possibles
+
+### 7.1 Limitations Actuelles
 
 1. **Sensibilité à l'initialisation** : Comme K-Means, K-Modes est sensible au choix des modes initiaux. Des initialisations sous-optimales peuvent conduire à des minima locaux de faible qualité.
 
@@ -324,7 +396,7 @@ Les deux algorithmes présentent une complexité asymptotique identique, mais K-
 
 4. **Traitement uniforme des modalités** : La mesure de désaccord simple traite toutes les modalités comme équidistantes, ignorant toute structure ordinale potentielle.
 
-### 6.2 Perspectives d'Extension
+### 7.2 Perspectives d'Extension
 
 1. **Initialisations robustes** : Implémentation des méthodes de Huang ou Cao pour réduire la dépendance à l'initialisation aléatoire.
 
@@ -336,20 +408,20 @@ Les deux algorithmes présentent une complexité asymptotique identique, mais K-
 
 5. **Clustering flou (Fuzzy K-Modes)** : Autoriser des appartenances partielles des variables aux clusters, capturant ainsi l'ambiguïté inhérente aux données catégorielles.
 
-## 7. Cas d'Usage et Applications
+## 8. Cas d'Usage et Applications
 
-### 7.1 Réduction de Dimensionnalité pour Données Catégorielles
+### 8.1 Réduction de Dimensionnalité pour Données Catégorielles
 
 Dans des contextes de haute dimensionnalité avec variables qualitatives (enquêtes sociologiques, données médicales avec symptômes catégoriels), cette approche permet d'identifier des groupes de variables redondantes et de sélectionner des représentants pour chaque cluster.
 
-### 7.2 Feature Engineering pour Apprentissage Supervisé
+### 8.2 Feature Engineering pour Apprentissage Supervisé
 
 Le clustering de variables catégorielles facilite la construction de méta-variables :
 
 - **Regroupement de modalités** : Les variables d'un même cluster peuvent être agrégées en une variable synthétique via la modalité conjointe la plus fréquente.
 - **Détection de colinéarité catégorielle** : Identification de variables fortement associées au sens du chi-deux ou du V de Cramér.
 
-### 7.3 Analyse Exploratoire de Questionnaires
+### 8.3 Analyse Exploratoire de Questionnaires
 
 Dans l'analyse de questionnaires à échelles nominales ou ordinales, K-Modes permet de découvrir la structure latente des items :
 
@@ -357,16 +429,16 @@ Dans l'analyse de questionnaires à échelles nominales ou ordinales, K-Modes pe
 - Détection de questions redondantes
 - Simplification de batteries d'items pour raccourcir les questionnaires
 
-### 7.4 Pré-traitement pour Algorithmes de Sélection de Variables
+### 8.4 Pré-traitement pour Algorithmes de Sélection de Variables
 
 En amont d'algorithmes supervisés, le clustering de variables peut servir à :
 
 - Réduire la multicolinéarité en ne conservant qu'un représentant par cluster
 - Accélérer les procédures de sélection séquentielle (forward/backward) en limitant l'espace de recherche
 
-## 8. Comparaison avec les Approches Alternatives
+## 9. Comparaison avec les Approches Alternatives
 
-### 8.1 Distinction avec ClustOfVar
+### 9.1 Distinction avec ClustOfVar
 
 | Aspect | ClustOfVar (CAH) | KmodesVarClust (K-Modes) |
 |--------|------------------|--------------------------|
@@ -377,48 +449,48 @@ En amont d'algorithmes supervisés, le clustering de variables peut servir à :
 | **Complexité** | $O(p^2 \log p)$ | $O(TKnp)$ |
 | **Réaffectabilité** | Non (structure fixe) | Oui (réallocation possible) |
 
-### 8.2 Distinction avec VarClustAdvanced
+### 9.2 Distinction avec VarClustAdvanced
 
 `VarClustAdvanced` propose une approche plus sophistiquée avec 4 algorithmes (PAM, hiérarchique, spectral, PCAmix) et gestion avancée des métriques de qualité. `KmodesVarClust` se concentre sur la simplicité et l'efficacité pour données catégorielles pures, avec une implémentation légère adaptée aux grands ensembles de variables.
 
-## 9. Références Théoriques
+## 10. Références 
 
 L'implémentation s'inspire des travaux fondateurs et extensions suivantes :
 
 ### Références Principales
 
 - **Huang, Z. (1997).** *Clustering large data sets with mixed numeric and categorical values*. Proceedings of the First Pacific Asia Knowledge Discovery and Data Mining Conference, Singapore: World Scientific, pp. 21-34.  
-  → Introduction de l'algorithme K-Modes et K-Prototypes.
+  Introduction de l'algorithme K-Modes et K-Prototypes.
 
 - **Huang, Z. (1998).** *Extensions to the k-Means Algorithm for Clustering Large Data Sets with Categorical Values*. Data Mining and Knowledge Discovery, 2(3), 283-304.  
-  → Formalisation théorique et analyse de convergence du K-Modes.
+  Formalisation théorique et analyse de convergence du K-Modes.
 
 - **Huang, Z., & Ng, M. K. (1999).** *A fuzzy k-modes algorithm for clustering categorical data*. IEEE Transactions on Fuzzy Systems, 7(4), 446-452.  
-  → Extension floue de K-Modes permettant des appartenances partielles.
+  Extension floue de K-Modes permettant des appartenances partielles.
 
 ### Extensions et Améliorations
 
 - **Cao, F., Liang, J., & Bai, L. (2009).** *A new initialization method for categorical data clustering*. Expert Systems with Applications, 36(7), 10223-10228.  
-  → Méthode d'initialisation basée sur la densité pour améliorer la convergence.
+  Méthode d'initialisation basée sur la densité pour améliorer la convergence.
 
 - **Ng, M. K., Li, M. J., Huang, J. Z., & He, Z. (2007).** *On the impact of dissimilarity measure in k-modes clustering algorithm*. IEEE Transactions on Pattern Analysis and Machine Intelligence, 29(3), 503-507.  
-  → Proposition d'une mesure de dissimilarité améliorée basée sur les fréquences relatives.
+  Proposition d'une mesure de dissimilarité améliorée basée sur les fréquences relatives.
 
 - **San, O. M., Huynh, V. N., & Nakamori, Y. (2004).** *An alternative extension of the k-means algorithm for clustering categorical data*. International Journal of Applied Mathematics and Computer Science, 14(2), 241-247.  
-  → Variante k-populations utilisant des distributions de probabilité comme prototypes.
+  Variante k-populations utilisant des distributions de probabilité comme prototypes.
 
 ### Travaux Complémentaires
 
 - **Ahmad, A., & Khan, S. S. (2019).** *Survey of state-of-the-art mixed data clustering algorithms*. IEEE Access, 7, 31883-31902.  
-  → Revue exhaustive des algorithmes de clustering pour données mixtes.
+  Revue exhaustive des algorithmes de clustering pour données mixtes.
 
 - **Chicco, D., & Jurman, G. (2023).** *Categorical data clustering: 25 years beyond K-modes*. Expert Systems with Applications, 244, 122929.  
-  → Synthèse récente des avancées méthodologiques depuis l'introduction de K-Modes.
+  Synthèse récente des avancées méthodologiques depuis l'introduction de K-Modes.
 
 ### Contexte de Clustering de Variables
 
 - **Vigneau, E., & Qannari, E. M. (2003).** *Clustering of variables around latent components*. Communications in Statistics - Simulation and Computation, 32(4), 1131-1150.  
-  → Fondements théoriques du clustering de variables par composantes latentes.
+  Fondements théoriques du clustering de variables par composantes latentes.
 
 ## 10. Contribution Distinctive de cette Implémentation
 

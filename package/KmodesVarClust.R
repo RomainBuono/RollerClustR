@@ -1,5 +1,5 @@
 # =======================================================
-# KmodesVarClust : Clustering de Variables par K-Modes (VERSION CORRIGÉE)
+# KmodesVarClust : Clustering de Variables par K-Modes 
 # Algorithme de clustering de variables catégorielles/mixtes
 # =======================================================
 library(R6)
@@ -23,6 +23,8 @@ KmodesVarClust <- R6Class("KmodesVarClust",
     FMaxIter = 100,
     FConverged = FALSE,
     FInertie = NULL,
+    FNBins = 5,                # Nombre d'intervalles pour la discrétisation
+    FHasNumericVars = FALSE,   # Indicateur de présence de variables numériques
     
     # ------------------------------------------------
     # Méthode pour nettoyer les données
@@ -54,6 +56,20 @@ KmodesVarClust <- R6Class("KmodesVarClust",
       private$FX <- X
       private$FVarNames <- colnames(X)
       
+      # Vérifier la présence de variables numériques
+      private$FHasNumericVars <- any(sapply(X, is.numeric))
+      
+      # Émettre un avertissement si des variables numériques sont présentes
+      if (private$FHasNumericVars) {
+        warning(paste0(
+          "Des variables numériques ont été détectées et seront discrétisées en ",
+          private$FNBins, 
+          " intervalles.\n",
+          "Attention : Le choix du nombre d'intervalles (n_bins) peut influencer les résultats du clustering.\n",
+          "Il est recommandé de tester différentes valeurs de n_bins pour évaluer la stabilité des résultats."
+        ), call. = FALSE)
+      }
+      
       # Appeler la logique de K-modes
       private$do_refit_with_k(private$FNbGroupes)
       private$FFitted <- TRUE
@@ -69,18 +85,17 @@ KmodesVarClust <- R6Class("KmodesVarClust",
       
       X_clean <- private$cleanDataset(private$FX)
       
-      # === Étape Cruciale : Transposition pour clustering de variables ===
-      # Convertir toutes les colonnes en facteur (K-Modes)
+      # Convertir toutes les colonnes en facteur (K-Modes) avec n_bins paramétrable
       X_factor <- data.frame(lapply(X_clean, function(v) {
         if (is.numeric(v)) {
-          cut(v, breaks = 5, include.lowest = TRUE)
+          cut(v, breaks = private$FNBins, include.lowest = TRUE) 
         } else {
           as.factor(v)
         }
       }))
       
       # X_vars : Variables deviennent les observations (lignes)
-      # X_vars : Observations deviennent les caractéristiques (colonnes)
+      # X_vars : Observations deviennent les features (colonnes)
       X_vars <- t(X_factor)
       X_vars <- as.data.frame(X_vars) # Convertir en DF pour les opérations par colonne
       
@@ -170,7 +185,7 @@ KmodesVarClust <- R6Class("KmodesVarClust",
       # Les nouvelles colonnes de 'newdata' sont les variables à assigner.
       X_new_factor <- data.frame(lapply(newdata, function(v) {
         if (is.numeric(v)) {
-          cut(v, breaks = 5, include.lowest = TRUE)
+          cut(v, breaks = private$FNBins, include.lowest = TRUE)
         } else {
           as.factor(v)
         }
@@ -223,6 +238,7 @@ KmodesVarClust <- R6Class("KmodesVarClust",
       cat("═══════════════════════════════════════════════════════════\n\n")
       cat("Algorithme : K-Modes (Réallocation de Variables)\n")
       cat("Nombre de clusters (k) :", private$FNbGroupes, "\n")
+      cat("Nombre d'intervalles (n_bins) :", private$FNBins, "\n")
       cat("Iterations :", private$FInertie$iterations, "\n")
       cat("Convergence :", ifelse(private$FConverged, "Oui", "Non"), "\n")
       cat("Désaccord Intra-cluster Total :", round(private$FInertie$intra, 2), "\n\n")
@@ -235,12 +251,17 @@ KmodesVarClust <- R6Class("KmodesVarClust",
   
   public = list(
     #' @description Initialiser l'objet KmodesVarClust
-    initialize = function(k = 2, max_iter = 100, ...) {
+    #' @param k Nombre de clusters (défaut: 2)
+    #' @param max_iter Nombre maximum d'itérations (défaut: 100)
+    #' @param n_bins Nombre d'intervalles pour la discrétisation des variables numériques (défaut: 5)
+    initialize = function(k = 2, max_iter = 100, n_bins = 5, ...) {
       if (!is.numeric(k) || k < 2) stop("k doit être un nombre entier >= 2.")
       if (!is.numeric(max_iter) || max_iter < 1) stop("max_iter doit être >= 1.")
+      if (!is.numeric(n_bins) || n_bins < 2) stop("n_bins doit être un nombre entier >= 2.")
       
       private$FNbGroupes <- as.integer(k)
       private$FMaxIter <- as.integer(max_iter)
+      private$FNBins <- as.integer(n_bins)
       private$FDataType <- "mixed"
     }
   ),
