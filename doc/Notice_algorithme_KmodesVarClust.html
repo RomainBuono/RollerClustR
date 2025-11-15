@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.7.32">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>notice_algorithme_kmodesvarclust</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="Notice_algorithme_KmodesVarClust_files/libs/clipboard/clipboard.min.js"></script>
+<script src="Notice_algorithme_KmodesVarClust_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="Notice_algorithme_KmodesVarClust_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="Notice_algorithme_KmodesVarClust_files/libs/quarto-html/popper.min.js"></script>
+<script src="Notice_algorithme_KmodesVarClust_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="Notice_algorithme_KmodesVarClust_files/libs/quarto-html/anchor.min.js"></script>
+<link href="Notice_algorithme_KmodesVarClust_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="Notice_algorithme_KmodesVarClust_files/libs/quarto-html/quarto-syntax-highlighting-37eea08aefeeee20ff55810ff984fec1.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="Notice_algorithme_KmodesVarClust_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="Notice_algorithme_KmodesVarClust_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="Notice_algorithme_KmodesVarClust_files/libs/bootstrap/bootstrap-bb462d781dde1847d9e3ccf7736099dd.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+
+
+
+<section id="implémentation-de-lalgorithme-k-modes-pour-le-clustering-de-variables-dans-la-classe-kmodesvarclust" class="level1">
+<h1>Implémentation de l’Algorithme K-Modes pour le Clustering de Variables dans la Classe KmodesVarClust</h1>
+<section id="fondements-théoriques" class="level2">
+<h2 class="anchored" data-anchor-id="fondements-théoriques">1. Fondements Théoriques</h2>
+<section id="principe-général" class="level3">
+<h3 class="anchored" data-anchor-id="principe-général">1.1 Principe Général</h3>
+<p>L’implémentation proposée réalise un clustering de variables catégorielles selon une approche K-Modes adaptée au contexte du clustering de variables. Contrairement à l’algorithme K-Modes classique qui opère sur les observations (lignes d’une matrice de données), cette implémentation effectue une <strong>transposition conceptuelle</strong> : les variables deviennent les unités à partitionner, et les observations constituent l’espace de caractérisation.</p>
+<p>Cette approche s’inscrit dans le paradigme du clustering par réallocation itérative, où l’objectif consiste à minimiser le désaccord (dissimilarité) intra-cluster entre variables présentant des profils modaux similaires sur l’ensemble des observations. L’algorithme étend le K-Means au domaine catégoriel en substituant les moyennes par des modes et la distance euclidienne par une mesure de désaccord simple.</p>
+</section>
+<section id="spécificités-du-clustering-de-variables-catégorielles" class="level3">
+<h3 class="anchored" data-anchor-id="spécificités-du-clustering-de-variables-catégorielles">1.2 Spécificités du Clustering de Variables Catégorielles</h3>
+<p>Le clustering de variables catégorielles présente des défis méthodologiques distincts de ceux rencontrés dans le clustering d’observations :</p>
+<ol type="1">
+<li><p><strong>Absence de métrique euclidienne naturelle</strong> : Les variables catégorielles ne disposent pas d’un espace métrique continu permettant l’application directe de mesures de distance traditionnelles.</p></li>
+<li><p><strong>Hétérogénéité des modalités</strong> : Chaque variable peut présenter un nombre différent de modalités, rendant problématique toute tentative de normalisation uniforme.</p></li>
+<li><p><strong>Nature transposée de l’espace</strong> : Dans le clustering de variables, la matrice de données <span class="math inline">\(\mathbf{X}_{n \times p}\)</span> est conceptuellement transposée en <span class="math inline">\(\mathbf{X}^T_{p \times n}\)</span>, où <span class="math inline">\(p\)</span> variables sont traitées comme observations et <span class="math inline">\(n\)</span> observations originales deviennent les caractéristiques.</p></li>
+</ol>
+</section>
+<section id="architecture-logicielle" class="level3">
+<h3 class="anchored" data-anchor-id="architecture-logicielle">1.3 Architecture Logicielle</h3>
+<p>La classe <code>KmodesVarClust</code> hérite de la classe abstraite <code>ClusterAnalysis</code> et implémente une architecture R6 garantissant l’encapsulation et la maintenabilité. Les attributs privés assurent la persistance des prototypes modaux et de la convergence algorithmique, nécessaires aux prédictions ultérieures sur de nouvelles variables.</p>
+</section>
+</section>
+<section id="traduction-algorithmique-de-la-phase-dajustement" class="level2">
+<h2 class="anchored" data-anchor-id="traduction-algorithmique-de-la-phase-dajustement">2. Traduction Algorithmique de la Phase d’Ajustement</h2>
+<section id="phase-de-prétraitement-et-transformation" class="level3">
+<h3 class="anchored" data-anchor-id="phase-de-prétraitement-et-transformation">2.1 Phase de Prétraitement et Transformation</h3>
+<section id="nettoyage-et-factorisation-des-données" class="level4">
+<h4 class="anchored" data-anchor-id="nettoyage-et-factorisation-des-données">Nettoyage et Factorisation des Données</h4>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>X_clean <span class="ot">&lt;-</span> private<span class="sc">$</span><span class="fu">cleanDataset</span>(private<span class="sc">$</span>FX)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>X_factor <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="fu">lapply</span>(X_clean, <span class="cf">function</span>(v) </span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">is.numeric</span>(v)) <span class="fu">cut</span>(v, <span class="at">breaks =</span> <span class="dv">5</span>, <span class="at">include.lowest =</span> <span class="cn">TRUE</span>) </span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="cf">else</span> <span class="fu">as.factor</span>(v)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>La méthode héritée <code>cleanDataset()</code> réalise la validation du jeu de données selon la stratégie définie par <code>na_action</code>. Une étape de factorisation est ensuite appliquée :</p>
+<ul>
+<li><strong>Variables qualitatives</strong> : Conversion en facteurs R standardisés</li>
+<li><strong>Variables quantitatives</strong> : Discrétisation automatique en 5 intervalles équilibrés via la fonction <code>cut()</code></li>
+</ul>
+<p>Cette discrétisation préalable permet l’application du K-Modes à des données mixtes en homogénéisant leur représentation catégorielle.</p>
+</section>
+<section id="transposition-conceptuelle-de-lespace-des-variables" class="level4">
+<h4 class="anchored" data-anchor-id="transposition-conceptuelle-de-lespace-des-variables">Transposition Conceptuelle de l’Espace des Variables</h4>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>X_vars <span class="ot">&lt;-</span> <span class="fu">t</span>(X_factor)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>X_vars <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(X_vars)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>L’étape cruciale de transposition transforme la structure des données :</p>
+<p><span class="math display">\[\mathbf{X}_{n \times p} \rightarrow \mathbf{X}^T_{p \times n}\]</span></p>
+<p>où : - <strong>Lignes de <span class="math inline">\(\mathbf{X}^T\)</span></strong> : <span class="math inline">\(p\)</span> variables à clusteriser (désormais traitées comme observations) - <strong>Colonnes de <span class="math inline">\(\mathbf{X}^T\)</span></strong> : <span class="math inline">\(n\)</span> observations originales (désormais traitées comme caractéristiques catégorielles)</p>
+<p>Cette transposition matricielle constitue la transformation fondamentale permettant d’appliquer un algorithme de clustering d’observations (K-Modes) à un problème de clustering de variables.</p>
+</section>
+</section>
+<section id="mesure-de-dissimilarité" class="level3">
+<h3 class="anchored" data-anchor-id="mesure-de-dissimilarité">2.2 Mesure de Dissimilarité</h3>
+<section id="désaccord-simple-simple-matching-dissimilarity" class="level4">
+<h4 class="anchored" data-anchor-id="désaccord-simple-simple-matching-dissimilarity">Désaccord Simple (Simple Matching Dissimilarity)</h4>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>calc_dissimilarity <span class="ot">=</span> <span class="cf">function</span>(vec, mode) {</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="fu">sum</span>(vec <span class="sc">!=</span> mode, <span class="at">na.rm =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>La mesure de dissimilarité entre une variable <span class="math inline">\(V_i\)</span> (représentée par un vecteur de modalités sur <span class="math inline">\(n\)</span> observations) et un mode <span class="math inline">\(M_k\)</span> est définie par :</p>
+<p><span class="math display">\[d(V_i, M_k) = \sum_{j=1}^{n} \mathbb{1}_{V_i(j) \neq M_k(j)}\]</span></p>
+<p>où <span class="math inline">\(\mathbb{1}\)</span> désigne la fonction indicatrice. Cette métrique compte le nombre d’observations pour lesquelles la modalité de la variable <span class="math inline">\(V_i\)</span> diffère du prototype modal <span class="math inline">\(M_k\)</span>.</p>
+<p><strong>Propriétés de la mesure</strong> :</p>
+<ol type="1">
+<li><strong>Positivité</strong> : <span class="math inline">\(d(V_i, M_k) \geq 0\)</span></li>
+<li><strong>Symétrie</strong> : <span class="math inline">\(d(V_i, M_k) = d(M_k, V_i)\)</span></li>
+<li><strong>Séparabilité</strong> : <span class="math inline">\(d(V_i, V_i) = 0\)</span></li>
+<li><strong>Borne supérieure</strong> : <span class="math inline">\(d(V_i, M_k) \leq n\)</span> (désaccord maximal si toutes les observations diffèrent)</li>
+</ol>
+<p>Cette mesure s’oppose à la distance euclidienne utilisée dans K-Means et constitue l’adaptation naturelle du critère de similarité au domaine catégoriel.</p>
+</section>
+</section>
+<section id="algorithme-itératif-de-k-modes-pour-variables" class="level3">
+<h3 class="anchored" data-anchor-id="algorithme-itératif-de-k-modes-pour-variables">2.3 Algorithme Itératif de K-Modes pour Variables</h3>
+<section id="initialisation-des-modes" class="level4">
+<h4 class="anchored" data-anchor-id="initialisation-des-modes">Initialisation des Modes</h4>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>D <span class="ot">&lt;-</span> <span class="fu">nrow</span>(X_vars)  <span class="co"># Nombre de variables à clusteriser</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>initial_modes_indices <span class="ot">&lt;-</span> <span class="fu">sample</span>(<span class="dv">1</span><span class="sc">:</span>D, k)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>current_modes <span class="ot">&lt;-</span> X_vars[initial_modes_indices, , drop <span class="ot">=</span> <span class="cn">FALSE</span>]</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">rownames</span>(current_modes) <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"Mode_"</span>, <span class="dv">1</span><span class="sc">:</span>k)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>L’initialisation consiste à sélectionner aléatoirement <span class="math inline">\(k\)</span> variables parmi les <span class="math inline">\(p\)</span> variables disponibles pour servir de prototypes initiaux. Cette approche, bien que simple, présente une sensibilité aux conditions initiales — une limitation reconnue dans la littérature sur K-Modes.</p>
+<p><strong>Stratégies d’initialisation alternatives</strong> (non implémentées ici mais mentionnées dans la littérature) :</p>
+<ul>
+<li><strong>Méthode de Huang</strong> : Sélection basée sur la fréquence maximale des modalités</li>
+<li><strong>Méthode de Cao et al.</strong> : Initialisation par densité pour maximiser la dissimilarité entre modes initiaux</li>
+<li><strong>Evidence Accumulation</strong> : Agrégation de multiples partitions pour identifier des modes robustes</li>
+</ul>
+</section>
+<section id="étape-daffectation-assignment-step" class="level4">
+<h4 class="anchored" data-anchor-id="étape-daffectation-assignment-step">Étape d’Affectation (Assignment Step)</h4>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>D) {</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  variable_i <span class="ot">&lt;-</span> X_vars[i, ]</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  distances <span class="ot">&lt;-</span> <span class="fu">sapply</span>(<span class="dv">1</span><span class="sc">:</span>k, <span class="cf">function</span>(k_idx) {</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    private<span class="sc">$</span><span class="fu">calc_dissimilarity</span>(variable_i, current_modes[k_idx, ])</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  })</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  current_groups[i] <span class="ot">&lt;-</span> <span class="fu">which.min</span>(distances)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Chaque variable <span class="math inline">\(V_i\)</span> est assignée au cluster <span class="math inline">\(C_k\)</span> dont le mode <span class="math inline">\(M_k\)</span> minimise le désaccord :</p>
+<p><span class="math display">\[C_k^{(t)} = \{V_i \mid k = \arg\min_{j=1,\ldots,K} d(V_i, M_j^{(t-1)})\}\]</span></p>
+<p>où <span class="math inline">\(t\)</span> désigne l’itération courante de l’algorithme. Cette règle d’affectation garantit que chaque variable est assignée au prototype le plus représentatif au sens de la dissimilarité simple.</p>
+</section>
+<section id="étape-de-mise-à-jour-des-modes-update-step" class="level4">
+<h4 class="anchored" data-anchor-id="étape-de-mise-à-jour-des-modes-update-step">Étape de Mise à Jour des Modes (Update Step)</h4>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (k_idx <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>k) {</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  cluster_vars_indices <span class="ot">&lt;-</span> <span class="fu">which</span>(current_groups <span class="sc">==</span> k_idx)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">length</span>(cluster_vars_indices) <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    X_cluster <span class="ot">&lt;-</span> X_vars[cluster_vars_indices, , drop <span class="ot">=</span> <span class="cn">FALSE</span>]</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    new_mode_vec <span class="ot">&lt;-</span> <span class="fu">sapply</span>(X_cluster, find_mode)</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    new_modes[k_idx, ] <span class="ot">&lt;-</span> new_mode_vec</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Pour chaque cluster <span class="math inline">\(C_k\)</span>, le nouveau mode est calculé comme le vecteur de modes colonne par colonne :</p>
+<p><span class="math display">\[M_k^{(t)}(j) = \text{mode}\{V_i(j) \mid V_i \in C_k^{(t)}\}\]</span></p>
+<p>où <span class="math inline">\(\text{mode}\)</span> désigne la modalité la plus fréquente pour l’observation <span class="math inline">\(j\)</span> parmi toutes les variables du cluster <span class="math inline">\(C_k\)</span>.</p>
+<p><strong>Justification théorique</strong> : Cette mise à jour minimise localement la fonction de coût :</p>
+<p><span class="math display">\[J = \sum_{k=1}^{K} \sum_{V_i \in C_k} d(V_i, M_k)\]</span></p>
+<p>En effet, pour chaque observation <span class="math inline">\(j\)</span>, la modalité majoritaire minimise le nombre de désaccords avec les variables du cluster.</p>
+</section>
+</section>
+<section id="critère-de-convergence" class="level3">
+<h3 class="anchored" data-anchor-id="critère-de-convergence">2.4 Critère de Convergence</h3>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">all</span>(current_groups <span class="sc">==</span> old_groups)) {</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  private<span class="sc">$</span>FConverged <span class="ot">&lt;-</span> <span class="cn">TRUE</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">break</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>L’algorithme converge lorsque les affectations de variables aux clusters demeurent stables entre deux itérations consécutives :</p>
+<p><span class="math display">\[C^{(t)} = C^{(t-1)} \quad \forall k \in \{1, \ldots, K\}\]</span></p>
+<p>Une limite maximale d’itérations (<code>max_iter</code>) est imposée pour garantir la terminaison dans les cas où la convergence stricte n’est pas atteinte.</p>
+</section>
+<section id="calcul-de-linertie-intra-cluster" class="level3">
+<h3 class="anchored" data-anchor-id="calcul-de-linertie-intra-cluster">2.5 Calcul de l’Inertie Intra-Cluster</h3>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>total_diss <span class="ot">&lt;-</span> <span class="fu">sum</span>(<span class="fu">sapply</span>(<span class="dv">1</span><span class="sc">:</span>D, <span class="cf">function</span>(i) {</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  k_idx <span class="ot">&lt;-</span> private<span class="sc">$</span>FGroupes[i]</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  private<span class="sc">$</span><span class="fu">calc_dissimilarity</span>(X_vars[i, ], private<span class="sc">$</span>FModes[k_idx, ])</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>}))</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>private<span class="sc">$</span>FInertie <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">intra =</span> total_diss,</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">converged =</span> private<span class="sc">$</span>FConverged,</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">iterations =</span> iter</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>L’inertie intra-cluster est définie comme le désaccord total entre chaque variable et le mode de son cluster :</p>
+<p><span class="math display">\[W_K = \sum_{k=1}^{K} \sum_{V_i \in C_k} d(V_i, M_k)\]</span></p>
+<p>Cette métrique quantifie la compacité des clusters : une valeur faible indique une forte homogénéité modale au sein de chaque cluster.</p>
+</section>
+</section>
+<section id="prédiction-de-nouvelles-variables" class="level2">
+<h2 class="anchored" data-anchor-id="prédiction-de-nouvelles-variables">3. Prédiction de Nouvelles Variables</h2>
+<section id="principe-de-projection" class="level3">
+<h3 class="anchored" data-anchor-id="principe-de-projection">3.1 Principe de Projection</h3>
+<p>La méthode <code>predict()</code> permet d’assigner de nouvelles variables à des clusters préexistants sans modifier la structure du clustering initial. Cette fonctionnalité repose sur le calcul du désaccord entre chaque nouvelle variable et les modes établis lors de la phase d’ajustement.</p>
+</section>
+<section id="prétraitement-des-nouvelles-données" class="level3">
+<h3 class="anchored" data-anchor-id="prétraitement-des-nouvelles-données">3.2 Prétraitement des Nouvelles Données</h3>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>X_new_vars <span class="ot">&lt;-</span> <span class="fu">t</span>(<span class="fu">sapply</span>(newdata, as.factor))</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>X_new_vars <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(X_new_vars)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Les nouvelles variables subissent les mêmes transformations que lors de l’entraînement :</p>
+<ol type="1">
+<li><strong>Factorisation</strong> : Conversion en variables catégorielles</li>
+<li><strong>Transposition</strong> : Passage de colonnes (variables) à lignes (observations à clusteriser)</li>
+</ol>
+<p><strong>Contrainte de compatibilité</strong> : Le nombre de colonnes de <code>X_new_vars</code> doit correspondre au nombre de colonnes des modes stockés (<code>FModes</code>), c’est-à-dire au nombre d’observations du jeu d’entraînement.</p>
+</section>
+<section id="calcul-des-désaccords-et-assignation" class="level3">
+<h3 class="anchored" data-anchor-id="calcul-des-désaccords-et-assignation">3.3 Calcul des Désaccords et Assignation</h3>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(X_new_vars)) {</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  variable_i <span class="ot">&lt;-</span> X_new_vars[i, ]</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  distances <span class="ot">&lt;-</span> <span class="fu">sapply</span>(<span class="dv">1</span><span class="sc">:</span>private<span class="sc">$</span>FNbGroupes, <span class="cf">function</span>(k_idx) {</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    mode_k <span class="ot">&lt;-</span> private<span class="sc">$</span>FModes[k_idx, ]</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    private<span class="sc">$</span><span class="fu">calc_dissimilarity</span>(variable_i, mode_k)</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  })</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  predictions[i] <span class="ot">&lt;-</span> <span class="fu">which.min</span>(distances)</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Chaque nouvelle variable <span class="math inline">\(V_{\text{new}}\)</span> est assignée au cluster dont le mode minimise le désaccord :</p>
+<p><span class="math display">\[\hat{C}(V_{\text{new}}) = \arg\min_{k=1,\ldots,K} d(V_{\text{new}}, M_k)\]</span></p>
+<p>Cette règle garantit la cohérence avec le critère d’optimisation utilisé durant la phase d’ajustement.</p>
+</section>
+<section id="gestion-des-cas-limites" class="level3">
+<h3 class="anchored" data-anchor-id="gestion-des-cas-limites">3.4 Gestion des Cas Limites</h3>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">all</span>(<span class="fu">is.na</span>(distances))) {</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  predictions[i] <span class="ot">&lt;-</span> <span class="cn">NA_integer_</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>} <span class="cf">else</span> {</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  predictions[i] <span class="ot">&lt;-</span> <span class="fu">which.min</span>(distances)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Lorsque toutes les dissimilarités sont indéfinies (cas de données entièrement manquantes ou incompatibles), la prédiction retourne <code>NA</code> pour préserver l’intégrité des résultats.</p>
+</section>
+</section>
+<section id="fondements-mathématiques-de-la-méthode" class="level2">
+<h2 class="anchored" data-anchor-id="fondements-mathématiques-de-la-méthode">4. Fondements Mathématiques de la Méthode</h2>
+<section id="fonction-objectif-du-k-modes" class="level3">
+<h3 class="anchored" data-anchor-id="fonction-objectif-du-k-modes">4.1 Fonction Objectif du K-Modes</h3>
+<p>L’algorithme K-Modes pour clustering de variables minimise la fonction de coût suivante :</p>
+<p><span class="math display">\[\min_{C_1, \ldots, C_K} \sum_{k=1}^{K} \sum_{V_i \in C_k} d(V_i, M_k)\]</span></p>
+<p>sous la contrainte que les <span class="math inline">\(C_k\)</span> forment une partition de l’ensemble des variables :</p>
+<p><span class="math display">\[C_k \cap C_j = \emptyset \quad \forall k \neq j, \quad \bigcup_{k=1}^{K} C_k = \{V_1, \ldots, V_p\}\]</span></p>
+</section>
+<section id="optimalité-locale-de-la-mise-à-jour-des-modes" class="level3">
+<h3 class="anchored" data-anchor-id="optimalité-locale-de-la-mise-à-jour-des-modes">4.2 Optimalité Locale de la Mise à Jour des Modes</h3>
+<p>La stratégie de mise à jour des modes par modalité majoritaire est optimale au sens des moindres désaccords. Pour une observation <span class="math inline">\(j\)</span> donnée, le choix de la modalité <span class="math inline">\(m_j\)</span> qui minimise le désaccord avec les variables du cluster <span class="math inline">\(C_k\)</span> est :</p>
+<p><span class="math display">\[m_j^* = \arg\min_{m \in \mathcal{M}_j} \sum_{V_i \in C_k} \mathbb{1}_{V_i(j) \neq m}\]</span></p>
+<p>où <span class="math inline">\(\mathcal{M}_j\)</span> désigne l’ensemble des modalités possibles pour l’observation <span class="math inline">\(j\)</span>.</p>
+<p>Cette minimisation est résolue par le mode (modalité majoritaire) :</p>
+<p><span class="math display">\[m_j^* = \text{mode}\{V_i(j) \mid V_i \in C_k\}\]</span></p>
+</section>
+<section id="convergence-de-lalgorithme" class="level3">
+<h3 class="anchored" data-anchor-id="convergence-de-lalgorithme">4.3 Convergence de l’Algorithme</h3>
+<p>L’algorithme K-Modes converge vers un minimum local de la fonction objectif. La décroissance monotone du coût est garantie par la construction :</p>
+<ol type="1">
+<li><strong>Étape d’affectation</strong> : Réaffecte chaque variable au cluster minimisant le désaccord → diminution ou stagnation du coût</li>
+<li><strong>Étape de mise à jour</strong> : Recalcule les modes optimaux pour chaque cluster → diminution ou stagnation du coût</li>
+</ol>
+<p>Cependant, comme pour K-Means, la convergence vers le minimum global n’est pas garantie, et le résultat dépend fortement de l’initialisation.</p>
+</section>
+<section id="transposition-et-dualité-observations-variables" class="level3">
+<h3 class="anchored" data-anchor-id="transposition-et-dualité-observations-variables">4.4 Transposition et Dualité Observations-Variables</h3>
+<p>La transposition opérée dans cet algorithme illustre une dualité fondamentale en analyse de données :</p>
+<p><span class="math display">\[\text{Clustering d'observations sur } p \text{ variables} \leftrightarrow \text{Clustering de } p \text{ variables sur } n \text{ observations}\]</span></p>
+<p>Cette dualité permet d’appliquer des algorithmes conçus pour le clustering d’observations au problème structurellement différent du clustering de variables. Elle repose sur l’invariance de la mesure de désaccord par transposition :</p>
+<p><span class="math display">\[\sum_{i=1}^{n} \mathbb{1}_{V_a(i) \neq V_b(i)} = \sum_{j=1}^{p} \mathbb{1}_{O_a(j) \neq O_b(j)}\]</span></p>
+<p>où <span class="math inline">\(V_a, V_b\)</span> désignent des variables et <span class="math inline">\(O_a, O_b\)</span> des observations.</p>
+</section>
+</section>
+<section id="complexité-algorithmique" class="level2">
+<h2 class="anchored" data-anchor-id="complexité-algorithmique">5. Complexité Algorithmique</h2>
+<section id="phase-dapprentissage" class="level3">
+<h3 class="anchored" data-anchor-id="phase-dapprentissage">5.1 Phase d’Apprentissage</h3>
+<p>Pour <span class="math inline">\(p\)</span> variables, <span class="math inline">\(n\)</span> observations, <span class="math inline">\(K\)</span> clusters et <span class="math inline">\(T\)</span> itérations :</p>
+<ol type="1">
+<li><strong>Transposition initiale</strong> : <span class="math inline">\(O(np)\)</span></li>
+<li><strong>Étape d’affectation</strong> : <span class="math inline">\(O(TKnp)\)</span> — calcul de <span class="math inline">\(K\)</span> désaccords de taille <span class="math inline">\(n\)</span> pour chacune des <span class="math inline">\(p\)</span> variables</li>
+<li><strong>Étape de mise à jour</strong> : <span class="math inline">\(O(Tnp)\)</span> — calcul du mode pour chaque observation sur les variables de chaque cluster</li>
+</ol>
+<p>La complexité globale est <strong><span class="math inline">\(O(TKnp)\)</span></strong>, dominée par l’étape d’affectation.</p>
+</section>
+<section id="phase-de-prédiction" class="level3">
+<h3 class="anchored" data-anchor-id="phase-de-prédiction">5.2 Phase de Prédiction</h3>
+<p>Pour <span class="math inline">\(p'\)</span> nouvelles variables :</p>
+<ul>
+<li><strong>Calcul des désaccords</strong> : <span class="math inline">\(O(Knp')\)</span></li>
+<li><strong>Assignation</strong> : <span class="math inline">\(O(Kp')\)</span></li>
+</ul>
+<p>La complexité de prédiction est <strong><span class="math inline">\(O(Knp')\)</span></strong>, linéaire en le nombre de nouvelles variables.</p>
+</section>
+<section id="comparaison-avec-k-means-pour-variables-numériques" class="level3">
+<h3 class="anchored" data-anchor-id="comparaison-avec-k-means-pour-variables-numériques">5.3 Comparaison avec K-Means pour Variables Numériques</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 36%">
+<col style="width: 29%">
+<col style="width: 13%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Algorithme</th>
+<th>Complexité itération</th>
+<th>Type de données</th>
+<th>Mesure</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>K-Means</td>
+<td><span class="math inline">\(O(Knp)\)</span></td>
+<td>Quantitatives</td>
+<td>Distance euclidienne</td>
+</tr>
+<tr class="even">
+<td>K-Modes</td>
+<td><span class="math inline">\(O(Knp)\)</span></td>
+<td>Catégorielles</td>
+<td>Désaccord simple</td>
+</tr>
+</tbody>
+</table>
+<p>Les deux algorithmes présentent une complexité asymptotique identique, mais K-Modes évite les opérations arithmétiques coûteuses (calculs de moyennes, distances euclidiennes) au profit de comparaisons logiques simples.</p>
+</section>
+</section>
+<section id="illustration-algorithmique-sur-un-exemple-canonique" class="level2">
+<h2 class="anchored" data-anchor-id="illustration-algorithmique-sur-un-exemple-canonique">6. Illustration Algorithmique sur un Exemple Canonique</h2>
+<p>Nous utilisons trois variables catégorielles du Titanic et un extrait de 5 passagers (O₁ à O₅) pour les regrouper en K = 2 clusters de variables.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Variable</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>V₁</td>
+<td>Classe du passager (1re, 2e, 3e)</td>
+</tr>
+<tr class="even">
+<td>V₂</td>
+<td>Sexe (Homme, Femme)</td>
+</tr>
+<tr class="odd">
+<td>V₃</td>
+<td>Statut de Survie (Oui, Non)</td>
+</tr>
+</tbody>
+</table>
+<section id="le-jeu-de-données-initial" class="level3">
+<h3 class="anchored" data-anchor-id="le-jeu-de-données-initial">6.1 Le Jeu de Données Initial</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Observation</th>
+<th>V₁ (Classe)</th>
+<th>V₂ (Sexe)</th>
+<th>V₃ (Survie)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>O₁</td>
+<td>1ère</td>
+<td>Femme</td>
+<td>Oui</td>
+</tr>
+<tr class="even">
+<td>O₂</td>
+<td>3ème</td>
+<td>Homme</td>
+<td>Non</td>
+</tr>
+<tr class="odd">
+<td>O₃</td>
+<td>1ère</td>
+<td>Homme</td>
+<td>Oui</td>
+</tr>
+<tr class="even">
+<td>O₄</td>
+<td>3ème</td>
+<td>Femme</td>
+<td>Oui</td>
+</tr>
+<tr class="odd">
+<td>O₅</td>
+<td>2ème</td>
+<td>Homme</td>
+<td>Non</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="étape-de-transformation-transposition-de-la-matrice" class="level3">
+<h3 class="anchored" data-anchor-id="étape-de-transformation-transposition-de-la-matrice">6.2 Étape de Transformation : Transposition de la Matrice</h3>
+<p>Les variables deviennent les lignes (objets à clusteriser) et les observations les colonnes (caractéristiques).</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Variables (Lignes)</th>
+<th>O₁</th>
+<th>O₂</th>
+<th>O₃</th>
+<th>O₄</th>
+<th>O₅</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>V₁ (Classe)</td>
+<td>1ère</td>
+<td>3ème</td>
+<td>1ère</td>
+<td>3ème</td>
+<td>2ème</td>
+</tr>
+<tr class="even">
+<td>V₂ (Sexe)</td>
+<td>Femme</td>
+<td>Homme</td>
+<td>Homme</td>
+<td>Femme</td>
+<td>Homme</td>
+</tr>
+<tr class="odd">
+<td>V₃ (Survie)</td>
+<td>Oui</td>
+<td>Non</td>
+<td>Oui</td>
+<td>Oui</td>
+<td>Non</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="déroulement-de-lalgorithme-k-modes-itérations" class="level3">
+<h3 class="anchored" data-anchor-id="déroulement-de-lalgorithme-k-modes-itérations">6.3 Déroulement de l’Algorithme K-Modes (Itérations)</h3>
+<section id="initialisation-k-2" class="level4">
+<h4 class="anchored" data-anchor-id="initialisation-k-2">6.3.1 Initialisation (K = 2)</h4>
+<p>Modes initiaux : M₁ = V₁ ; M₂ = V₃.</p>
+</section>
+<section id="itération-1---étape-1-assignation-par-dissimilarité" class="level4">
+<h4 class="anchored" data-anchor-id="itération-1---étape-1-assignation-par-dissimilarité">6.3.2 Itération 1 - Étape 1 : Assignation par Dissimilarité</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Variable</th>
+<th>Vs M₁ (V₁)</th>
+<th>Vs M₂ (V₃)</th>
+<th>Assignation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>V₁</td>
+<td>0 désaccord</td>
+<td>3 désaccords</td>
+<td>Cluster 1</td>
+</tr>
+<tr class="even">
+<td>V₂</td>
+<td>5 désaccords</td>
+<td>3 désaccords</td>
+<td>Cluster 2</td>
+</tr>
+<tr class="odd">
+<td>V₃</td>
+<td>3 désaccords</td>
+<td>0 désaccord</td>
+<td>Cluster 2</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Groupes après assignation</strong> : - Cluster 1 : {V₁ (Classe)} - Cluster 2 : {V₂ (Sexe), V₃ (Survie)}</p>
+</section>
+<section id="itération-1---étape-2-mise-à-jour-des-modes" class="level4">
+<h4 class="anchored" data-anchor-id="itération-1---étape-2-mise-à-jour-des-modes">6.3.3 Itération 1 - Étape 2 : Mise à Jour des Modes</h4>
+<p><strong>Nouveau Mode M’₁ (Cluster 1 : V₁)</strong></p>
+<p>M’₁ = (1ère, 3ème, 1ère, 3ème, 2ème)</p>
+<p><strong>Nouveau Mode M’₂ (Cluster 2 : V₂, V₃)</strong></p>
+<p>En appliquant une règle de tie-break (choix arbitraire de V₂ pour ce cluster), le nouveau mode M’₂ devient :</p>
+<p>M’₂ = (Femme, Homme, Homme, Femme, Homme)</p>
+</section>
+<section id="itération-2---réassignation-et-convergence" class="level4">
+<h4 class="anchored" data-anchor-id="itération-2---réassignation-et-convergence">6.3.4 Itération 2 - Réassignation et Convergence</h4>
+<p>L’assignation des variables n’a pas changé. L’algorithme a convergé.</p>
+<p><strong>Partition finale</strong> : - Cluster 1 : {V₁ (Classe)} - Cluster 2 : {V₂ (Sexe), V₃ (Survie)}</p>
+<hr>
+</section>
+</section>
+</section>
+<section id="limitations-et-extensions-possibles" class="level2">
+<h2 class="anchored" data-anchor-id="limitations-et-extensions-possibles">7. Limitations et Extensions Possibles</h2>
+<section id="limitations-actuelles" class="level3">
+<h3 class="anchored" data-anchor-id="limitations-actuelles">7.1 Limitations Actuelles</h3>
+<ol type="1">
+<li><p><strong>Sensibilité à l’initialisation</strong> : Comme K-Means, K-Modes est sensible au choix des modes initiaux. Des initialisations sous-optimales peuvent conduire à des minima locaux de faible qualité.</p></li>
+<li><p><strong>Discrétisation arbitraire des variables quantitatives</strong> : La transformation automatique des variables numériques en 5 catégories via <code>cut()</code> peut entraîner une perte d’information substantielle.</p></li>
+<li><p><strong>Absence de pondération des observations</strong> : Toutes les observations contribuent équitablement au calcul du mode, ce qui peut être problématique en présence de données déséquilibrées ou bruitées.</p></li>
+<li><p><strong>Traitement uniforme des modalités</strong> : La mesure de désaccord simple traite toutes les modalités comme équidistantes, ignorant toute structure ordinale potentielle.</p></li>
+</ol>
+</section>
+<section id="perspectives-dextension" class="level3">
+<h3 class="anchored" data-anchor-id="perspectives-dextension">7.2 Perspectives d’Extension</h3>
+<ol type="1">
+<li><p><strong>Initialisations robustes</strong> : Implémentation des méthodes de Huang ou Cao pour réduire la dépendance à l’initialisation aléatoire.</p></li>
+<li><p><strong>Mesures de dissimilarité enrichies</strong> : Intégration de la mesure proposée par Ng et al., qui pondère les modalités par leur fréquence relative au sein des clusters.</p></li>
+<li><p><strong>K-Prototypes pour clustering de variables</strong> : Extension permettant de traiter conjointement variables quantitatives et catégorielles sans discrétisation préalable, en définissant une dissimilarité mixte.</p></li>
+<li><p><strong>Sélection automatique de <span class="math inline">\(K\)</span></strong> : Intégration de critères d’optimalité (silhouette adaptée aux données catégorielles, critère de Calinski-Harabasz modifié) pour déterminer le nombre optimal de clusters.</p></li>
+<li><p><strong>Clustering flou (Fuzzy K-Modes)</strong> : Autoriser des appartenances partielles des variables aux clusters, capturant ainsi l’ambiguïté inhérente aux données catégorielles.</p></li>
+</ol>
+</section>
+</section>
+<section id="cas-dusage-et-applications" class="level2">
+<h2 class="anchored" data-anchor-id="cas-dusage-et-applications">8. Cas d’Usage et Applications</h2>
+<section id="réduction-de-dimensionnalité-pour-données-catégorielles" class="level3">
+<h3 class="anchored" data-anchor-id="réduction-de-dimensionnalité-pour-données-catégorielles">8.1 Réduction de Dimensionnalité pour Données Catégorielles</h3>
+<p>Dans des contextes de haute dimensionnalité avec variables qualitatives (enquêtes sociologiques, données médicales avec symptômes catégoriels), cette approche permet d’identifier des groupes de variables redondantes et de sélectionner des représentants pour chaque cluster.</p>
+</section>
+<section id="feature-engineering-pour-apprentissage-supervisé" class="level3">
+<h3 class="anchored" data-anchor-id="feature-engineering-pour-apprentissage-supervisé">8.2 Feature Engineering pour Apprentissage Supervisé</h3>
+<p>Le clustering de variables catégorielles facilite la construction de méta-variables :</p>
+<ul>
+<li><strong>Regroupement de modalités</strong> : Les variables d’un même cluster peuvent être agrégées en une variable synthétique via la modalité conjointe la plus fréquente.</li>
+<li><strong>Détection de colinéarité catégorielle</strong> : Identification de variables fortement associées au sens du chi-deux ou du V de Cramér.</li>
+</ul>
+</section>
+<section id="analyse-exploratoire-de-questionnaires" class="level3">
+<h3 class="anchored" data-anchor-id="analyse-exploratoire-de-questionnaires">8.3 Analyse Exploratoire de Questionnaires</h3>
+<p>Dans l’analyse de questionnaires à échelles nominales ou ordinales, K-Modes permet de découvrir la structure latente des items :</p>
+<ul>
+<li>Identification de dimensions thématiques</li>
+<li>Détection de questions redondantes</li>
+<li>Simplification de batteries d’items pour raccourcir les questionnaires</li>
+</ul>
+</section>
+<section id="pré-traitement-pour-algorithmes-de-sélection-de-variables" class="level3">
+<h3 class="anchored" data-anchor-id="pré-traitement-pour-algorithmes-de-sélection-de-variables">8.4 Pré-traitement pour Algorithmes de Sélection de Variables</h3>
+<p>En amont d’algorithmes supervisés, le clustering de variables peut servir à :</p>
+<ul>
+<li>Réduire la multicolinéarité en ne conservant qu’un représentant par cluster</li>
+<li>Accélérer les procédures de sélection séquentielle (forward/backward) en limitant l’espace de recherche</li>
+</ul>
+</section>
+</section>
+<section id="comparaison-avec-les-approches-alternatives" class="level2">
+<h2 class="anchored" data-anchor-id="comparaison-avec-les-approches-alternatives">9. Comparaison avec les Approches Alternatives</h2>
+<section id="distinction-avec-clustofvar" class="level3">
+<h3 class="anchored" data-anchor-id="distinction-avec-clustofvar">9.1 Distinction avec ClustOfVar</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 15%">
+<col style="width: 34%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Aspect</th>
+<th>ClustOfVar (CAH)</th>
+<th>KmodesVarClust (K-Modes)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Type de données</strong></td>
+<td>Quantitatives</td>
+<td>Catégorielles/Mixtes</td>
+</tr>
+<tr class="even">
+<td><strong>Méthode</strong></td>
+<td>Hiérarchique (dendrogramme)</td>
+<td>Partitionnement itératif</td>
+</tr>
+<tr class="odd">
+<td><strong>Mesure</strong></td>
+<td><span class="math inline">\(1 - \|\rho\|\)</span> (corrélation)</td>
+<td>Désaccord simple</td>
+</tr>
+<tr class="even">
+<td><strong>Détermination de <span class="math inline">\(K\)</span></strong></td>
+<td>Coupure d’arbre</td>
+<td>Spécification a priori</td>
+</tr>
+<tr class="odd">
+<td><strong>Complexité</strong></td>
+<td><span class="math inline">\(O(p^2 \log p)\)</span></td>
+<td><span class="math inline">\(O(TKnp)\)</span></td>
+</tr>
+<tr class="even">
+<td><strong>Réaffectabilité</strong></td>
+<td>Non (structure fixe)</td>
+<td>Oui (réallocation possible)</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="distinction-avec-varclustadvanced" class="level3">
+<h3 class="anchored" data-anchor-id="distinction-avec-varclustadvanced">9.2 Distinction avec VarClustAdvanced</h3>
+<p><code>VarClustAdvanced</code> propose une approche plus sophistiquée avec 4 algorithmes (PAM, hiérarchique, spectral, PCAmix) et gestion avancée des métriques de qualité. <code>KmodesVarClust</code> se concentre sur la simplicité et l’efficacité pour données catégorielles pures, avec une implémentation légère adaptée aux grands ensembles de variables.</p>
+</section>
+</section>
+<section id="références" class="level2">
+<h2 class="anchored" data-anchor-id="références">10. Références</h2>
+<p>L’implémentation s’inspire des travaux fondateurs et extensions suivantes :</p>
+<section id="références-principales" class="level3">
+<h3 class="anchored" data-anchor-id="références-principales">Références Principales</h3>
+<ul>
+<li><p><strong>Huang, Z. (1997).</strong> <em>Clustering large data sets with mixed numeric and categorical values</em>. Proceedings of the First Pacific Asia Knowledge Discovery and Data Mining Conference, Singapore: World Scientific, pp.&nbsp;21-34.<br>
+Introduction de l’algorithme K-Modes et K-Prototypes.</p></li>
+<li><p><strong>Huang, Z. (1998).</strong> <em>Extensions to the k-Means Algorithm for Clustering Large Data Sets with Categorical Values</em>. Data Mining and Knowledge Discovery, 2(3), 283-304.<br>
+Formalisation théorique et analyse de convergence du K-Modes.</p></li>
+<li><p><strong>Huang, Z., &amp; Ng, M. K. (1999).</strong> <em>A fuzzy k-modes algorithm for clustering categorical data</em>. IEEE Transactions on Fuzzy Systems, 7(4), 446-452.<br>
+Extension floue de K-Modes permettant des appartenances partielles.</p></li>
+</ul>
+</section>
+<section id="extensions-et-améliorations" class="level3">
+<h3 class="anchored" data-anchor-id="extensions-et-améliorations">Extensions et Améliorations</h3>
+<ul>
+<li><p><strong>Cao, F., Liang, J., &amp; Bai, L. (2009).</strong> <em>A new initialization method for categorical data clustering</em>. Expert Systems with Applications, 36(7), 10223-10228.<br>
+Méthode d’initialisation basée sur la densité pour améliorer la convergence.</p></li>
+<li><p><strong>Ng, M. K., Li, M. J., Huang, J. Z., &amp; He, Z. (2007).</strong> <em>On the impact of dissimilarity measure in k-modes clustering algorithm</em>. IEEE Transactions on Pattern Analysis and Machine Intelligence, 29(3), 503-507.<br>
+Proposition d’une mesure de dissimilarité améliorée basée sur les fréquences relatives.</p></li>
+<li><p><strong>San, O. M., Huynh, V. N., &amp; Nakamori, Y. (2004).</strong> <em>An alternative extension of the k-means algorithm for clustering categorical data</em>. International Journal of Applied Mathematics and Computer Science, 14(2), 241-247.<br>
+Variante k-populations utilisant des distributions de probabilité comme prototypes.</p></li>
+</ul>
+</section>
+<section id="travaux-complémentaires" class="level3">
+<h3 class="anchored" data-anchor-id="travaux-complémentaires">Travaux Complémentaires</h3>
+<ul>
+<li><p><strong>Ahmad, A., &amp; Khan, S. S. (2019).</strong> <em>Survey of state-of-the-art mixed data clustering algorithms</em>. IEEE Access, 7, 31883-31902.<br>
+Revue exhaustive des algorithmes de clustering pour données mixtes.</p></li>
+<li><p><strong>Chicco, D., &amp; Jurman, G. (2023).</strong> <em>Categorical data clustering: 25 years beyond K-modes</em>. Expert Systems with Applications, 244, 122929.<br>
+Synthèse récente des avancées méthodologiques depuis l’introduction de K-Modes.</p></li>
+</ul>
+</section>
+<section id="contexte-de-clustering-de-variables" class="level3">
+<h3 class="anchored" data-anchor-id="contexte-de-clustering-de-variables">Contexte de Clustering de Variables</h3>
+<ul>
+<li><strong>Vigneau, E., &amp; Qannari, E. M. (2003).</strong> <em>Clustering of variables around latent components</em>. Communications in Statistics - Simulation and Computation, 32(4), 1131-1150.<br>
+Fondements théoriques du clustering de variables par composantes latentes.</li>
+</ul>
+</section>
+</section>
+<section id="contribution-distinctive-de-cette-implémentation" class="level2">
+<h2 class="anchored" data-anchor-id="contribution-distinctive-de-cette-implémentation">10. Contribution Distinctive de cette Implémentation</h2>
+<p>La contribution spécifique de cette implémentation réside dans :</p>
+<ol type="1">
+<li><p><strong>Adaptation du K-Modes au clustering de variables</strong> : Application d’un algorithme originellement conçu pour des observations à un contexte de clustering de variables via transposition matricielle.</p></li>
+<li><p><strong>Gestion intégrée des données mixtes</strong> : Discrétisation automatique des variables quantitatives permettant un traitement unifié dans le paradigme catégoriel.</p></li>
+<li><p><strong>Cohérence architecturale</strong> : Héritage de la classe <code>ClusterAnalysis</code> garantissant une interface unifiée avec les autres méthodes de clustering du package (CAH, K-Means, K-Prototypes, ClustOfVar).</p></li>
+<li><p><strong>Méthode de prédiction pour nouvelles variables</strong> : Extension permettant l’assignation incrémentale de nouvelles variables sans réentraînement complet, fonctionnalité peu documentée dans la littérature sur K-Modes pour variables.</p></li>
+</ol>
+<p>Cette implémentation offre ainsi une solution efficace et légère pour le clustering de variables catégorielles, complémentaire aux approches par corrélation (ClustOfVar) et par méthodes avancées (VarClustAdvanced).</p>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+        const codeEl = trigger.previousElementSibling.cloneNode(true);
+        for (const childEl of codeEl.children) {
+          if (isCodeAnnotation(childEl)) {
+            childEl.remove();
+          }
+        }
+        return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
