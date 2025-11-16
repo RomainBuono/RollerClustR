@@ -1,0 +1,256 @@
+---
+title: "Introduction à RollerClustR"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction à RollerClustR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(RollerClustR)
+```
+
+## Vue d'ensemble
+
+**RollerClustR** est un package R qui propose des algorithmes avancés de clustering spécifiquement conçus pour regrouper des **variables** (et non des observations). Cette approche est particulièrement utile pour :
+
+- Réduire la dimensionnalité en identifiant des groupes de variables redondantes
+- Comprendre la structure de corrélation d'un jeu de données
+- Créer des variables synthétiques représentatives de groupes de variables
+- Identifier des dimensions latentes dans les données
+
+## Les trois méthodes de clustering
+
+RollerClustR propose trois algorithmes complémentaires :
+
+### 1. VAR_CAH : Clustering Ascendant Hiérarchique
+
+Approche **bottom-up** qui fusionne progressivement les variables les plus similaires.
+
+**Avantages :**
+- Dendrogramme complet permettant d'explorer différents nombres de clusters
+- Basé sur la corrélation, facile à interpréter
+- Robuste et déterministe
+
+**Quand l'utiliser :**
+- Pour une première exploration des données
+- Quand vous voulez visualiser la hiérarchie des variables
+- Pour des données numériques continues
+
+### 2. VARCLUS : Clustering Descendant
+
+Approche **top-down** qui divise récursivement les groupes de variables.
+
+**Avantages :**
+- Identifie automatiquement les structures hiérarchiques
+- Utilise l'ACP et la rotation Varimax pour une meilleure interprétabilité
+- Critère d'arrêt basé sur les valeurs propres
+
+**Quand l'utiliser :**
+- Pour des structures complexes multi-niveaux
+- Quand vous voulez une division guidée par les données
+- Pour comprendre la dimensionnalité intrinsèque
+
+### 3. KmodesVarClust : K-modes pour Variables Catégorielles
+
+Adaptation du K-means pour données catégorielles.
+
+**Avantages :**
+- Spécialisé pour variables qualitatives
+- Discrétisation automatique des variables continues
+- Mesure de dissimilarité adaptée (simple matching)
+
+**Quand l'utiliser :**
+- Pour des données catégorielles ou mixtes
+- Quand vous avez besoin d'une discrétisation flexible
+- Pour des enquêtes ou données qualitatives
+
+## Utilisation de base
+
+### Méthode simple : fonction wrapper
+
+La façon la plus simple d'utiliser RollerClustR est via la fonction `roller_clust()` :
+
+```{r basic_usage}
+# Charger les données iris
+data(iris)
+
+# Clustering avec VAR_CAH
+result <- roller_clust(
+  X = iris[, 1:4],
+  method = "var_cah",
+  K = 2,
+  scale = TRUE
+)
+
+# Afficher le résumé
+result$summary()
+
+# Accéder aux groupes
+print(result$Groupes)
+```
+
+### Méthode avancée : classes R6
+
+Pour plus de contrôle, utilisez directement les classes R6 :
+
+```{r r6_usage}
+# Créer un objet VAR_CAH
+model <- VAR_CAH$new(K = 2, scale = TRUE)
+
+# Ajuster sur les données
+model$fit(iris[, 1:4])
+
+# Afficher le résumé
+model$summary()
+
+# Modifier le nombre de clusters
+model$K <- 3
+```
+
+## Exemple complet : Analyse du jeu iris
+
+### Étape 1 : Exploration initiale
+
+```{r iris_exploration}
+# Voir la structure des données
+str(iris[, 1:4])
+
+# Matrice de corrélation
+cor(iris[, 1:4])
+```
+
+### Étape 2 : Clustering avec différentes méthodes
+
+```{r iris_clustering}
+# Méthode 1 : VAR_CAH
+model_cah <- roller_clust(iris[, 1:4], method = "var_cah", K = 2)
+cat("\n=== VAR_CAH ===\n")
+print(model_cah$Groupes)
+
+# Méthode 2 : VARCLUS
+model_vc <- roller_clust(iris[, 1:4], method = "varclus", K = 2)
+cat("\n=== VARCLUS ===\n")
+print(model_vc$Groupes)
+```
+
+### Étape 3 : Comparaison des résultats
+
+```{r iris_comparison}
+# Comparer les affectations
+comparison <- data.frame(
+  Variable = names(iris[, 1:4]),
+  VAR_CAH = model_cah$Groupes,
+  VARCLUS = model_vc$Groupes
+)
+print(comparison)
+```
+
+## Exemple avec données catégorielles : Titanic
+
+```{r titanic_example}
+# Charger les données Titanic
+data(Titanic)
+titanic_df <- as.data.frame(Titanic)
+
+# Utiliser K-modes pour les variables catégorielles
+model_kmodes <- roller_clust(
+  X = titanic_df[, c("Class", "Sex", "Age", "Survived")],
+  method = "kmodes",
+  K = 2
+)
+
+cat("FX est NULL?", is.null(model_kmodes$.__enclos_env__$private$FX), "\n")
+
+
+model_kmodes$summary()
+print(model_kmodes$Groupes)
+```
+
+## Fonctionnalités avancées
+
+### Modification dynamique de K
+
+```{r dynamic_k}
+# Créer un modèle avec K=2
+model <- VAR_CAH$new(K = 2)
+model$fit(iris[, 1:4])
+
+cat("Avec K=2:\n")
+print(model$Groupes)
+
+# Changer K (ré-ajuste automatiquement)
+model$K <- 3
+
+cat("\nAprès modification à K=3:\n")
+print(model$Groupes)
+```
+
+### Gestion des valeurs manquantes
+
+```{r na_handling}
+# Créer des données avec NA
+iris_na <- iris[, 1:4]
+iris_na[1:5, 1] <- NA
+
+# Option 1 : Avertissement (défaut)
+model_warn <- roller_clust(iris_na, na.action = "warn")
+
+# Option 2 : Suppression des observations avec NA
+model_omit <- roller_clust(iris_na, na.action = "omit")
+
+# Option 3 : Arrêt si NA
+# model_fail <- roller_clust(iris_na, na.action = "fail")  # Génère une erreur
+```
+
+## Interprétation des résultats
+
+### Pour VAR_CAH et VARCLUS
+
+Les variables dans le même cluster sont fortement corrélées entre elles. Chaque cluster peut être représenté par une **variable synthétique** calculée comme la première composante principale du cluster.
+
+**Exemple d'interprétation :**
+```{r interpretation}
+model <- VAR_CAH$new(K = 2)
+model$fit(iris[, 1:4])
+
+# Si on obtient :
+# Cluster 1 : Sepal.Length, Sepal.Width
+# Cluster 2 : Petal.Length, Petal.Width
+
+# Interprétation : 
+# - Le cluster 1 représente la dimension "Sépale"
+# - Le cluster 2 représente la dimension "Pétale"
+```
+
+### Pour KmodesVarClust
+
+Les variables du même cluster ont des distributions de modalités similaires.
+
+## Conseils pratiques
+
+1. **Commencez par VAR_CAH** pour une première exploration
+2. **Comparez avec VARCLUS** pour valider la structure
+3. **Utilisez KmodesVarClust** uniquement pour données catégorielles
+4. **Standardisez** (`scale = TRUE`) si les variables ont des échelles différentes
+5. **Essayez plusieurs valeurs de K** pour identifier le nombre optimal de clusters
+6. **Examinez toujours** la matrice de corrélation d'abord
+
+## Pour aller plus loin
+
+- Consultez la documentation des classes : `?VAR_CAH`, `?VARCLUS`, `?KmodesVarClust`
+- Explorez les arguments supplémentaires : `?roller_clust`
+- Reportez les bugs sur GitHub : https://github.com/yourusername/RollerClustR/issues
+
+## Références
+
+- Hastie, T., Tibshirani, R., & Friedman, J. (2009). *The Elements of Statistical Learning*
+- SAS Institute Inc. (2021). *SAS/STAT User's Guide: The VARCLUS Procedure*
