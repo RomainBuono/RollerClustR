@@ -1,0 +1,45 @@
+Package: RollerClustR
+Type: Package
+Title: Advanced Clustering Algorithms for Variables
+Version: 0.1.0
+Authors@R: c(
+    person("Romain", "BUONO", 
+           email = "r.buono@univ-lyon2.fr",
+           role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0001-7190-120X")),
+    person("Nico", "DENA", 
+           email = "nico.dena@univ-lyon2.fr",
+           role = c("aut", "ctb")),
+    person("Mohamed Habib", "BAH", 
+           email = "mohamed.bah@univ-lyon2.fr",
+           role = c("aut", "ctb"))
+    )
+Description: Implements sophisticated clustering algorithms for variables using
+    an object-oriented R6 architecture. The package provides three specialized
+    clustering methods: hierarchical clustering (VAR_CAH), categorical data
+    clustering (KmodesVarClust), and descendant clustering with PCA-based
+    recursive division (VARCLUS). Features include flexible discretization
+    parameters, comprehensive validation, and robust handling of various data
+    types.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Depends: 
+    R (>= 4.0.0)
+Imports:
+    R6 (>= 2.5.0),
+    stats,
+    utils
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown,
+    ggplot2,
+    tibble,
+    corrplot,
+    dendextend
+VignetteBuilder: knitr
+URL: https://github.com/RomainBuono/RollerClustR
+BugReports: https://github.com/RomainBuono/RollerClustR/issues
