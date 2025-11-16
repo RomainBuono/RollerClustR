@@ -29,7 +29,7 @@ Vous pouvez installer la version de développement depuis GitHub :
 
 ```r
 # install.packages("devtools")
-devtools::install_github("yourusername/RollerClustR")
+devtools::install_github("RomainBuono/RollerClustR")
 ```
 
 ## Exemple rapide
@@ -91,4 +91,4 @@ citation("RollerClustR")
 
 ## Licence
 
-MIT © 2025 Bryan (Your Full Name)
+MIT © 2025 Romain BUONO
