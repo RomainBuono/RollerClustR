@@ -161,7 +161,7 @@ groups <- model$Groupes  # Named vector of assignments
 If you use **RollerClustR** in your research, please cite:
 
 ```
-Mentos Vendetta, B. (2025). RollerClustR: Variable Clustering in R.
+Romain Buono. (2025). RollerClustR: Variable Clustering in R.
 R package version 1.0.0. https://github.com/RomainBuono/RollerClustR
 ```
 
