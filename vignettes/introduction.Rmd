@@ -1,8 +1,8 @@
 ---
-title: "Introduction à RollerClustR"
+title: "Introduction to RollerClustR"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Introduction à RollerClustR}
+  %\VignetteIndexEntry{Introduction to RollerClustR}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -18,72 +18,74 @@ knitr::opts_chunk$set(
 library(RollerClustR)
 ```
 
-## Vue d'ensemble
+## Overview
 
-**RollerClustR** est un package R qui propose des algorithmes avancés de clustering spécifiquement conçus pour regrouper des **variables** (et non des observations). Cette approche est particulièrement utile pour :
+**RollerClustR** is an R package that provides advanced clustering algorithms specifically designed to group **variables** (not observations). This approach is particularly useful for:
 
-- Réduire la dimensionnalité en identifiant des groupes de variables redondantes
-- Comprendre la structure de corrélation d'un jeu de données
-- Créer des variables synthétiques représentatives de groupes de variables
-- Identifier des dimensions latentes dans les données
+- Reducing dimensionality by identifying groups of redundant variables
+- Understanding the correlation structure of a dataset
+- Creating synthetic variables representative of variable groups
+- Identifying latent dimensions in the data
 
-## Les trois méthodes de clustering
+## Three Clustering Methods
 
-RollerClustR propose trois algorithmes complémentaires :
+RollerClustR provides three complementary algorithms:
 
-### 1. VAR_CAH : Clustering Ascendant Hiérarchique
+### 1. VAR_CAH: Hierarchical Agglomerative Clustering
 
-Approche **bottom-up** qui fusionne progressivement les variables les plus similaires.
+A **bottom-up** approach that progressively merges the most similar variables.
 
-**Avantages :**
-- Dendrogramme complet permettant d'explorer différents nombres de clusters
-- Basé sur la corrélation, facile à interpréter
-- Robuste et déterministe
+**Advantages:**
+- Complete dendrogram allowing exploration of different numbers of clusters
+- Based on correlation, easy to interpret
+- Robust and deterministic
 
-**Quand l'utiliser :**
-- Pour une première exploration des données
-- Quand vous voulez visualiser la hiérarchie des variables
-- Pour des données numériques continues
+**When to use:**
+- For initial data exploration
+- When you want to visualize the hierarchy of variables
+- For continuous numeric data
 
-### 2. VARCLUS : Clustering Descendant
+### 2. VARCLUS: Divisive Clustering
 
-Approche **top-down** qui divise récursivement les groupes de variables.
+A **top-down** approach that recursively splits groups of variables.
 
-**Avantages :**
-- Identifie automatiquement les structures hiérarchiques
-- Utilise l'ACP et la rotation Varimax pour une meilleure interprétabilité
-- Critère d'arrêt basé sur les valeurs propres
+**Advantages:**
+- Automatically identifies hierarchical structures
+- Uses PCA and Varimax rotation for better interpretability
+- Stopping criterion based on eigenvalues
 
-**Quand l'utiliser :**
-- Pour des structures complexes multi-niveaux
-- Quand vous voulez une division guidée par les données
-- Pour comprendre la dimensionnalité intrinsèque
+**When to use:**
+- For complex multi-level structures
+- When you want data-driven division
+- To understand intrinsic dimensionality
 
-### 3. KmodesVarClust : K-modes pour Variables Catégorielles
+### 3. TandemVarClust: Tandem Clustering for Mixed Data
 
-Adaptation du K-means pour données catégorielles.
+A **Tandem** approach combining Multiple Correspondence Analysis (MCA) with Hierarchical Agglomerative Clustering (HAC) on modalities.
 
-**Avantages :**
-- Spécialisé pour variables qualitatives
-- Discrétisation automatique des variables continues
-- Mesure de dissimilarité adaptée (simple matching)
+**Advantages:**
+- Specialized for mixed data (quantitative and categorical)
+- Clustering at the modality level (finer than variable level)
+- Automatic discretization of continuous variables
+- Assignment of observations to clusters via Dice index
 
-**Quand l'utiliser :**
-- Pour des données catégorielles ou mixtes
-- Quand vous avez besoin d'une discrétisation flexible
-- Pour des enquêtes ou données qualitatives
+**When to use:**
+- For categorical or mixed data
+- When you need to analyze illustrative variables
+- For surveys or qualitative data
+- When you want to capture fine structures at the modality level
 
-## Utilisation de base
+## Basic Usage
 
-### Méthode simple : fonction wrapper
+### Simple Method: Wrapper Function
 
-La façon la plus simple d'utiliser RollerClustR est via la fonction `roller_clust()` :
+The easiest way to use RollerClustR is via the `roller_clust()` function:
 
 ```{r basic_usage}
-# Charger les données iris
+# Load iris data
 data(iris)
 
-# Clustering avec VAR_CAH
+# Clustering with VAR_CAH
 result <- roller_clust(
   X = iris[, 1:4],
   method = "var_cah",
@@ -91,61 +93,61 @@ result <- roller_clust(
   scale = TRUE
 )
 
-# Afficher le résumé
+# Display summary
 result$summary()
 
-# Accéder aux groupes
+# Access groups
 print(result$Groupes)
 ```
 
-### Méthode avancée : classes R6
+### Advanced Method: R6 Classes
 
-Pour plus de contrôle, utilisez directement les classes R6 :
+For more control, use R6 classes directly:
 
 ```{r r6_usage}
-# Créer un objet VAR_CAH
+# Create a VAR_CAH object
 model <- VAR_CAH$new(K = 2, scale = TRUE)
 
-# Ajuster sur les données
+# Fit on data
 model$fit(iris[, 1:4])
 
-# Afficher le résumé
+# Display summary
 model$summary()
 
-# Modifier le nombre de clusters
+# Modify number of clusters
 model$K <- 3
 ```
 
-## Exemple complet : Analyse du jeu iris
+## Complete Example: Iris Dataset Analysis
 
-### Étape 1 : Exploration initiale
+### Step 1: Initial Exploration
 
 ```{r iris_exploration}
-# Voir la structure des données
+# View data structure
 str(iris[, 1:4])
 
-# Matrice de corrélation
+# Correlation matrix
 cor(iris[, 1:4])
 ```
 
-### Étape 2 : Clustering avec différentes méthodes
+### Step 2: Clustering with Different Methods
 
 ```{r iris_clustering}
-# Méthode 1 : VAR_CAH
+# Method 1: VAR_CAH
 model_cah <- roller_clust(iris[, 1:4], method = "var_cah", K = 2)
 cat("\n=== VAR_CAH ===\n")
 print(model_cah$Groupes)
 
-# Méthode 2 : VARCLUS
+# Method 2: VARCLUS
 model_vc <- roller_clust(iris[, 1:4], method = "varclus", K = 2)
 cat("\n=== VARCLUS ===\n")
 print(model_vc$Groupes)
 ```
 
-### Étape 3 : Comparaison des résultats
+### Step 3: Results Comparison
 
 ```{r iris_comparison}
-# Comparer les affectations
+# Compare assignments
 comparison <- data.frame(
   Variable = names(iris[, 1:4]),
   VAR_CAH = model_cah$Groupes,
@@ -154,103 +156,202 @@ comparison <- data.frame(
 print(comparison)
 ```
 
-## Exemple avec données catégorielles : Titanic
+## Example with Mixed Data: Iris with Categorical Variables
 
-```{r titanic_example}
-# Charger les données Titanic
-data(Titanic)
-titanic_df <- as.data.frame(Titanic)
+```{r iris_mixed_example}
+# Create mixed data from iris
+iris_mixed <- iris
+iris_mixed$Size <- cut(iris$Sepal.Length, 
+                       breaks = 3, 
+                       labels = c("Small", "Medium", "Large"))
+iris_mixed$PetalSize <- cut(iris$Petal.Length,
+                             breaks = 3,
+                             labels = c("Short", "Medium", "Long"))
 
-# Utiliser K-modes pour les variables catégorielles
-model_kmodes <- roller_clust(
-  X = titanic_df[, c("Class", "Sex", "Age", "Survived")],
-  method = "kmodes",
-  K = 2
+# Select numeric and categorical variables
+data_mixed <- iris_mixed[, c("Sepal.Width", "Petal.Width", "Size", "PetalSize")]
+
+# Use TandemVarClust for mixed data
+model_tandem <- roller_clust(
+  X = data_mixed,
+  method = "tandem",
+  K = 2,
+  n_bins = 3
 )
 
-cat("FX est NULL?", is.null(model_kmodes$.__enclos_env__$private$FX), "\n")
+cat("\n=== TandemVarClust - Modality Clustering ===\n")
+print(model_tandem$Groupes)
 
-
-model_kmodes$summary()
-print(model_kmodes$Groupes)
+cat("\n=== Summary by Original Variable ===\n")
+print(model_tandem$get_variable_summary())
 ```
 
-## Fonctionnalités avancées
+## Illustrative Variable Analysis with TandemVarClust
 
-### Modification dynamique de K
+TandemVarClust allows analyzing illustrative variables to understand their association with clusters:
+
+```{r tandem_predict}
+# After fitting the model, analyze Species as an illustrative variable
+model_tandem <- TandemVarClust$new(K = 2, n_bins = 3)
+model_tandem$fit(data_mixed)
+
+# Analyze Species association with clusters
+results <- model_tandem$predict(newdata = data.frame(Species = iris$Species))
+
+cat("\n=== Species Association with Clusters ===\n")
+cat("Cramer's V:", results$Species$cramers_v, "\n")
+cat("p-value (Chi²):", results$Species$chi2_test$p.value, "\n")
+cat("Significant association:", results$Species$significant, "\n")
+
+# Contingency table
+cat("\nContingency table:\n")
+print(results$Species$contingency)
+```
+
+## Advanced Features
+
+### Dynamic K Modification
 
 ```{r dynamic_k}
-# Créer un modèle avec K=2
+# Create a model with K=2
 model <- VAR_CAH$new(K = 2)
 model$fit(iris[, 1:4])
 
-cat("Avec K=2:\n")
+cat("With K=2:\n")
 print(model$Groupes)
 
-# Changer K (ré-ajuste automatiquement)
+# Change K (automatically refits)
 model$K <- 3
 
-cat("\nAprès modification à K=3:\n")
+cat("\nAfter modification to K=3:\n")
 print(model$Groupes)
 ```
 
-### Gestion des valeurs manquantes
+### K Modification for TandemVarClust
+
+```{r dynamic_k_tandem}
+# TandemVarClust uses refit_with_k() to change K
+model_tandem <- TandemVarClust$new(K = 2, n_bins = 3)
+model_tandem$fit(data_mixed)
+
+cat("With K=2:\n")
+cat("Number of clusters:", model_tandem$K, "\n")
+
+# Change K
+model_tandem$refit_with_k(3)
+
+cat("\nAfter refit_with_k(3):\n")
+cat("Number of clusters:", model_tandem$K, "\n")
+```
+
+### Missing Value Handling
 
 ```{r na_handling}
-# Créer des données avec NA
+# Create data with NA
 iris_na <- iris[, 1:4]
 iris_na[1:5, 1] <- NA
 
-# Option 1 : Avertissement (défaut)
+# Option 1: Warning (default)
 model_warn <- roller_clust(iris_na, na.action = "warn")
 
-# Option 2 : Suppression des observations avec NA
+# Option 2: Remove observations with NA
 model_omit <- roller_clust(iris_na, na.action = "omit")
 
-# Option 3 : Arrêt si NA
-# model_fail <- roller_clust(iris_na, na.action = "fail")  # Génère une erreur
+# Option 3: Stop if NA
+# model_fail <- roller_clust(iris_na, na.action = "fail")  # Generates error
 ```
 
-## Interprétation des résultats
+## Interpreting Results
 
-### Pour VAR_CAH et VARCLUS
+### For VAR_CAH and VARCLUS
 
-Les variables dans le même cluster sont fortement corrélées entre elles. Chaque cluster peut être représenté par une **variable synthétique** calculée comme la première composante principale du cluster.
+Variables in the same cluster are highly correlated with each other. Each cluster can be represented by a **synthetic variable** calculated as the first principal component of the cluster.
 
-**Exemple d'interprétation :**
+**Interpretation Example:**
 ```{r interpretation}
 model <- VAR_CAH$new(K = 2)
 model$fit(iris[, 1:4])
 
-# Si on obtient :
-# Cluster 1 : Sepal.Length, Sepal.Width
-# Cluster 2 : Petal.Length, Petal.Width
+# If we get:
+# Cluster 1: Sepal.Length, Sepal.Width
+# Cluster 2: Petal.Length, Petal.Width
 
-# Interprétation : 
-# - Le cluster 1 représente la dimension "Sépale"
-# - Le cluster 2 représente la dimension "Pétale"
+# Interpretation: 
+# - Cluster 1 represents the "Sepal" dimension
+# - Cluster 2 represents the "Petal" dimension
 ```
 
-### Pour KmodesVarClust
+### For TandemVarClust
 
-Les variables du même cluster ont des distributions de modalités similaires.
+TandemVarClust works at the **modality level** (categories of categorical variables and discretized intervals of continuous variables). Modalities in the same cluster have similar profiles in the factorial space derived from MCA.
 
-## Conseils pratiques
+**Interpretation:**
 
-1. **Commencez par VAR_CAH** pour une première exploration
-2. **Comparez avec VARCLUS** pour valider la structure
-3. **Utilisez KmodesVarClust** uniquement pour données catégorielles
-4. **Standardisez** (`scale = TRUE`) si les variables ont des échelles différentes
-5. **Essayez plusieurs valeurs de K** pour identifier le nombre optimal de clusters
-6. **Examinez toujours** la matrice de corrélation d'abord
+1. **Modality Clusters**: Each cluster groups modalities (e.g., "Size.Small", "PetalSize.Short", "Sepal.Width.bin1")
 
-## Pour aller plus loin
+2. **Variable Summary**: The `get_variable_summary()` method aggregates results at the original variable level:
+   - **cluster_principal**: Cluster containing the majority of the variable's modalities
+   - **purity**: Proportion of modalities in the principal cluster (1.0 = all modalities in the same cluster)
 
-- Consultez la documentation des classes : `?VAR_CAH`, `?VARCLUS`, `?KmodesVarClust`
-- Explorez les arguments supplémentaires : `?roller_clust`
-- Reportez les bugs sur GitHub : https://github.com/yourusername/RollerClustR/issues
+3. **Illustrative Variables**: The `predict()` method analyzes the association between a categorical variable and clusters via:
+   - **Cramer's V**: Measures association intensity (0 to 1)
+   - **Chi-square test**: Tests association significance
+   - **Contingency tables**: Distribution of modalities across clusters
 
-## Références
+**Interpretation Example:**
+```{r tandem_interpretation}
+model_tandem <- TandemVarClust$new(K = 2, n_bins = 3)
+model_tandem$fit(data_mixed)
+
+# Variable summary
+summary <- model_tandem$get_variable_summary()
+print(summary)
+
+# Interpretation:
+# - If "Size" has purity = 1.0 and cluster_principal = 1
+#   → All Size modalities (Small, Medium, Large) are in cluster 1
+#   → Homogeneous variable
+# 
+# - If "Sepal.Width" has purity = 0.67 and cluster_principal = 2
+#   → 67% of Sepal.Width bins are in cluster 2
+#   → More dispersed variable across clusters
+```
+
+## Practical Tips
+
+1. **Start with VAR_CAH** for initial exploration of numeric data
+2. **Compare with VARCLUS** to validate structure
+3. **Use TandemVarClust** for mixed data (quantitative + categorical)
+4. **Standardize** (`scale = TRUE`) if variables have different scales
+5. **Try multiple K values** to identify optimal number of clusters
+6. **Always examine** the correlation matrix first (for VAR_CAH/VARCLUS)
+7. **For TandemVarClust**:
+   - Adjust `n_bins` according to desired granularity for continuous variables
+   - Use `n_factors` to control the number of retained factorial axes
+   - Analyze variance explained by axes: `model$VarianceExplained`
+
+## Comparison of Three Methods
+
+| Criterion | VAR_CAH | VARCLUS | TandemVarClust |
+|-----------|---------|---------|----------------|
+| **Data Type** | Numeric | Numeric | Mixed (numeric + categorical) |
+| **Approach** | Agglomerative (bottom-up) | Divisive (top-down) | Tandem (MCA + HAC) |
+| **Clustering Unit** | Variables | Variables | Modalities |
+| **Number of Clusters** | Fixed in advance (K) | Automatic or fixed | Fixed in advance (K) |
+| **Visualization** | Dendrogram | Division tree | Modality dendrogram |
+| **Illustrative Variables** | Via predict() | Via predict() | Via predict() with statistical tests |
+| **Complexity** | Simple | Medium | High |
+
+## Going Further
+
+- Consult class documentation: `?VAR_CAH`, `?VARCLUS`, `?TandemVarClust`
+- Explore additional arguments: `?roller_clust`
+- Report bugs on GitHub: https://github.com/yourusername/RollerClustR/issues
+
+## References
 
 - Hastie, T., Tibshirani, R., & Friedman, J. (2009). *The Elements of Statistical Learning*
 - SAS Institute Inc. (2021). *SAS/STAT User's Guide: The VARCLUS Procedure*
+- Escofier, B. (1979). Traitement simultané de variables quantitatives et qualitatives. *Les Cahiers de l'Analyse des Données*, IV(2), 137-146.
+- Pagès, J. (2004). Analyse factorielle de données mixtes. *Revue de Statistique Appliquée*, 52(4), 93-111.
+- Dice, L. R. (1945). Measures of the amount of ecologic association between species. *Ecology*, 26(3), 297-302.

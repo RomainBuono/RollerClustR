@@ -168,10 +168,98 @@ VARCLUS <- R6Class("VARCLUS",
            "Utilisez $cut_tree(k) pour obtenir k clusters a partir de l'arbre construit.")
     },
     
-    #' @description Methode do_predict (non applicable pour clustering de variables)
+    #' @description Prédit le cluster d'appartenance pour de nouvelles variables
+    #' @param newdata Data frame ou vecteur contenant les nouvelles variables
+    #' @return Liste contenant les assignations et les scores de similarité
     do_predict = function(newdata) {
-      stop("predict() n'est pas implemente pour VARCLUS. ",
-           "Utilisez $Groupes pour obtenir l'affectation des variables.")
+      if (!private$FFitted) {
+        stop("The model must be fitted with $fit() before predicting.")
+      }
+      
+      # Validation et préparation des données
+      if (is.vector(newdata)) {
+        newdata <- data.frame(new_var = newdata)
+      }
+      
+      if (!is.data.frame(newdata) && !is.matrix(newdata)) {
+        stop("newdata doit être un data frame, une matrice ou un vecteur.")
+      }
+      
+      # Vérifier que newdata a le bon nombre d'observations
+      if (nrow(newdata) != nrow(private$FX)) {
+        stop(paste0("newdata must have the same number of observations (rows) as training data. ",
+            "Expected: ", nrow(private$FX), ", Received: ", nrow(newdata)))
+      }
+      
+      # Convertir en data.frame si nécessaire
+      newdata <- as.data.frame(newdata)
+      
+      # Traiter chaque nouvelle variable
+      n_new_vars <- ncol(newdata)
+      predictions <- integer(n_new_vars)
+      scores_matrix <- matrix(NA, nrow = n_new_vars, ncol = private$FNbGroupes)
+      colnames(scores_matrix) <- paste0("Cluster_", 1:private$FNbGroupes)
+      rownames(scores_matrix) <- colnames(newdata)
+      
+      for (i in 1:n_new_vars) {
+        new_var <- newdata[, i]
+        
+        # Gérer les valeurs manquantes
+        if (any(is.na(new_var))) {
+          warning(paste0("La variable '", colnames(newdata)[i], 
+                        "' contient des valeurs manquantes. Assignation au cluster 1 par défaut."))
+          predictions[i] <- 1
+          scores_matrix[i, ] <- NA
+          next
+        }
+        
+        # Standardiser la nouvelle variable
+        new_var_scaled <- scale(new_var)[, 1]
+        
+        # Calculer le score de similarité avec chaque cluster
+        # Pour VARCLUS, on utilise la corrélation avec la PC1 de chaque cluster
+        cluster_scores <- numeric(private$FNbGroupes)
+        
+        for (k in 1:private$FNbGroupes) {
+          # Identifier les variables dans le cluster k
+          vars_in_cluster <- names(private$FGroupes)[private$FGroupes == k]
+          
+          if (length(vars_in_cluster) == 0) {
+            cluster_scores[k] <- 0
+            next
+          }
+          
+          # Extraire les données du cluster
+          X_cluster <- private$FX[, vars_in_cluster, drop = FALSE]
+          
+          # Calculer la composante principale du cluster
+          pca_cluster <- prcomp(X_cluster, scale. = TRUE, center = TRUE)
+          pc1_cluster <- pca_cluster$x[, 1]
+          
+          # Calculer la corrélation avec la nouvelle variable
+          cor_val <- cor(new_var_scaled, pc1_cluster, use = "pairwise.complete.obs")
+          cluster_scores[k] <- abs(cor_val)
+        }
+        
+        # Assigner au cluster avec le score le plus élevé
+        predictions[i] <- which.max(cluster_scores)
+        scores_matrix[i, ] <- cluster_scores
+      }
+      
+      # Préparer le résultat
+      names(predictions) <- colnames(newdata)
+      
+      result <- list(
+        cluster = predictions,
+        scores = scores_matrix,
+        best_score = apply(scores_matrix, 1, max, na.rm = TRUE),
+        second_best_score = apply(scores_matrix, 1, function(x) {
+          sorted <- sort(x, decreasing = TRUE)
+          if (length(sorted) >= 2) sorted[2] else NA
+        })
+      )
+      
+      return(result)
     },
     
     #' @description Methode do_summary (appelee par summary())

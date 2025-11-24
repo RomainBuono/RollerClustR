@@ -14,6 +14,9 @@
 # Auteur: Romain Buono
 # Date: 16 novembre 2025
 # ============================================================================
+if (is.null(getOption("repos")) || getOption("repos") == "@CRAN@") {
+  options(repos = c(CRAN = "https://cloud.r-project.org"))
+}
 setwd("C:/Users/Romain_admin/Documents/GitHub/RollerClustR")
 library(RollerClustR)
 library(stats)

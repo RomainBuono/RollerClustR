@@ -109,6 +109,7 @@ KmodesVarClust <- R6Class("KmodesVarClust",
       super$initialize(K = K, ...)
       private$FMaxIter <- max.iter
       private$FNBins <- n_bins
+      private$FNbGroupes <- as.integer(K)  # Correction: initialiser FNbGroupes avec la valeur de K
     },
     
     #' @description
@@ -285,6 +286,128 @@ KmodesVarClust <- R6Class("KmodesVarClust",
         }
       }
       return(X_disc)
+    },
+    
+    # ------------------------------------------------
+    # IMPLÉMENTATION : do_predict
+    # ------------------------------------------------
+    do_predict = function(newdata) {
+      if (!private$FFitted) {
+        stop("Le modèle doit être ajusté avec $fit() avant de prédire.")
+      }
+      
+      # Validation et préparation des données
+      if (is.vector(newdata)) {
+        newdata <- data.frame(new_var = newdata)
+      }
+      
+      if (!is.data.frame(newdata) && !is.matrix(newdata)) {
+        stop("newdata doit être un data frame, une matrice ou un vecteur.")
+      }
+      
+      # Vérifier que newdata a le bon nombre d'observations
+      if (nrow(newdata) != nrow(private$FX)) {
+        stop(paste0("newdata doit avoir le même nombre d'observations (lignes) que les données d'entraînement. ",
+                    "Attendu : ", nrow(private$FX), ", Reçu : ", nrow(newdata)))
+      }
+      
+      # Convertir en data.frame si nécessaire
+      newdata <- as.data.frame(newdata)
+      
+      # Discrétiser les variables numériques si nécessaire
+      if (private$FHasNumericVars) {
+        newdata <- private$discretize_numeric(newdata)
+      }
+      
+      # Transposer : lignes = variables
+      X_new_vars <- as.data.frame(t(newdata))
+      n_new_vars <- nrow(X_new_vars)
+      
+      # Prédire le cluster pour chaque nouvelle variable
+      predictions <- integer(n_new_vars)
+      dissimilarities_matrix <- matrix(NA, nrow = n_new_vars, ncol = private$FNbGroupes)
+      colnames(dissimilarities_matrix) <- paste0("Cluster_", 1:private$FNbGroupes)
+      rownames(dissimilarities_matrix) <- colnames(newdata)
+      
+      for (i in 1:n_new_vars) {
+        variable_i <- unlist(X_new_vars[i, ])
+        
+        # Calculer les distances aux modes de chaque cluster
+        distances <- numeric(private$FNbGroupes)
+        for (k in 1:private$FNbGroupes) {
+          distances[k] <- private$calc_dissimilarity(variable_i, private$FModes[k, ])
+        }
+        
+        # Assigner au cluster avec la distance minimale
+        predictions[i] <- which.min(distances)
+        dissimilarities_matrix[i, ] <- distances
+      }
+      
+      # Préparer le résultat
+      names(predictions) <- colnames(newdata)
+      
+      # Calculer les scores de similarité (1 - dissimilarité normalisée)
+      max_dissim <- nrow(newdata)  # La dissimilarité maximale possible
+      scores_matrix <- 1 - (dissimilarities_matrix / max_dissim)
+      
+      result <- list(
+        cluster = predictions,
+        dissimilarities = dissimilarities_matrix,
+        scores = scores_matrix,
+        best_score = apply(scores_matrix, 1, max, na.rm = TRUE),
+        second_best_score = apply(scores_matrix, 1, function(x) {
+          sorted <- sort(x, decreasing = TRUE)
+          if (length(sorted) >= 2) sorted[2] else NA
+        })
+      )
+      
+      return(result)
+    },
+    
+    # ------------------------------------------------
+    # IMPLÉMENTATION : do_refit_with_k
+    # ------------------------------------------------
+    do_refit_with_k = function(new_k) {
+      if (!private$FFitted) {
+        stop("Le modèle doit être ajusté avec $fit() avant de changer K.")
+      }
+      
+      # Mettre à jour K
+      private$FNbGroupes <- new_k
+      
+      # Réappliquer l'algorithme
+      private$do_fit(private$FX)
+      
+      invisible(self)
+    },
+    
+    # ------------------------------------------------
+    # IMPLÉMENTATION : do_summary
+    # ------------------------------------------------
+    do_summary = function() {
+      if (!private$FFitted) {
+        stop("Le modèle doit être ajusté avec $fit() avant d'afficher un résumé.")
+      }
+      
+      cat("\n================================================================\n")
+      cat("   KMODES-VAR-CLUST - Résumé du Clustering de Variables\n")
+      cat("================================================================\n\n")
+      
+      cat("Nombre de clusters  :", private$FNbGroupes, "\n")
+      cat("Nombre de variables :", length(private$FGroupes), "\n")
+      cat("Nombre d'intervalles:", private$FNBins, "\n")
+      cat("Convergence         :", ifelse(private$FConverged, "✓ OUI", "✗ NON"), "\n")
+      cat("Inertie totale      :", round(private$FInertie, 2), "\n\n")
+      
+      cat("Composition des clusters :\n")
+      cat("---------------------------\n")
+      for (k in 1:private$FNbGroupes) {
+        vars_in_k <- names(private$FGroupes)[private$FGroupes == k]
+        cat(sprintf("Cluster %d : %d variables\n", k, length(vars_in_k)))
+        cat("  ", paste(vars_in_k, collapse = ", "), "\n\n")
+      }
+      
+      invisible(self)
     }
   ),
   

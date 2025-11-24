@@ -1,6 +1,3 @@
-#' @keywords internal
-"_PACKAGE"
-
 #' RollerClustR: Advanced Clustering Algorithms for Variables
 #'
 #' @description
@@ -13,7 +10,7 @@
 #' **Three Clustering Methods:**
 #' - **VAR_CAH**: Hierarchical Ascendant Clustering using correlation-based distances
 #' - **VARCLUS**: Divisive clustering with PCA-based recursive splitting
-#' - **KmodesVarClust**: K-modes algorithm adapted for categorical variables
+#' - **TandemVarClust**: Tandem clustering  adapted for categorical variables
 #'
 #' **Unified Interface:**
 #' - Single wrapper function `roller_clust()` for all methods
@@ -49,21 +46,23 @@
 #'
 #' The package uses an object-oriented architecture with:
 #' - **ClusterAnalysis**: Parent class defining the common interface
-#' - **VAR_CAH, VARCLUS, KmodesVarClust**: Specialized implementations
+#' - **VAR_CAH, VARCLUS, TandemVarClust**: Specialized implementations
 #' - Template Method pattern for consistent behavior
 #' - Active bindings for clean API (e.g., `$K`, `$Groupes`)
 #'
 #' @section Key Functions:
-#' - [roller_clust()]: Main wrapper function
-#' - [VAR_CAH]: Hierarchical clustering class
-#' - [VARCLUS]: Divisive clustering class
-#' - [KmodesVarClust]: K-modes clustering class
-#' - [validate_data_type()]: Data validation utilities
-#'
-#' @docType package
-#' @name RollerClustR-package
-#' @aliases RollerClustR
-#'
+#' 
+#' **Main Interface:**
+#' - \code{roller_clust()} - Main wrapper function for all clustering methods
+#' 
+#' **Clustering Classes:**
+#' - \code{VAR_CAH} - Hierarchical clustering of variables
+#' - \code{VARCLUS} - Divisive clustering with PCA
+#' - \code{TandemVarClust} - Tandem clustering (MCA + HAC) for mixed data
+#' 
+#' **Utilities:**
+#' - \code{validate_data_type()} - Data validation utilities
+#' 
 #' @author Romain BUONO <r.buono@univ-lyon2.fr>
 #'
 #' @seealso
@@ -73,4 +72,5 @@
 #' @importFrom R6 R6Class
 #' @importFrom stats cor dist hclust cutree prcomp varimax var
 #' @importFrom utils head tail
-NULL
+#' @keywords internal
+"_PACKAGE"

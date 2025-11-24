@@ -60,7 +60,7 @@ Methode do_fit (appelee par fit())
 Methode do_refit_with_k (non applicable pour VARCLUS)
 
 
-Methode do_predict (non applicable pour clustering de variables)
+Prédit le cluster d'appartenance pour de nouvelles variables
 
 
 Methode do_summary (appelee par summary())
@@ -86,8 +86,13 @@ Constructeur de la classe VARCLUS
 \item{\code{distance_metric}}{Metrique de distance (defaut: "correlation")}
 
 \item{\code{...}}{Autres parametres (pour compatibilite)}
+
+\item{\code{newdata}}{Data frame ou vecteur contenant les nouvelles variables}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+Liste contenant les assignations et les scores de similarité
 }
 }
 \if{html}{\out{<hr>}}

@@ -16,7 +16,7 @@ Le clustering de variables catégorielles présente des défis méthodologiques 
 
 2. **Hétérogénéité des modalités** : Chaque variable peut présenter un nombre différent de modalités, rendant problématique toute tentative de normalisation uniforme.
 
-3. **Nature transposée de l'espace** : Dans le clustering de variables, la matrice de données $\mathbf{X}_{n \times p}$ est conceptuellement transposée en $\mathbf{X}^\top_{p \times n}$, où $p$ variables sont traitées comme observations et $n$ observations originales deviennent les caractéristiques.
+3. **Nature transposée de l'espace** : Dans le clustering de variables, la matrice de données $\mathbf{X}_{n \times p}$ est conceptuellement transposée en $\mathbf{X}^T_{p \times n}$, où $p$ variables sont traitées comme observations et $n$ observations originales deviennent les caractéristiques.
 
 ### 1.3 Architecture Logicielle
 
@@ -31,7 +31,7 @@ La classe `KmodesVarClust` hérite de la classe abstraite `ClusterAnalysis` et i
 ```r
 X_clean <- private$cleanDataset(private$FX)
 X_factor <- data.frame(lapply(X_clean, function(v) 
-  if (is.numeric(v)) cut(v, breaks = 5, include.lowest = TRUE) 
+  if (is.numeric(v)) cut(v, breaks = private$FNBins, include.lowest = TRUE) 
   else as.factor(v)
 ))
 ```
@@ -39,8 +39,16 @@ X_factor <- data.frame(lapply(X_clean, function(v)
 La méthode héritée `cleanDataset()` réalise la validation du jeu de données selon la stratégie définie par `na_action`. Une étape de factorisation est ensuite appliquée :
 
 - **Variables qualitatives** : Conversion en facteurs R standardisés
-- **Variables quantitatives** : Discrétisation automatique en 5 intervalles équilibrés via la fonction `cut()`
+- **Variables quantitatives** : Discrétisation paramétrée en `n_bins` intervalles équilibrés via la fonction `cut()`
 
+
+Le paramètre `n_bins` (nombre d'intervalles pour la discrétisation) est configurable par l'utilisateur lors de l'initialisation de l'objet `KmodesVarClust`. La valeur par défaut est fixée à 5, mais peut être ajustée selon les caractéristiques des données et les objectifs analytiques.
+
+**Avertissement important** : Lorsque des variables numériques sont détectées dans le jeu de données, un message d'avertissement est automatiquement affiché pour informer l'utilisateur que :
+
+1. Les variables numériques seront discrétisées en `n_bins` intervalles
+2. Le choix du nombre d'intervalles peut influencer significativement les résultats du clustering
+3. Il est recommandé de tester différentes valeurs de `n_bins` pour évaluer la stabilité des résultats
 Cette discrétisation préalable permet l'application du K-Modes à des données mixtes en homogénéisant leur représentation catégorielle.
 
 #### Transposition Conceptuelle de l'Espace des Variables
@@ -237,6 +245,46 @@ if (all(is.na(distances))) {
 
 Lorsque toutes les dissimilarités sont indéfinies (cas de données entièrement manquantes ou incompatibles), la prédiction retourne `NA` pour préserver l'intégrité des résultats.
 
+
+### 3.5 Paramétrage de la Discrétisation
+
+L'initialisation de la classe `KmodesVarClust` accepte le paramètre `n_bins` permettant de contrôler la granularité de la discrétisation des variables numériques :
+
+```r
+# Initialisation avec différentes valeurs de n_bins
+kmodes_fin <- KmodesVarClust$new(k = 3, n_bins = 3)   # Discrétisation grossière
+kmodes_std <- KmodesVarClust$new(k = 3, n_bins = 5)   # Valeur par défaut
+kmodes_det <- KmodesVarClust$new(k = 3, n_bins = 10)  # Discrétisation fine
+```
+
+**Recommandations pour le choix de n_bins** :
+
+1. **Valeurs faibles (2-4)** : Convient aux variables avec peu de variation ou lorsque l'on souhaite des regroupements larges. Risque de masquer des patterns subtils.
+
+2. **Valeurs moyennes (5-7)** : Compromis équilibré entre granularité et généralisation. Recommandé pour une première exploration.
+
+3. **Valeurs élevées (8+)** : Préserve davantage l'information originale mais augmente le risque de sur-segmentation et de clusters peu représentatifs.
+
+**Stratégie d'analyse** :
+
+Pour évaluer la sensibilité des résultats au choix de `n_bins`, il est recommandé de :
+
+```r
+# Analyse de sensibilité
+results_comparison <- data.frame()
+
+for (bins in c(3, 5, 7, 10)) {
+  km <- KmodesVarClust$new(k = 3, n_bins = bins)
+  km$fit(data)
+  results_comparison <- rbind(results_comparison, 
+                              data.frame(n_bins = bins, 
+                                        inertia = km$Inertie$intra,
+                                        clusters = list(km$Groupes)))
+}
+```
+
+Cette approche permet d'identifier si les partitions obtenues sont stables ou si elles dépendent fortement du niveau de discrétisation choisi.
+
 ## 4. Fondements Mathématiques de la Méthode
 
 ### 4.1 Fonction Objectif du K-Modes
@@ -315,15 +363,23 @@ Les deux algorithmes présentent une complexité asymptotique identique, mais K-
 
 ## 6. Illustration Algorithmique sur un Exemple Canonique
 
-Nous utilisons trois variables catégorielles du Titanic et un extrait de 5 passagers (O₁ à O₅) pour les regrouper en K = 2 clusters de variables.
+Afin d'illustrer concrètement les mécanismes internes de la classe `KmodesVarClust`, nous présentons ici une exécution complète du K-Modes appliqué au clustering de variables, en utilisant un extrait simplifié du jeu de données Titanic.
+
+L'objectif est de montrer, sur un exemple totalement transparent, comment les modes sont initialisés, comment les distances sont calculées, comment les clusters évoluent, et comment la convergence apparaît.
+
+Nous considérons ici 3 variables catégorielles évaluées sur 5 passagers (O₁ à O₅) :
 
 | Variable | Description                      |
 |----------|----------------------------------|
 | V₁       | Classe du passager (1re, 2e, 3e) |
 | V₂       | Sexe (Homme, Femme)              |
-| V₃       | Statut de Survie (Oui, Non)      |
+| V₃       | Statut de survie (Oui, Non)      |
 
-### 6.1 Le Jeu de Données Initial
+Ces variables représentent un cas typique de données catégorielles hétérogènes : nombre de modalités différent selon les variables, absence de métrique naturelle, et structure potentiellement redondante.
+
+### 6.1 Jeu de Données Initial
+
+Les données pour les 5 passagers considérés sont :
 
 | Observation | V₁ (Classe) | V₂ (Sexe) | V₃ (Survie) |
 |-------------|-------------|-----------|-------------|
@@ -335,53 +391,103 @@ Nous utilisons trois variables catégorielles du Titanic et un extrait de 5 pass
 
 ### 6.2 Étape de Transformation : Transposition de la Matrice
 
-Les variables deviennent les lignes (objets à clusteriser) et les observations les colonnes (caractéristiques).
+La transposition conceptuelle décrite dans les sections précédentes s'applique :
 
-| Variables (Lignes) | O₁    | O₂    | O₃    | O₄    | O₅    |
-|--------------------|-------|-------|-------|-------|-------|
-| V₁ (Classe)        | 1ère  | 3ème  | 1ère  | 3ème  | 2ème  |
-| V₂ (Sexe)          | Femme | Homme | Homme | Femme | Homme |
-| V₃ (Survie)        | Oui   | Non   | Oui   | Oui   | Non   |
+| Variable (ligne) | O₁    | O₂    | O₃    | O₄    | O₅    |
+|------------------|-------|-------|-------|-------|-------|
+| V₁ (Classe)      | 1ère  | 3ème  | 1ère  | 3ème  | 2ème  |
+| V₂ (Sexe)        | Femme | Homme | Homme | Femme | Homme |
+| V₃ (Survie)      | Oui   | Non   | Oui   | Oui   | Non   |
 
-### 6.3 Déroulement de l'Algorithme K-Modes (Itérations)
+Les variables deviennent les objets à clusteriser, caractérisées par leurs modalités sur les 5 passagers.
 
-#### 6.3.1 Initialisation (K = 2)
+### 6.3 Déroulement Détaillé de l'Algorithme K-Modes
 
-Modes initiaux : M₁ = V₁ ; M₂ = V₃.
+Nous souhaitons extraire K = 2 clusters de variables.
 
-#### 6.3.2 Itération 1 - Étape 1 : Assignation par Dissimilarité
+#### 6.3.1 Initialisation des Modes (K = 2)
 
-| Variable | Vs M₁ (V₁)   | Vs M₂ (V₃)   | Assignation |
+Conformément à l'algorithme de la section 2, on sélectionne 2 variables au hasard pour initialiser les prototypes modaux.
+
+Supposons que le tirage ait sélectionné :
+
+- M₁⁽⁰⁾ = V₁
+- M₂⁽⁰⁾ = V₃
+
+Ces modes initiaux définissent les deux centres de clusters au tout début.
+
+#### 6.3.2 Itération 1 — Étape d'Affectation (Assignment Step)
+
+On calcule pour chaque variable Vᵢ sa dissimilarité avec chacun des modes, selon la distance de désaccord simple. Pour chaque paire (variable, mode), on compte le nombre de positions où les modalités diffèrent.
+
+**Matrice des désaccords** :
+
+| Variable | d(Vᵢ, M₁=V₁) | d(Vᵢ, M₂=V₃) | Assignation |
 |----------|--------------|--------------|-------------|
-| V₁       | 0 désaccord  | 3 désaccords | Cluster 1   |
-| V₂       | 5 désaccords | 3 désaccords | Cluster 2   |
-| V₃       | 3 désaccords | 0 désaccord  | Cluster 2   |
+| V₁       | 0            | 3            | Cluster 1   |
+| V₂       | 5            | 3            | Cluster 2   |
+| V₃       | 3            | 0            | Cluster 2   |
 
-**Groupes après assignation** :
-- Cluster 1 : {V₁ (Classe)}
-- Cluster 2 : {V₂ (Sexe), V₃ (Survie)}
+**Résultat de l'assignation (C⁽¹⁾)** :
 
-#### 6.3.3 Itération 1 - Étape 2 : Mise à Jour des Modes
+- Cluster 1 : {V₁}
+- Cluster 2 : {V₂, V₃}
 
-**Nouveau Mode M'₁ (Cluster 1 : V₁)**
+#### 6.3.3 Itération 1 — Étape de Mise à Jour des Modes (Update Step)
 
-M'₁ = (1ère, 3ème, 1ère, 3ème, 2ème)
+**Nouveau mode du Cluster 1**
 
-**Nouveau Mode M'₂ (Cluster 2 : V₂, V₃)**
+Le Cluster 1 contient uniquement V₁, donc :
 
-En appliquant une règle de tie-break (choix arbitraire de V₂ pour ce cluster), le nouveau mode M'₂ devient :
+M₁⁽¹⁾ = V₁
 
-M'₂ = (Femme, Homme, Homme, Femme, Homme)
+**Nouveau mode du Cluster 2**
 
-#### 6.3.4 Itération 2 - Réassignation et Convergence
+Le Cluster 2 contient V₂ et V₃. Pour chaque observation j, on détermine la modalité majoritaire :
 
-L'assignation des variables n'a pas changé. L'algorithme a convergé.
+| Obs | Modalités présentes (V₂, V₃) | Mode (modalité majoritaire) |
+|-----|------------------------------|------------------------------|
+| O₁  | Femme / Oui                  | Femme (tie-break arbitré)    |
+| O₂  | Homme / Non                  | Homme                        |
+| O₃  | Homme / Oui                  | Homme                        |
+| O₄  | Femme / Oui                  | Femme                        |
+| O₅  | Homme / Non                  | Homme                        |
 
-**Partition finale** :
-- Cluster 1 : {V₁ (Classe)}
-- Cluster 2 : {V₂ (Sexe), V₃ (Survie)}
+Ainsi :
+
+M₂⁽¹⁾ = (Femme, Homme, Homme, Femme, Homme)
+
+#### 6.3.4 Itération 2 — Réévaluation des Assignations
+
+On recalcule les distances entre chaque variable et les modes M₁⁽¹⁾ et M₂⁽¹⁾.
+
+Il apparaît que les affectations ne changent pas :
+
+- V₁ reste dans le Cluster 1
+- V₂ et V₃ restent dans le Cluster 2
+
+Le critère de convergence est atteint.
+
+### 6.4 Partition Finale des Variables
+
+Après convergence :
+
+- **Cluster 1** : {V₁ (Classe)}
+- **Cluster 2** : {V₂ (Sexe), V₃ (Survie)}
+
+Cette partition traduit une organisation structurelle intuitive :
+
+**V₁ (Classe)** est une variable multivaluée décrivant la stratification socio-économique et ne partage pas un profil modal suffisamment similaire avec les deux autres variables pour être regroupée.
+
+**V₂ (Sexe) et V₃ (Survie)** présentent un fort parallélisme modal sur les observations, conduisant l'algorithme à les rassembler :
+
+- Les femmes (O₁, O₄) sont majoritairement associées à la survie
+- Les hommes (O₂, O₃, O₅) à la non-survie, sauf exception
+
+Cette similarité structurelle explique la réduction du désaccord intra-cluster et la stabilisation des modes.
 
 ---
+
 
 
 ## 7. Limitations et Extensions Possibles
@@ -390,7 +496,7 @@ L'assignation des variables n'a pas changé. L'algorithme a convergé.
 
 1. **Sensibilité à l'initialisation** : Comme K-Means, K-Modes est sensible au choix des modes initiaux. Des initialisations sous-optimales peuvent conduire à des minima locaux de faible qualité.
 
-2. **Discrétisation arbitraire des variables quantitatives** : La transformation automatique des variables numériques en 5 catégories via `cut()` peut entraîner une perte d'information substantielle.
+2. **Discrétisation arbitraire des variables quantitatives** : Le choix du paramètre `n_bins` pour la discrétisation des variables numériques peut influencer significativement les résultats. Bien que le paramètre soit maintenant configurable par l'utilisateur, le choix d'un `n_bins` inapproprié peut entraîner soit une perte d'information (valeurs trop faibles), soit une fragmentation excessive (valeurs trop élevées).
 
 3. **Absence de pondération des observations** : Toutes les observations contribuent équitablement au calcul du mode, ce qui peut être problématique en présence de données déséquilibrées ou bruitées.
 
@@ -436,6 +542,34 @@ En amont d'algorithmes supervisés, le clustering de variables peut servir à :
 - Réduire la multicolinéarité en ne conservant qu'un représentant par cluster
 - Accélérer les procédures de sélection séquentielle (forward/backward) en limitant l'espace de recherche
 
+
+### 8.5 Données Mixtes avec Optimisation du Paramètre n_bins
+
+Pour les jeux de données comportant à la fois des variables catégorielles et numériques, le choix du paramètre `n_bins` constitue un élément stratégique de l'analyse.
+
+**Exemple pratique** :
+
+Considérons un dataset de profils clients comprenant :
+- Variables catégorielles : Segment (Premium/Standard/Basique), Canal (Web/Mobile/Boutique)
+- Variables numériques : Montant dépensé, Fréquence d'achat
+
+```r
+# Comparaison de différentes stratégies de discrétisation
+km_coarse <- KmodesVarClust$new(k = 3, n_bins = 3)   # Granularité faible
+km_medium <- KmodesVarClust$new(k = 3, n_bins = 5)   # Granularité moyenne
+km_fine   <- KmodesVarClust$new(k = 3, n_bins = 10)  # Granularité élevée
+
+km_coarse$fit(client_data)
+km_medium$fit(client_data)
+km_fine$fit(client_data)
+
+# Analyse de la stabilité
+# Si les trois approches convergent vers des partitions similaires,
+# cela indique une robustesse des résultats au choix de n_bins
+```
+
+Cette démarche permet d'identifier le niveau de discrétisation optimal en fonction du compromis souhaité entre préservation de l'information et généralisation.
+
 ## 9. Comparaison avec les Approches Alternatives
 
 ### 9.1 Distinction avec ClustOfVar
@@ -460,48 +594,34 @@ L'implémentation s'inspire des travaux fondateurs et extensions suivantes :
 ### Références Principales
 
 - **Huang, Z. (1997).** *Clustering large data sets with mixed numeric and categorical values*. Proceedings of the First Pacific Asia Knowledge Discovery and Data Mining Conference, Singapore: World Scientific, pp. 21-34.  
-  Introduction de l'algorithme K-Modes et K-Prototypes.
+  → Introduction de l'algorithme K-Modes et K-Prototypes.
 
 - **Huang, Z. (1998).** *Extensions to the k-Means Algorithm for Clustering Large Data Sets with Categorical Values*. Data Mining and Knowledge Discovery, 2(3), 283-304.  
-  Formalisation théorique et analyse de convergence du K-Modes.
+  → Formalisation théorique et analyse de convergence du K-Modes.
 
 - **Huang, Z., & Ng, M. K. (1999).** *A fuzzy k-modes algorithm for clustering categorical data*. IEEE Transactions on Fuzzy Systems, 7(4), 446-452.  
-  Extension floue de K-Modes permettant des appartenances partielles.
+  → Extension floue de K-Modes permettant des appartenances partielles.
 
 ### Extensions et Améliorations
 
 - **Cao, F., Liang, J., & Bai, L. (2009).** *A new initialization method for categorical data clustering*. Expert Systems with Applications, 36(7), 10223-10228.  
-  Méthode d'initialisation basée sur la densité pour améliorer la convergence.
+  → Méthode d'initialisation basée sur la densité pour améliorer la convergence.
 
 - **Ng, M. K., Li, M. J., Huang, J. Z., & He, Z. (2007).** *On the impact of dissimilarity measure in k-modes clustering algorithm*. IEEE Transactions on Pattern Analysis and Machine Intelligence, 29(3), 503-507.  
-  Proposition d'une mesure de dissimilarité améliorée basée sur les fréquences relatives.
+  → Proposition d'une mesure de dissimilarité améliorée basée sur les fréquences relatives.
 
 - **San, O. M., Huynh, V. N., & Nakamori, Y. (2004).** *An alternative extension of the k-means algorithm for clustering categorical data*. International Journal of Applied Mathematics and Computer Science, 14(2), 241-247.  
-  Variante k-populations utilisant des distributions de probabilité comme prototypes.
+  → Variante k-populations utilisant des distributions de probabilité comme prototypes.
 
 ### Travaux Complémentaires
 
 - **Ahmad, A., & Khan, S. S. (2019).** *Survey of state-of-the-art mixed data clustering algorithms*. IEEE Access, 7, 31883-31902.  
-  Revue exhaustive des algorithmes de clustering pour données mixtes.
+  → Revue exhaustive des algorithmes de clustering pour données mixtes.
 
 - **Chicco, D., & Jurman, G. (2023).** *Categorical data clustering: 25 years beyond K-modes*. Expert Systems with Applications, 244, 122929.  
-  Synthèse récente des avancées méthodologiques depuis l'introduction de K-Modes.
+  → Synthèse récente des avancées méthodologiques depuis l'introduction de K-Modes.
 
 ### Contexte de Clustering de Variables
 
 - **Vigneau, E., & Qannari, E. M. (2003).** *Clustering of variables around latent components*. Communications in Statistics - Simulation and Computation, 32(4), 1131-1150.  
-  Fondements théoriques du clustering de variables par composantes latentes.
-
-## 10. Contribution Distinctive de cette Implémentation
-
-La contribution spécifique de cette implémentation réside dans :
-
-1. **Adaptation du K-Modes au clustering de variables** : Application d'un algorithme originellement conçu pour des observations à un contexte de clustering de variables via transposition matricielle.
-
-2. **Gestion intégrée des données mixtes** : Discrétisation automatique des variables quantitatives permettant un traitement unifié dans le paradigme catégoriel.
-
-3. **Cohérence architecturale** : Héritage de la classe `ClusterAnalysis` garantissant une interface unifiée avec les autres méthodes de clustering du package (CAH, K-Means, K-Prototypes, ClustOfVar).
-
-4. **Méthode de prédiction pour nouvelles variables** : Extension permettant l'assignation incrémentale de nouvelles variables sans réentraînement complet, fonctionnalité peu documentée dans la littérature sur K-Modes pour variables.
-
-Cette implémentation offre ainsi une solution efficace et légère pour le clustering de variables catégorielles, complémentaire aux approches par corrélation (ClustOfVar) et par méthodes avancées (VarClustAdvanced).
+  → Fondements théoriques du clustering de variables par composantes latentes.

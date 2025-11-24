@@ -12,7 +12,7 @@ En participant à ce projet, vous acceptez de respecter notre Code de Conduite. 
 
 Si vous trouvez un bug :
 
-1. **Vérifiez** que le bug n'a pas déjà été rapporté dans les [Issues](https://github.com/yourusername/RollerClustR/issues)
+1. **Vérifiez** que le bug n'a pas déjà été rapporté dans les [Issues](https://github.com/RomainBuono/RollerClustR/issues)
 2. **Créez** une nouvelle issue en incluant :
    - Une description claire du problème
    - Un exemple minimal reproductible
@@ -218,8 +218,8 @@ devtools::document()
 
 Si vous avez des questions :
 
-1. Consultez la [documentation](https://github.com/yourusername/RollerClustR)
-2. Cherchez dans les [Issues existantes](https://github.com/yourusername/RollerClustR/issues)
+1. Consultez la [documentation](https://github.com/RomainBuono/RollerClustR)
+2. Cherchez dans les [Issues existantes](https://github.com/RomainBuono/RollerClustR/issues)
 3. Ouvrez une nouvelle issue avec le label "question"
 
 ## Remerciements

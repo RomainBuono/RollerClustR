@@ -142,15 +142,21 @@ window.Quarto = {
 <h4 class="anchored" data-anchor-id="nettoyage-et-factorisation-des-données">Nettoyage et Factorisation des Données</h4>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>X_clean <span class="ot">&lt;-</span> private<span class="sc">$</span><span class="fu">cleanDataset</span>(private<span class="sc">$</span>FX)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>X_factor <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="fu">lapply</span>(X_clean, <span class="cf">function</span>(v) </span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">is.numeric</span>(v)) <span class="fu">cut</span>(v, <span class="at">breaks =</span> <span class="dv">5</span>, <span class="at">include.lowest =</span> <span class="cn">TRUE</span>) </span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">is.numeric</span>(v)) <span class="fu">cut</span>(v, <span class="at">breaks =</span> private<span class="sc">$</span>FNBins, <span class="at">include.lowest =</span> <span class="cn">TRUE</span>) </span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="cf">else</span> <span class="fu">as.factor</span>(v)</span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>La méthode héritée <code>cleanDataset()</code> réalise la validation du jeu de données selon la stratégie définie par <code>na_action</code>. Une étape de factorisation est ensuite appliquée :</p>
 <ul>
 <li><strong>Variables qualitatives</strong> : Conversion en facteurs R standardisés</li>
-<li><strong>Variables quantitatives</strong> : Discrétisation automatique en 5 intervalles équilibrés via la fonction <code>cut()</code></li>
+<li><strong>Variables quantitatives</strong> : Discrétisation paramétrée en <code>n_bins</code> intervalles équilibrés via la fonction <code>cut()</code></li>
 </ul>
-<p>Cette discrétisation préalable permet l’application du K-Modes à des données mixtes en homogénéisant leur représentation catégorielle.</p>
+<p>Le paramètre <code>n_bins</code> (nombre d’intervalles pour la discrétisation) est configurable par l’utilisateur lors de l’initialisation de l’objet <code>KmodesVarClust</code>. La valeur par défaut est fixée à 5, mais peut être ajustée selon les caractéristiques des données et les objectifs analytiques.</p>
+<p><strong>Avertissement important</strong> : Lorsque des variables numériques sont détectées dans le jeu de données, un message d’avertissement est automatiquement affiché pour informer l’utilisateur que :</p>
+<ol type="1">
+<li>Les variables numériques seront discrétisées en <code>n_bins</code> intervalles</li>
+<li>Le choix du nombre d’intervalles peut influencer significativement les résultats du clustering</li>
+<li>Il est recommandé de tester différentes valeurs de <code>n_bins</code> pour évaluer la stabilité des résultats Cette discrétisation préalable permet l’application du K-Modes à des données mixtes en homogénéisant leur représentation catégorielle.</li>
+</ol>
 </section>
 <section id="transposition-conceptuelle-de-lespace-des-variables" class="level4">
 <h4 class="anchored" data-anchor-id="transposition-conceptuelle-de-lespace-des-variables">Transposition Conceptuelle de l’Espace des Variables</h4>
@@ -299,6 +305,34 @@ window.Quarto = {
 <span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>Lorsque toutes les dissimilarités sont indéfinies (cas de données entièrement manquantes ou incompatibles), la prédiction retourne <code>NA</code> pour préserver l’intégrité des résultats.</p>
 </section>
+<section id="paramétrage-de-la-discrétisation" class="level3">
+<h3 class="anchored" data-anchor-id="paramétrage-de-la-discrétisation">3.5 Paramétrage de la Discrétisation</h3>
+<p>L’initialisation de la classe <code>KmodesVarClust</code> accepte le paramètre <code>n_bins</code> permettant de contrôler la granularité de la discrétisation des variables numériques :</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Initialisation avec différentes valeurs de n_bins</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>kmodes_fin <span class="ot">&lt;-</span> KmodesVarClust<span class="sc">$</span><span class="fu">new</span>(<span class="at">k =</span> <span class="dv">3</span>, <span class="at">n_bins =</span> <span class="dv">3</span>)   <span class="co"># Discrétisation grossière</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>kmodes_std <span class="ot">&lt;-</span> KmodesVarClust<span class="sc">$</span><span class="fu">new</span>(<span class="at">k =</span> <span class="dv">3</span>, <span class="at">n_bins =</span> <span class="dv">5</span>)   <span class="co"># Valeur par défaut</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>kmodes_det <span class="ot">&lt;-</span> KmodesVarClust<span class="sc">$</span><span class="fu">new</span>(<span class="at">k =</span> <span class="dv">3</span>, <span class="at">n_bins =</span> <span class="dv">10</span>)  <span class="co"># Discrétisation fine</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><strong>Recommandations pour le choix de n_bins</strong> :</p>
+<ol type="1">
+<li><p><strong>Valeurs faibles (2-4)</strong> : Convient aux variables avec peu de variation ou lorsque l’on souhaite des regroupements larges. Risque de masquer des patterns subtils.</p></li>
+<li><p><strong>Valeurs moyennes (5-7)</strong> : Compromis équilibré entre granularité et généralisation. Recommandé pour une première exploration.</p></li>
+<li><p><strong>Valeurs élevées (8+)</strong> : Préserve davantage l’information originale mais augmente le risque de sur-segmentation et de clusters peu représentatifs.</p></li>
+</ol>
+<p><strong>Stratégie d’analyse</strong> :</p>
+<p>Pour évaluer la sensibilité des résultats au choix de <code>n_bins</code>, il est recommandé de :</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Analyse de sensibilité</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>results_comparison <span class="ot">&lt;-</span> <span class="fu">data.frame</span>()</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (bins <span class="cf">in</span> <span class="fu">c</span>(<span class="dv">3</span>, <span class="dv">5</span>, <span class="dv">7</span>, <span class="dv">10</span>)) {</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  km <span class="ot">&lt;-</span> KmodesVarClust<span class="sc">$</span><span class="fu">new</span>(<span class="at">k =</span> <span class="dv">3</span>, <span class="at">n_bins =</span> bins)</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  km<span class="sc">$</span><span class="fu">fit</span>(data)</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  results_comparison <span class="ot">&lt;-</span> <span class="fu">rbind</span>(results_comparison, </span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>                              <span class="fu">data.frame</span>(<span class="at">n_bins =</span> bins, </span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>                                        <span class="at">inertia =</span> km<span class="sc">$</span>Inertie<span class="sc">$</span>intra,</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>                                        <span class="at">clusters =</span> <span class="fu">list</span>(km<span class="sc">$</span>Groupes)))</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Cette approche permet d’identifier si les partitions obtenues sont stables ou si elles dépendent fortement du niveau de discrétisation choisi.</p>
+</section>
 </section>
 <section id="fondements-mathématiques-de-la-méthode" class="level2">
 <h2 class="anchored" data-anchor-id="fondements-mathématiques-de-la-méthode">4. Fondements Mathématiques de la Méthode</h2>
@@ -393,7 +427,9 @@ window.Quarto = {
 </section>
 <section id="illustration-algorithmique-sur-un-exemple-canonique" class="level2">
 <h2 class="anchored" data-anchor-id="illustration-algorithmique-sur-un-exemple-canonique">6. Illustration Algorithmique sur un Exemple Canonique</h2>
-<p>Nous utilisons trois variables catégorielles du Titanic et un extrait de 5 passagers (O₁ à O₅) pour les regrouper en K = 2 clusters de variables.</p>
+<p>Afin d’illustrer concrètement les mécanismes internes de la classe <code>KmodesVarClust</code>, nous présentons ici une exécution complète du K-Modes appliqué au clustering de variables, en utilisant un extrait simplifié du jeu de données Titanic.</p>
+<p>L’objectif est de montrer, sur un exemple totalement transparent, comment les modes sont initialisés, comment les distances sont calculées, comment les clusters évoluent, et comment la convergence apparaît.</p>
+<p>Nous considérons ici 3 variables catégorielles évaluées sur 5 passagers (O₁ à O₅) :</p>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -412,12 +448,14 @@ window.Quarto = {
 </tr>
 <tr class="odd">
 <td>V₃</td>
-<td>Statut de Survie (Oui, Non)</td>
+<td>Statut de survie (Oui, Non)</td>
 </tr>
 </tbody>
 </table>
-<section id="le-jeu-de-données-initial" class="level3">
-<h3 class="anchored" data-anchor-id="le-jeu-de-données-initial">6.1 Le Jeu de Données Initial</h3>
+<p>Ces variables représentent un cas typique de données catégorielles hétérogènes : nombre de modalités différent selon les variables, absence de métrique naturelle, et structure potentiellement redondante.</p>
+<section id="jeu-de-données-initial" class="level3">
+<h3 class="anchored" data-anchor-id="jeu-de-données-initial">6.1 Jeu de Données Initial</h3>
+<p>Les données pour les 5 passagers considérés sont :</p>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -463,11 +501,11 @@ window.Quarto = {
 </section>
 <section id="étape-de-transformation-transposition-de-la-matrice" class="level3">
 <h3 class="anchored" data-anchor-id="étape-de-transformation-transposition-de-la-matrice">6.2 Étape de Transformation : Transposition de la Matrice</h3>
-<p>Les variables deviennent les lignes (objets à clusteriser) et les observations les colonnes (caractéristiques).</p>
+<p>La transposition conceptuelle décrite dans les sections précédentes s’applique :</p>
 <table class="caption-top table">
 <thead>
 <tr class="header">
-<th>Variables (Lignes)</th>
+<th>Variable (ligne)</th>
 <th>O₁</th>
 <th>O₂</th>
 <th>O₃</th>
@@ -502,61 +540,134 @@ window.Quarto = {
 </tr>
 </tbody>
 </table>
+<p>Les variables deviennent les objets à clusteriser, caractérisées par leurs modalités sur les 5 passagers.</p>
 </section>
-<section id="déroulement-de-lalgorithme-k-modes-itérations" class="level3">
-<h3 class="anchored" data-anchor-id="déroulement-de-lalgorithme-k-modes-itérations">6.3 Déroulement de l’Algorithme K-Modes (Itérations)</h3>
-<section id="initialisation-k-2" class="level4">
-<h4 class="anchored" data-anchor-id="initialisation-k-2">6.3.1 Initialisation (K = 2)</h4>
-<p>Modes initiaux : M₁ = V₁ ; M₂ = V₃.</p>
+<section id="déroulement-détaillé-de-lalgorithme-k-modes" class="level3">
+<h3 class="anchored" data-anchor-id="déroulement-détaillé-de-lalgorithme-k-modes">6.3 Déroulement Détaillé de l’Algorithme K-Modes</h3>
+<p>Nous souhaitons extraire K = 2 clusters de variables.</p>
+<section id="initialisation-des-modes-k-2" class="level4">
+<h4 class="anchored" data-anchor-id="initialisation-des-modes-k-2">6.3.1 Initialisation des Modes (K = 2)</h4>
+<p>Conformément à l’algorithme de la section 2, on sélectionne 2 variables au hasard pour initialiser les prototypes modaux.</p>
+<p>Supposons que le tirage ait sélectionné :</p>
+<ul>
+<li>M₁⁽⁰⁾ = V₁</li>
+<li>M₂⁽⁰⁾ = V₃</li>
+</ul>
+<p>Ces modes initiaux définissent les deux centres de clusters au tout début.</p>
 </section>
-<section id="itération-1---étape-1-assignation-par-dissimilarité" class="level4">
-<h4 class="anchored" data-anchor-id="itération-1---étape-1-assignation-par-dissimilarité">6.3.2 Itération 1 - Étape 1 : Assignation par Dissimilarité</h4>
+<section id="itération-1-étape-daffectation-assignment-step" class="level4">
+<h4 class="anchored" data-anchor-id="itération-1-étape-daffectation-assignment-step">6.3.2 Itération 1 — Étape d’Affectation (Assignment Step)</h4>
+<p>On calcule pour chaque variable Vᵢ sa dissimilarité avec chacun des modes, selon la distance de désaccord simple. Pour chaque paire (variable, mode), on compte le nombre de positions où les modalités diffèrent.</p>
+<p><strong>Matrice des désaccords</strong> :</p>
 <table class="caption-top table">
 <thead>
 <tr class="header">
 <th>Variable</th>
-<th>Vs M₁ (V₁)</th>
-<th>Vs M₂ (V₃)</th>
+<th>d(Vᵢ, M₁=V₁)</th>
+<th>d(Vᵢ, M₂=V₃)</th>
 <th>Assignation</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
 <td>V₁</td>
-<td>0 désaccord</td>
-<td>3 désaccords</td>
+<td>0</td>
+<td>3</td>
 <td>Cluster 1</td>
 </tr>
 <tr class="even">
 <td>V₂</td>
-<td>5 désaccords</td>
-<td>3 désaccords</td>
+<td>5</td>
+<td>3</td>
 <td>Cluster 2</td>
 </tr>
 <tr class="odd">
 <td>V₃</td>
-<td>3 désaccords</td>
-<td>0 désaccord</td>
+<td>3</td>
+<td>0</td>
 <td>Cluster 2</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Groupes après assignation</strong> : - Cluster 1 : {V₁ (Classe)} - Cluster 2 : {V₂ (Sexe), V₃ (Survie)}</p>
+<p><strong>Résultat de l’assignation (C⁽¹⁾)</strong> :</p>
+<ul>
+<li>Cluster 1 : {V₁}</li>
+<li>Cluster 2 : {V₂, V₃}</li>
+</ul>
 </section>
-<section id="itération-1---étape-2-mise-à-jour-des-modes" class="level4">
-<h4 class="anchored" data-anchor-id="itération-1---étape-2-mise-à-jour-des-modes">6.3.3 Itération 1 - Étape 2 : Mise à Jour des Modes</h4>
-<p><strong>Nouveau Mode M’₁ (Cluster 1 : V₁)</strong></p>
-<p>M’₁ = (1ère, 3ème, 1ère, 3ème, 2ème)</p>
-<p><strong>Nouveau Mode M’₂ (Cluster 2 : V₂, V₃)</strong></p>
-<p>En appliquant une règle de tie-break (choix arbitraire de V₂ pour ce cluster), le nouveau mode M’₂ devient :</p>
-<p>M’₂ = (Femme, Homme, Homme, Femme, Homme)</p>
+<section id="itération-1-étape-de-mise-à-jour-des-modes-update-step" class="level4">
+<h4 class="anchored" data-anchor-id="itération-1-étape-de-mise-à-jour-des-modes-update-step">6.3.3 Itération 1 — Étape de Mise à Jour des Modes (Update Step)</h4>
+<p><strong>Nouveau mode du Cluster 1</strong></p>
+<p>Le Cluster 1 contient uniquement V₁, donc :</p>
+<p>M₁⁽¹⁾ = V₁</p>
+<p><strong>Nouveau mode du Cluster 2</strong></p>
+<p>Le Cluster 2 contient V₂ et V₃. Pour chaque observation j, on détermine la modalité majoritaire :</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Obs</th>
+<th>Modalités présentes (V₂, V₃)</th>
+<th>Mode (modalité majoritaire)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>O₁</td>
+<td>Femme / Oui</td>
+<td>Femme (tie-break arbitré)</td>
+</tr>
+<tr class="even">
+<td>O₂</td>
+<td>Homme / Non</td>
+<td>Homme</td>
+</tr>
+<tr class="odd">
+<td>O₃</td>
+<td>Homme / Oui</td>
+<td>Homme</td>
+</tr>
+<tr class="even">
+<td>O₄</td>
+<td>Femme / Oui</td>
+<td>Femme</td>
+</tr>
+<tr class="odd">
+<td>O₅</td>
+<td>Homme / Non</td>
+<td>Homme</td>
+</tr>
+</tbody>
+</table>
+<p>Ainsi :</p>
+<p>M₂⁽¹⁾ = (Femme, Homme, Homme, Femme, Homme)</p>
 </section>
-<section id="itération-2---réassignation-et-convergence" class="level4">
-<h4 class="anchored" data-anchor-id="itération-2---réassignation-et-convergence">6.3.4 Itération 2 - Réassignation et Convergence</h4>
-<p>L’assignation des variables n’a pas changé. L’algorithme a convergé.</p>
-<p><strong>Partition finale</strong> : - Cluster 1 : {V₁ (Classe)} - Cluster 2 : {V₂ (Sexe), V₃ (Survie)}</p>
+<section id="itération-2-réévaluation-des-assignations" class="level4">
+<h4 class="anchored" data-anchor-id="itération-2-réévaluation-des-assignations">6.3.4 Itération 2 — Réévaluation des Assignations</h4>
+<p>On recalcule les distances entre chaque variable et les modes M₁⁽¹⁾ et M₂⁽¹⁾.</p>
+<p>Il apparaît que les affectations ne changent pas :</p>
+<ul>
+<li>V₁ reste dans le Cluster 1</li>
+<li>V₂ et V₃ restent dans le Cluster 2</li>
+</ul>
+<p>Le critère de convergence est atteint.</p>
+</section>
+</section>
+<section id="partition-finale-des-variables" class="level3">
+<h3 class="anchored" data-anchor-id="partition-finale-des-variables">6.4 Partition Finale des Variables</h3>
+<p>Après convergence :</p>
+<ul>
+<li><strong>Cluster 1</strong> : {V₁ (Classe)}</li>
+<li><strong>Cluster 2</strong> : {V₂ (Sexe), V₃ (Survie)}</li>
+</ul>
+<p>Cette partition traduit une organisation structurelle intuitive :</p>
+<p><strong>V₁ (Classe)</strong> est une variable multivaluée décrivant la stratification socio-économique et ne partage pas un profil modal suffisamment similaire avec les deux autres variables pour être regroupée.</p>
+<p><strong>V₂ (Sexe) et V₃ (Survie)</strong> présentent un fort parallélisme modal sur les observations, conduisant l’algorithme à les rassembler :</p>
+<ul>
+<li>Les femmes (O₁, O₄) sont majoritairement associées à la survie</li>
+<li>Les hommes (O₂, O₃, O₅) à la non-survie, sauf exception</li>
+</ul>
+<p>Cette similarité structurelle explique la réduction du désaccord intra-cluster et la stabilisation des modes.</p>
 <hr>
-</section>
 </section>
 </section>
 <section id="limitations-et-extensions-possibles" class="level2">
@@ -565,7 +676,7 @@ window.Quarto = {
 <h3 class="anchored" data-anchor-id="limitations-actuelles">7.1 Limitations Actuelles</h3>
 <ol type="1">
 <li><p><strong>Sensibilité à l’initialisation</strong> : Comme K-Means, K-Modes est sensible au choix des modes initiaux. Des initialisations sous-optimales peuvent conduire à des minima locaux de faible qualité.</p></li>
-<li><p><strong>Discrétisation arbitraire des variables quantitatives</strong> : La transformation automatique des variables numériques en 5 catégories via <code>cut()</code> peut entraîner une perte d’information substantielle.</p></li>
+<li><p><strong>Discrétisation arbitraire des variables quantitatives</strong> : Le choix du paramètre <code>n_bins</code> pour la discrétisation des variables numériques peut influencer significativement les résultats. Bien que le paramètre soit maintenant configurable par l’utilisateur, le choix d’un <code>n_bins</code> inapproprié peut entraîner soit une perte d’information (valeurs trop faibles), soit une fragmentation excessive (valeurs trop élevées).</p></li>
 <li><p><strong>Absence de pondération des observations</strong> : Toutes les observations contribuent équitablement au calcul du mode, ce qui peut être problématique en présence de données déséquilibrées ou bruitées.</p></li>
 <li><p><strong>Traitement uniforme des modalités</strong> : La mesure de désaccord simple traite toutes les modalités comme équidistantes, ignorant toute structure ordinale potentielle.</p></li>
 </ol>
@@ -611,6 +722,25 @@ window.Quarto = {
 <li>Réduire la multicolinéarité en ne conservant qu’un représentant par cluster</li>
 <li>Accélérer les procédures de sélection séquentielle (forward/backward) en limitant l’espace de recherche</li>
 </ul>
+</section>
+<section id="données-mixtes-avec-optimisation-du-paramètre-n_bins" class="level3">
+<h3 class="anchored" data-anchor-id="données-mixtes-avec-optimisation-du-paramètre-n_bins">8.5 Données Mixtes avec Optimisation du Paramètre n_bins</h3>
+<p>Pour les jeux de données comportant à la fois des variables catégorielles et numériques, le choix du paramètre <code>n_bins</code> constitue un élément stratégique de l’analyse.</p>
+<p><strong>Exemple pratique</strong> :</p>
+<p>Considérons un dataset de profils clients comprenant : - Variables catégorielles : Segment (Premium/Standard/Basique), Canal (Web/Mobile/Boutique) - Variables numériques : Montant dépensé, Fréquence d’achat</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Comparaison de différentes stratégies de discrétisation</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>km_coarse <span class="ot">&lt;-</span> KmodesVarClust<span class="sc">$</span><span class="fu">new</span>(<span class="at">k =</span> <span class="dv">3</span>, <span class="at">n_bins =</span> <span class="dv">3</span>)   <span class="co"># Granularité faible</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>km_medium <span class="ot">&lt;-</span> KmodesVarClust<span class="sc">$</span><span class="fu">new</span>(<span class="at">k =</span> <span class="dv">3</span>, <span class="at">n_bins =</span> <span class="dv">5</span>)   <span class="co"># Granularité moyenne</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>km_fine   <span class="ot">&lt;-</span> KmodesVarClust<span class="sc">$</span><span class="fu">new</span>(<span class="at">k =</span> <span class="dv">3</span>, <span class="at">n_bins =</span> <span class="dv">10</span>)  <span class="co"># Granularité élevée</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>km_coarse<span class="sc">$</span><span class="fu">fit</span>(client_data)</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>km_medium<span class="sc">$</span><span class="fu">fit</span>(client_data)</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>km_fine<span class="sc">$</span><span class="fu">fit</span>(client_data)</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Analyse de la stabilité</span></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Si les trois approches convergent vers des partitions similaires,</span></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a><span class="co"># cela indique une robustesse des résultats au choix de n_bins</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>Cette démarche permet d’identifier le niveau de discrétisation optimal en fonction du compromis souhaité entre préservation de l’information et généralisation.</p>
 </section>
 </section>
 <section id="comparaison-avec-les-approches-alternatives" class="level2">
@@ -676,38 +806,38 @@ window.Quarto = {
 <h3 class="anchored" data-anchor-id="références-principales">Références Principales</h3>
 <ul>
 <li><p><strong>Huang, Z. (1997).</strong> <em>Clustering large data sets with mixed numeric and categorical values</em>. Proceedings of the First Pacific Asia Knowledge Discovery and Data Mining Conference, Singapore: World Scientific, pp.&nbsp;21-34.<br>
-Introduction de l’algorithme K-Modes et K-Prototypes.</p></li>
+→ Introduction de l’algorithme K-Modes et K-Prototypes.</p></li>
 <li><p><strong>Huang, Z. (1998).</strong> <em>Extensions to the k-Means Algorithm for Clustering Large Data Sets with Categorical Values</em>. Data Mining and Knowledge Discovery, 2(3), 283-304.<br>
-Formalisation théorique et analyse de convergence du K-Modes.</p></li>
+→ Formalisation théorique et analyse de convergence du K-Modes.</p></li>
 <li><p><strong>Huang, Z., &amp; Ng, M. K. (1999).</strong> <em>A fuzzy k-modes algorithm for clustering categorical data</em>. IEEE Transactions on Fuzzy Systems, 7(4), 446-452.<br>
-Extension floue de K-Modes permettant des appartenances partielles.</p></li>
+→ Extension floue de K-Modes permettant des appartenances partielles.</p></li>
 </ul>
 </section>
 <section id="extensions-et-améliorations" class="level3">
 <h3 class="anchored" data-anchor-id="extensions-et-améliorations">Extensions et Améliorations</h3>
 <ul>
 <li><p><strong>Cao, F., Liang, J., &amp; Bai, L. (2009).</strong> <em>A new initialization method for categorical data clustering</em>. Expert Systems with Applications, 36(7), 10223-10228.<br>
-Méthode d’initialisation basée sur la densité pour améliorer la convergence.</p></li>
+→ Méthode d’initialisation basée sur la densité pour améliorer la convergence.</p></li>
 <li><p><strong>Ng, M. K., Li, M. J., Huang, J. Z., &amp; He, Z. (2007).</strong> <em>On the impact of dissimilarity measure in k-modes clustering algorithm</em>. IEEE Transactions on Pattern Analysis and Machine Intelligence, 29(3), 503-507.<br>
-Proposition d’une mesure de dissimilarité améliorée basée sur les fréquences relatives.</p></li>
+→ Proposition d’une mesure de dissimilarité améliorée basée sur les fréquences relatives.</p></li>
 <li><p><strong>San, O. M., Huynh, V. N., &amp; Nakamori, Y. (2004).</strong> <em>An alternative extension of the k-means algorithm for clustering categorical data</em>. International Journal of Applied Mathematics and Computer Science, 14(2), 241-247.<br>
-Variante k-populations utilisant des distributions de probabilité comme prototypes.</p></li>
+→ Variante k-populations utilisant des distributions de probabilité comme prototypes.</p></li>
 </ul>
 </section>
 <section id="travaux-complémentaires" class="level3">
 <h3 class="anchored" data-anchor-id="travaux-complémentaires">Travaux Complémentaires</h3>
 <ul>
 <li><p><strong>Ahmad, A., &amp; Khan, S. S. (2019).</strong> <em>Survey of state-of-the-art mixed data clustering algorithms</em>. IEEE Access, 7, 31883-31902.<br>
-Revue exhaustive des algorithmes de clustering pour données mixtes.</p></li>
+→ Revue exhaustive des algorithmes de clustering pour données mixtes.</p></li>
 <li><p><strong>Chicco, D., &amp; Jurman, G. (2023).</strong> <em>Categorical data clustering: 25 years beyond K-modes</em>. Expert Systems with Applications, 244, 122929.<br>
-Synthèse récente des avancées méthodologiques depuis l’introduction de K-Modes.</p></li>
+→ Synthèse récente des avancées méthodologiques depuis l’introduction de K-Modes.</p></li>
 </ul>
 </section>
 <section id="contexte-de-clustering-de-variables" class="level3">
 <h3 class="anchored" data-anchor-id="contexte-de-clustering-de-variables">Contexte de Clustering de Variables</h3>
 <ul>
 <li><strong>Vigneau, E., &amp; Qannari, E. M. (2003).</strong> <em>Clustering of variables around latent components</em>. Communications in Statistics - Simulation and Computation, 32(4), 1131-1150.<br>
-Fondements théoriques du clustering de variables par composantes latentes.</li>
+→ Fondements théoriques du clustering de variables par composantes latentes.</li>
 </ul>
 </section>
 </section>
@@ -716,9 +846,10 @@ Fondements théoriques du clustering de variables par composantes latentes.</li>
 <p>La contribution spécifique de cette implémentation réside dans :</p>
 <ol type="1">
 <li><p><strong>Adaptation du K-Modes au clustering de variables</strong> : Application d’un algorithme originellement conçu pour des observations à un contexte de clustering de variables via transposition matricielle.</p></li>
-<li><p><strong>Gestion intégrée des données mixtes</strong> : Discrétisation automatique des variables quantitatives permettant un traitement unifié dans le paradigme catégoriel.</p></li>
+<li><p><strong>Gestion intégrée des données mixtes</strong> : Discrétisation paramétrable des variables quantitatives via le paramètre <code>n_bins</code> permettant un traitement unifié dans le paradigme catégoriel.</p></li>
 <li><p><strong>Cohérence architecturale</strong> : Héritage de la classe <code>ClusterAnalysis</code> garantissant une interface unifiée avec les autres méthodes de clustering du package (CAH, K-Means, K-Prototypes, ClustOfVar).</p></li>
 <li><p><strong>Méthode de prédiction pour nouvelles variables</strong> : Extension permettant l’assignation incrémentale de nouvelles variables sans réentraînement complet, fonctionnalité peu documentée dans la littérature sur K-Modes pour variables.</p></li>
+<li><p><strong>Contrôle utilisateur sur la discrétisation</strong> : Paramètre <code>n_bins</code> configurable avec système d’avertissement automatique, permettant à l’utilisateur d’adapter le niveau de granularité selon ses besoins analytiques et d’évaluer la sensibilité des résultats.</p></li>
 </ol>
 <p>Cette implémentation offre ainsi une solution efficace et légère pour le clustering de variables catégorielles, complémentaire aux approches par corrélation (ClustOfVar) et par méthodes avancées (VarClustAdvanced).</p>
 </section>

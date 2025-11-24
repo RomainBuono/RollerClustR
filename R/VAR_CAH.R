@@ -1,76 +1,73 @@
-#' Clustering Ascendant Hiérarchique de Variables (VAR_CAH)
+#' Hierarchical Agglomerative Clustering of Variables (VAR_CAH)
 #'
 #' @description
-#' `VAR_CAH` implémente un algorithme de clustering ascendant hiérarchique (CAH)
-#' pour le regroupement de variables numériques. L'algorithme utilise la matrice
-#' de corrélation pour calculer les distances entre variables et construit un
-#' dendrogramme permettant d'identifier des groupes de variables similaires.
+#' `VAR_CAH` implements a hierarchical agglomerative clustering (HAC) algorithm
+#' for grouping numeric variables. The algorithm uses the correlation matrix
+#' to compute distances between variables and builds a dendrogram to identify
+#' groups of similar variables.
 #'
 #' @details
-#' ## Principe de l'algorithme
+#' ## Algorithm Principle
 #'
-#' 1. Calcul de la matrice de corrélation entre toutes les variables
-#' 2. Transformation en matrice de distance : `d = 1 - |cor|`
-#' 3. Construction de l'arbre hiérarchique (méthode complete linkage)
-#' 4. Découpe de l'arbre pour obtenir K clusters
-#' 5. Calcul de variables synthétiques par ACP pour chaque cluster
+#' 1. Compute correlation matrix between all variables
+#' 2. Transform into distance matrix: `d = 1 - |cor|`
+#' 3. Build hierarchical tree (complete linkage method)
+#' 4. Cut tree to obtain K clusters
+#' 5. Compute synthetic variables by PCA for each cluster
 #'
-#' ## Variables synthétiques
+#' ## Synthetic Variables
 #'
-#' Pour chaque cluster de variables, une variable synthétique est calculée comme
-#' la première composante principale (PC1) des variables du cluster. Cette
-#' synthèse maximise la variance expliquée et fournit une représentation optimale
-#' du cluster.
+#' For each variable cluster, a synthetic variable is computed as the first
+#' principal component (PC1) of the cluster variables. This synthesis maximizes
+#' explained variance and provides an optimal representation of the cluster.
 #'
-#' ## Métriques de qualité
+#' ## Quality Metrics
 #'
-#' - **Homogénéité** : Corrélation moyenne intra-cluster
-#' - **Qualité des clusters** : Variance expliquée par PC1
-#' - **Corrélations** : Matrice de corrélation complète
+#' - **Homogeneity**: Average intra-cluster correlation
+#' - **Cluster Quality**: Variance explained by PC1
+#' - **Correlations**: Complete correlation matrix
 #'
-#' @param K Nombre de clusters souhaités (défaut : 2)
-#' @param scale Booléen indiquant si les variables doivent être centrées-réduites (défaut : TRUE)
-#' @param na.action Action à effectuer en cas de valeurs manquantes : "warn" (défaut), "omit", ou "fail"
-#' @param max.iter Nombre maximum d'itérations (défaut : 100)
-#' @param tolerance Seuil de convergence (défaut : 1e-6)
+#' @param scale Boolean indicating if variables should be centered and scaled (default: TRUE)
+#' @param K Desired number of clusters (default: 2)
+#' @param ... Additional arguments (for compatibility with parent class)
 #'
-#' @return Un objet R6 de classe `VAR_CAH`
+#' @return An R6 object of class `VAR_CAH`
 #'
 #' @examples
-#' # Exemple simple avec le jeu de données iris
+#' # Simple example with iris dataset
 #' library(RollerClustR)
 #' data(iris)
 #'
-#' # Créer et ajuster le modèle
+#' # Create and fit the model
 #' model <- VAR_CAH$new(K = 2, scale = TRUE)
 #' model$fit(iris[, 1:4])
 #'
-#' # Afficher le résumé
+#' # Display summary
 #' model$summary()
 #'
-#' # Accéder aux groupes de variables
+#' # Access variable groups
 #' groups <- model$Groupes
 #' print(groups)
 #'
-#' # Modifier le nombre de clusters
+#' # Modify number of clusters
 #' model$K <- 3
 #' model$summary()
 #'
-#' @section Méthodes publiques:
+#' @section Public methods:
 #' \describe{
-#'   \item{`$new(...)`}{Constructeur de la classe}
-#'   \item{`$fit(X)`}{Ajuste le modèle sur les données X}
-#'   \item{`$summary()`}{Affiche un résumé détaillé du clustering}
-#'   \item{`$predict(newdata)`}{Non implémenté pour VAR_CAH (clustering de variables)}
+#'   \item{`$new(...)`}{Class constructor}
+#'   \item{`$fit(X)`}{Fits the model on data X}
+#'   \item{`$summary()`}{Displays a detailed clustering summary}
+#'   \item{`$predict(newdata)`}{Not implemented for VAR_CAH (variable clustering)}
 #' }
 #'
 #' @section Active bindings:
 #' \describe{
-#'   \item{`$K`}{Nombre de clusters (lecture/écriture)}
-#'   \item{`$Groupes`}{Vecteur nommé des affectations de variables aux clusters}
+#'   \item{`$K`}{Number of clusters (read/write)}
+#'   \item{`$Groupes`}{Named vector of variable assignments to clusters}
 #' }
 #'
-#' @seealso [ClusterAnalysis], [VARCLUS], [KmodesVarClust], [roller_clust()]
+#' @seealso [ClusterAnalysis], [VARCLUS], \code{TandemVarClust}, [roller_clust()]
 #'
 #' @export
 #' @importFrom R6 R6Class
@@ -82,27 +79,27 @@ VAR_CAH <- R6Class("VAR_CAH",
   
   private = list(
     # =================================================================
-    # CHAMPS SPÉCIFIQUES À VAR_CAH (les champs parents sont hérités)
+    # VAR_CAH SPECIFIC FIELDS (parent fields are inherited)
     # =================================================================
     FMaxIter = 100,
     FTolerance = 1e-6,
     FConverged = FALSE,
-    FArbre = NULL,                
-    FVariablesSynthetiques = NULL, 
-    FCorrelations = NULL,         
-    FQualiteClusters = NULL,      
-    FHomogeneite = NULL,          
+    FArbre = NULL,                # Hierarchical tree
+    FVariablesSynthetiques = NULL, # Synthetic variables (PC1 per cluster)
+    FCorrelations = NULL,         # Correlations with synthetic variables
+    FQualiteClusters = NULL,      # Cluster quality metrics
+    FHomogeneite = NULL,          # Overall homogeneity
     FVarNames = NULL,
-    FNumVarNames = NULL,          
-    FCatVarNames = NULL,          
+    FNumVarNames = NULL,          # Numeric variable names
+    FCatVarNames = NULL,          # Categorical variable names
     FVarTypes = NULL,
-    FPCAParams = NULL,            
+    FPCAParams = NULL,            # PCA parameters
     
     # =================================================================
-    # Fonctions Utilitaires
+    # Utility Functions
     # =================================================================
     
-    #' @description Calcule la variable synthétique (PC1) pour un cluster numérique
+    #' @description Computes synthetic variable (PC1) for a numeric cluster
     pca_synthetique = function(X_cluster) {
       
       row_names_clean <- rownames(na.omit(X_cluster))
@@ -110,7 +107,7 @@ VAR_CAH <- R6Class("VAR_CAH",
       full_synthetique <- rep(NA_real_, nrow(X_cluster))
       indices_clean <- match(row_names_clean, rownames(X_cluster))
 
-      # Cas trivial : une seule variable
+      # Trivial case: single variable
       if (ncol(X_clean) < 2) {
         full_synthetique[indices_clean] <- X_clean[, 1]
         pca_res_simule <- list(
@@ -119,7 +116,7 @@ VAR_CAH <- R6Class("VAR_CAH",
         )
         return(pca_res_simule)
       } else {
-        # Exécution de l'ACP
+        # Execute PCA
         pca_res <- prcomp(X_clean, center = TRUE, scale. = TRUE)
         pc1_scores <- pca_res$x[, 1, drop = TRUE]
         full_synthetique[indices_clean] <- pc1_scores
@@ -137,22 +134,22 @@ VAR_CAH <- R6Class("VAR_CAH",
     },
     
     # =================================================================
-    # Méthodes principales (PRIVÉES, appelées par les méthodes publiques)
+    # Main Methods (PRIVATE, called by public methods)
     # =================================================================
     
-    #' @description Méthode do_fit : ajuste l'algorithme CAH sur les variables.
+    #' @description do_fit method: fits HAC algorithm on variables
     do_fit = function(X) {
       
       val_res <- validate_data_type(X) 
       if (val_res$type != "numeric") {
-        stop("VAR_CAH n'accepte que des données de type 'numeric'.")
+        stop("VAR_CAH only accepts data of type 'numeric'.")
       }
       
-      # AJOUT: Validation k <= nombre de variables
+      # ADDED: Validate k <= number of variables
       if (private$FNbGroupes > ncol(X)) {
         stop(paste0(
-          "Le nombre de clusters (k=", private$FNbGroupes, 
-          ") ne peut pas être supérieur au nombre de variables (", 
+          "Number of clusters (k=", private$FNbGroupes, 
+          ") cannot exceed number of variables (", 
           ncol(X), ")"
         ))
       }
@@ -162,40 +159,40 @@ VAR_CAH <- R6Class("VAR_CAH",
       private$FNumVarNames <- private$FVarNames
       private$FX_clean <- X 
       
-      # 3. Calcul de la matrice de Corrélation et de Distance 
-      # (dissimilarité sans racine carré, stratégie assumée)
+      # 3. Compute Correlation and Distance Matrix
+      # (dissimilarity without square root, assumed strategy)
       cor_matrix <- cor(X, use = "pairwise.complete.obs") 
       dist_matrix <- as.dist(1 - abs(cor_matrix)) 
       
-      # 4. Exécution de la CAH
+      # 4. Execute HAC
       arbre_cah <- hclust(dist_matrix, method = "complete") 
       private$FArbre <- arbre_cah
       
-      # 5. Coupure de l'Arbre pour obtenir K clusters
+      # 5. Cut Tree to obtain K clusters
       groupes_variables <- cutree(arbre_cah, k = private$FNbGroupes)
       private$FGroupes <- groupes_variables
       
-      # 6. Évaluation des Clusters
+      # 6. Evaluate Clusters
       private$evaluate_clusters()
       
-      # 7. Finalisation (DOIT ÊTRE TRUE !)
+      # 7. Finalization (MUST BE TRUE!)
       private$FFitted <- TRUE
       
       invisible(self)
     },
     
-    #' @description Méthode interne pour refaire l'ajustement si K est modifié
+    #' @description Internal method to refit if K is modified
     do_refit_with_k = function(new_k) {
       if (!private$FFitted) {
         private$FNbGroupes <- new_k
         return(invisible(self))
       }
       
-      # Validation k <= nombre de variables
+      # Validate k <= number of variables
       if (new_k > ncol(private$FX)) {
         stop(paste0(
-          "Le nombre de clusters (k=", new_k, 
-          ") ne peut pas être supérieur au nombre de variables (", 
+          "Number of clusters (k=", new_k, 
+          ") cannot exceed number of variables (", 
           ncol(private$FX), ")"
         ))
       }
@@ -205,19 +202,97 @@ VAR_CAH <- R6Class("VAR_CAH",
       private$FGroupes <- groupes_variables
       private$evaluate_clusters()
       
-      message(paste0("Le modèle VAR_CAH a été recalculé pour k = ", new_k, "."))
+      message(paste0("VAR_CAH model has been recalculated for k = ", new_k, "."))
       
       invisible(self)
     },
     
-    #' @description Méthode predict (non implémentée pour clustering de variables)
+    #' @description Predict cluster membership for new variables
+    #' @param newdata Data frame or vector containing new variables
+    #' @return List containing assignments and similarity scores
     do_predict = function(newdata) {
-      stop("La méthode predict() n'est pas implémentée pour le clustering de variables.")
+      if (!private$FFitted) {
+        stop("The model must be fitted with $fit() before predicting.")
+      }
+      
+      # Validation and data preparation
+      if (is.vector(newdata)) {
+        newdata <- data.frame(new_var = newdata)
+      }
+      
+      if (!is.data.frame(newdata) && !is.matrix(newdata)) {
+        stop("newdata must be a data frame, matrix or vector.")
+      }
+      
+      # Check that newdata has the correct number of observations
+      if (nrow(newdata) != nrow(private$FX)) {
+        stop(paste0("newdata must have the same number of observations (rows) as training data. ",
+                    "Expected: ", nrow(private$FX), ", Received: ", nrow(newdata)))
+      }
+      
+      # Convert to data.frame if necessary
+      newdata <- as.data.frame(newdata)
+      
+      # Process each new variable
+      n_new_vars <- ncol(newdata)
+      predictions <- integer(n_new_vars)
+      scores_matrix <- matrix(NA, nrow = n_new_vars, ncol = private$FNbGroupes)
+      colnames(scores_matrix) <- paste0("Cluster_", 1:private$FNbGroupes)
+      rownames(scores_matrix) <- colnames(newdata)
+      
+      for (i in 1:n_new_vars) {
+        new_var <- newdata[, i, drop = TRUE]
+        
+        # Handle missing values
+        if (any(is.na(new_var))) {
+          warning(paste0("Variable '", colnames(newdata)[i], 
+                        "' contains missing values. Assignment to cluster 1 by default."))
+          predictions[i] <- 1
+          scores_matrix[i, ] <- NA
+          next
+        }
+        
+        # Standardize new variable if necessary
+        if (private$FScale) {
+          new_var <- as.vector(scale(new_var))
+        }
+        
+        # Compute similarity score with each cluster
+        # Score = |cor(new_var, cluster_synthetic_variable)|
+        cluster_scores <- numeric(private$FNbGroupes)
+        
+        for (k in 1:private$FNbGroupes) {
+          synth_var <- private$FVariablesSynthetiques[, k]
+          
+          # Compute correlation
+          cor_val <- cor(new_var, synth_var, use = "pairwise.complete.obs")
+          cluster_scores[k] <- abs(cor_val)
+        }
+        
+        # Assign to cluster with highest score
+        predictions[i] <- which.max(cluster_scores)
+        scores_matrix[i, ] <- cluster_scores
+      }
+      
+      # Prepare result
+      names(predictions) <- colnames(newdata)
+      
+      result <- list(
+        cluster = predictions,
+        scores = scores_matrix,
+        best_score = apply(scores_matrix, 1, max, na.rm = TRUE),
+        second_best_score = apply(scores_matrix, 1, function(x) {
+          sorted <- sort(x, decreasing = TRUE)
+          if (length(sorted) >= 2) sorted[2] else NA
+        })
+      )
+      
+      return(result)
     },
     
-    #' @description Évaluation des clusters 
+    #' @description Cluster evaluation
     evaluate_clusters = function() {
-      if (is.null(private$FGroupes)) stop("Les groupes n'ont pas été définis.")
+      if (is.null(private$FGroupes)) stop("Groups have not been defined.")
       
       n_vars <- ncol(private$FX_clean)
       private$FVariablesSynthetiques <- matrix(NA_real_, 
@@ -254,31 +329,31 @@ VAR_CAH <- R6Class("VAR_CAH",
       private$FHomogeneite <- mean(private$FCorrelations, na.rm = TRUE)
     },
     
-    #' @description Méthode summary privée
+    #' @description Private summary method
     do_summary = function() {
       if (!private$FFitted) {
-         stop("Le modèle doit être ajusté avec $fit() d'abord.")
+         stop("The model must be fitted with $fit() first.")
       }
       
       cat("\n═══════════════════════════════════════════════════════════\n")
-      cat("   VAR_CAH - Résumé du Clustering Hiérarchique de Variables\n")
+      cat("   VAR_CAH - Hierarchical Variable Clustering Summary\n")
       cat("═══════════════════════════════════════════════════════════\n\n")
       
-      cat("Algorithme : Classification Ascendante Hiérarchique (CAH) sur variables\n")
-      cat("Méthode de Lien : Complete (sur 1 - |Corrélation|)\n")
-      cat("Standardisation des données :", private$FScale, "\n")
-      cat("Nombre de clusters (k) :", private$FNbGroupes, "\n")
-      cat("Nombre de variables :", ncol(private$FX), "\n\n")
+      cat("Algorithm: Hierarchical Agglomerative Clustering (HAC) on variables\n")
+      cat("Linkage Method: Complete (on 1 - |Correlation|)\n")
+      cat("Data standardization:", private$FScale, "\n")
+      cat("Number of clusters (k):", private$FNbGroupes, "\n")
+      cat("Number of variables:", ncol(private$FX), "\n\n")
       
-      cat("Homogénéité Moyenne Totale (Mean(|Corrélation Var/PC1|)) :", 
+      cat("Overall Mean Homogeneity (Mean(|Correlation Var/PC1|)):", 
           round(private$FHomogeneite, 4), "\n\n")
       
-      cat("Détail par Cluster :\n")
+      cat("Details by Cluster:\n")
       
       summary_df <- data.frame(
         Cluster = integer(),
         Nb_Vars = integer(),
-        Homogeneite_Moyenne = numeric(),
+        Mean_Homogeneity = numeric(),
         stringsAsFactors = FALSE
       )
       
@@ -287,7 +362,7 @@ VAR_CAH <- R6Class("VAR_CAH",
         summary_df <- rbind(summary_df, data.frame(
           Cluster = k,
           Nb_Vars = qc$n_vars,
-          Homogeneite_Moyenne = round(qc$homogeneite, 4)
+          Mean_Homogeneity = round(qc$homogeneite, 4)
         ))
       }
       print(summary_df)
@@ -296,10 +371,10 @@ VAR_CAH <- R6Class("VAR_CAH",
   
   public = list(
     
-    #' @description Constructeur de la classe VAR_CAH
+    #' @description VAR_CAH class constructor
     initialize = function(scale = TRUE, K = 2, ...) {
-      if (!is.numeric(K) || K < 2) stop("K doit être un nombre entier >= 2.")
-      if (!is.logical(scale)) stop("scale doit être un booléen (TRUE/FALSE).")
+      if (!is.numeric(K) || K < 2) stop("K must be an integer >= 2.")
+      if (!is.logical(scale)) stop("scale must be a boolean (TRUE/FALSE).")
       
       private$FScale <- scale
       private$FNbGroupes <- as.integer(K)
@@ -307,62 +382,64 @@ VAR_CAH <- R6Class("VAR_CAH",
     },
     
     # =========================================================================
-    # Accesseurs publics
+    # Public accessors
     # =========================================================================
     
-    #' @description Obtenir les variables appartenant à un cluster donné
+    #' @description Get variables belonging to a given cluster
+    #' @param cluster_id Cluster identifier (integer between 1 and K)
     get_cluster_variables = function(cluster_id) {
-      if (!private$FFitted) stop("Le modèle doit être ajusté avec $fit() d'abord.")
+      if (!private$FFitted) stop("The model must be fitted with $fit() first.")
       
       if (cluster_id < 1 || cluster_id > private$FNbGroupes) {
-        stop(paste0("cluster_id doit être entre 1 et ", private$FNbGroupes))
+        stop(paste0("cluster_id must be between 1 and ", private$FNbGroupes))
       }
       
       vars <- names(private$FGroupes)[private$FGroupes == cluster_id]
       return(vars)
     },
     
-    #' @description Obtenir la variable la plus représentative d'un cluster
+    #' @description Get the most representative variable of a cluster
+    #' @param cluster_id Cluster identifier (integer between 1 and K)
     get_representative_variable = function(cluster_id) {
-      if (!private$FFitted) stop("Le modèle doit être ajusté avec $fit() d'abord.")
+      if (!private$FFitted) stop("The model must be fitted with $fit() first.")
       
       vars <- self$get_cluster_variables(cluster_id)
       cors <- private$FCorrelations[match(vars, private$FVarNames)]
       return(vars[which.max(cors)])
     },
     
-    #' @description Obtenir l'arbre hiérarchique des variables
+    #' @description Get the hierarchical tree of variables
     get_tree = function() {
-      if (!private$FFitted) stop("Le modèle doit être ajusté avec $fit() d'abord.")
+      if (!private$FFitted) stop("The model must be fitted with $fit() first.")
       return(private$FArbre)
     },
     
     # ==============================
-    # MÉTHODE: inertie() 
+    # METHOD: inertie() 
     # ==============================
     
-    #' @description Calculer les inerties du clustering
-    #' @details Cette méthode calcule l'inertie totale, intra-cluster et inter-cluster
-    #' basée sur les corrélations des variables avec leur composante principale.
-    #' @return Liste avec les éléments suivants:
+    #' @description Compute clustering inertias
+    #' @details This method computes total, within-cluster and between-cluster inertia
+    #' based on correlations of variables with their principal component.
+    #' @return List with following elements:
     #' \itemize{
-    #'   \item totale: Variance totale des corrélations
-    #'   \item intra: Inertie intra-cluster (variance moyenne dans les clusters)
-    #'   \item inter: Inertie inter-cluster (totale - intra)
-    #'   \item pct_expliquee: Pourcentage de variance expliquée par le clustering
+    #'   \item totale: Total variance of correlations
+    #'   \item intra: Within-cluster inertia (average variance within clusters)
+    #'   \item inter: Between-cluster inertia (total - within)
+    #'   \item pct_expliquee: Percentage of variance explained by clustering
     #' }
     inertie = function() {
       if (!private$FFitted) {
-        stop("Le modèle doit être ajusté avec $fit() d'abord.")
+        stop("The model must be fitted with $fit() first.")
       }
       
-      # L'homogénéité moyenne est déjà calculée dans private$FCorrelations
-      # On utilise la variance des corrélations comme mesure d'inertie
+      # Mean homogeneity is already computed in private$FCorrelations
+      # We use variance of correlations as inertia measure
       
-      # Inertie totale = variance totale des corrélations
+      # Total inertia = total variance of correlations
       total_var <- var(private$FCorrelations, na.rm = TRUE)
       
-      # Inertie intra = variance moyenne dans les clusters
+      # Within inertia = average variance within clusters
       intra_vars <- sapply(1:private$FNbGroupes, function(k) {
         vars_in_cluster <- names(private$FGroupes)[private$FGroupes == k]
         cors <- private$FCorrelations[match(vars_in_cluster, private$FVarNames)]
@@ -370,10 +447,10 @@ VAR_CAH <- R6Class("VAR_CAH",
       })
       inertie_intra <- mean(intra_vars, na.rm = TRUE)
       
-      # Inertie inter = totale - intra
+      # Between inertia = total - within
       inertie_inter <- total_var - inertie_intra
       
-      # Pourcentage expliqué = inter / totale
+      # Percentage explained = between / total
       pct_expliquee <- if (total_var > 0) {
         (inertie_inter / total_var) * 100
       } else {
@@ -390,17 +467,17 @@ VAR_CAH <- R6Class("VAR_CAH",
   ),
   
   # =========================================================================
-  # Active bindings spécifiques (surcharge de Groupes pour variables)
+  # Specific active bindings (override Groupes for variables)
   # =========================================================================
   active = list(
-    #' @field Groupes Groupes des variables (surcharge avec noms de variables)
+    #' @field Groupes Variable groups (override with variable names)
     Groupes = function() {
       if (!private$FFitted) {
-        stop("Le modèle doit être ajusté avec $fit() d'abord")
+        stop("The model must be fitted with $fit() first")
       }
       
-      # Pour VAR_CAH, les groupes concernent les VARIABLES (colonnes)
-      # donc on utilise colnames, pas rownames
+      # For VAR_CAH, groups concern VARIABLES (columns)
+      # so we use colnames, not rownames
       if (!is.null(private$FVarNames)) {
         names(private$FGroupes) <- private$FVarNames
       }

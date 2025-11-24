@@ -2,84 +2,83 @@
 % Please edit documentation in R/VAR_CAH.R
 \name{VAR_CAH}
 \alias{VAR_CAH}
-\title{Clustering Ascendant Hiérarchique de Variables (VAR_CAH)}
+\title{Hierarchical Agglomerative Clustering of Variables (VAR_CAH)}
 \value{
-Un objet R6 de classe \code{VAR_CAH}
+An R6 object of class \code{VAR_CAH}
 }
 \description{
-\code{VAR_CAH} implémente un algorithme de clustering ascendant hiérarchique (CAH)
-pour le regroupement de variables numériques. L'algorithme utilise la matrice
-de corrélation pour calculer les distances entre variables et construit un
-dendrogramme permettant d'identifier des groupes de variables similaires.
+\code{VAR_CAH} implements a hierarchical agglomerative clustering (HAC) algorithm
+for grouping numeric variables. The algorithm uses the correlation matrix
+to compute distances between variables and builds a dendrogram to identify
+groups of similar variables.
 }
 \details{
-\subsection{Principe de l'algorithme}{
+\subsection{Algorithm Principle}{
 \enumerate{
-\item Calcul de la matrice de corrélation entre toutes les variables
-\item Transformation en matrice de distance : \verb{d = 1 - |cor|}
-\item Construction de l'arbre hiérarchique (méthode complete linkage)
-\item Découpe de l'arbre pour obtenir K clusters
-\item Calcul de variables synthétiques par ACP pour chaque cluster
+\item Compute correlation matrix between all variables
+\item Transform into distance matrix: \verb{d = 1 - |cor|}
+\item Build hierarchical tree (complete linkage method)
+\item Cut tree to obtain K clusters
+\item Compute synthetic variables by PCA for each cluster
 }
 }
 
-\subsection{Variables synthétiques}{
+\subsection{Synthetic Variables}{
 
-Pour chaque cluster de variables, une variable synthétique est calculée comme
-la première composante principale (PC1) des variables du cluster. Cette
-synthèse maximise la variance expliquée et fournit une représentation optimale
-du cluster.
+For each variable cluster, a synthetic variable is computed as the first
+principal component (PC1) of the cluster variables. This synthesis maximizes
+explained variance and provides an optimal representation of the cluster.
 }
 
-\subsection{Métriques de qualité}{
+\subsection{Quality Metrics}{
 \itemize{
-\item \strong{Homogénéité} : Corrélation moyenne intra-cluster
-\item \strong{Qualité des clusters} : Variance expliquée par PC1
-\item \strong{Corrélations} : Matrice de corrélation complète
+\item \strong{Homogeneity}: Average intra-cluster correlation
+\item \strong{Cluster Quality}: Variance explained by PC1
+\item \strong{Correlations}: Complete correlation matrix
 }
 }
 }
-\section{Méthodes publiques}{
+\section{Public methods}{
 
 \describe{
-\item{\verb{$new(...)}}{Constructeur de la classe}
-\item{\verb{$fit(X)}}{Ajuste le modèle sur les données X}
-\item{\verb{$summary()}}{Affiche un résumé détaillé du clustering}
-\item{\verb{$predict(newdata)}}{Non implémenté pour VAR_CAH (clustering de variables)}
+\item{\verb{$new(...)}}{Class constructor}
+\item{\verb{$fit(X)}}{Fits the model on data X}
+\item{\verb{$summary()}}{Displays a detailed clustering summary}
+\item{\verb{$predict(newdata)}}{Not implemented for VAR_CAH (variable clustering)}
 }
 }
 
 \section{Active bindings}{
 
 \describe{
-\item{\verb{$K}}{Nombre de clusters (lecture/écriture)}
-\item{\verb{$Groupes}}{Vecteur nommé des affectations de variables aux clusters}
+\item{\verb{$K}}{Number of clusters (read/write)}
+\item{\verb{$Groupes}}{Named vector of variable assignments to clusters}
 }
 }
 
 \examples{
-# Exemple simple avec le jeu de données iris
+# Simple example with iris dataset
 library(RollerClustR)
 data(iris)
 
-# Créer et ajuster le modèle
+# Create and fit the model
 model <- VAR_CAH$new(K = 2, scale = TRUE)
 model$fit(iris[, 1:4])
 
-# Afficher le résumé
+# Display summary
 model$summary()
 
-# Accéder aux groupes de variables
+# Access variable groups
 groups <- model$Groupes
 print(groups)
 
-# Modifier le nombre de clusters
+# Modify number of clusters
 model$K <- 3
 model$summary()
 
 }
 \seealso{
-\link{ClusterAnalysis}, \link{VARCLUS}, \link{KmodesVarClust}, \code{\link[=roller_clust]{roller_clust()}}
+\link{ClusterAnalysis}, \link{VARCLUS}, \code{TandemVarClust}, \code{\link[=roller_clust]{roller_clust()}}
 }
 \section{Super class}{
 \code{\link[RollerClustR:ClusterAnalysis]{RollerClustR::ClusterAnalysis}} -> \code{VAR_CAH}
@@ -87,7 +86,7 @@ model$summary()
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{Groupes}}{Groupes des variables (surcharge avec noms de variables)}
+\item{\code{Groupes}}{Variable groups (override with variable names)}
 }
 \if{html}{\out{</div>}}
 }
@@ -115,25 +114,25 @@ model$summary()
 \if{html}{\out{<a id="method-VAR_CAH-new"></a>}}
 \if{latex}{\out{\hypertarget{method-VAR_CAH-new}{}}}
 \subsection{Method \code{new()}}{
-Calcule la variable synthétique (PC1) pour un cluster numérique
+Computes synthetic variable (PC1) for a numeric cluster
 
 
-Méthode do_fit : ajuste l'algorithme CAH sur les variables.
+do_fit method: fits HAC algorithm on variables
 
 
-Méthode interne pour refaire l'ajustement si K est modifié
+Internal method to refit if K is modified
 
 
-Méthode predict (non implémentée pour clustering de variables)
+Predict cluster membership for new variables
 
 
-Évaluation des clusters
+Cluster evaluation
 
 
-Méthode summary privée
+Private summary method
 
 
-Constructeur de la classe VAR_CAH
+VAR_CAH class constructor
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{VAR_CAH$new(scale = TRUE, K = 2, ...)}\if{html}{\out{</div>}}
 }
@@ -141,38 +140,59 @@ Constructeur de la classe VAR_CAH
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{scale}}{Booléen indiquant si les variables doivent être centrées-réduites (défaut : TRUE)}
+\item{\code{scale}}{Boolean indicating if variables should be centered and scaled (default: TRUE)}
 
-\item{\code{K}}{Nombre de clusters souhaités (défaut : 2)}
+\item{\code{K}}{Desired number of clusters (default: 2)}
+
+\item{\code{...}}{Additional arguments (for compatibility with parent class)}
+
+\item{\code{newdata}}{Data frame or vector containing new variables}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+List containing assignments and similarity scores
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-VAR_CAH-get_cluster_variables"></a>}}
 \if{latex}{\out{\hypertarget{method-VAR_CAH-get_cluster_variables}{}}}
 \subsection{Method \code{get_cluster_variables()}}{
-Obtenir les variables appartenant à un cluster donné
+Get variables belonging to a given cluster
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{VAR_CAH$get_cluster_variables(cluster_id)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{cluster_id}}{Cluster identifier (integer between 1 and K)}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-VAR_CAH-get_representative_variable"></a>}}
 \if{latex}{\out{\hypertarget{method-VAR_CAH-get_representative_variable}{}}}
 \subsection{Method \code{get_representative_variable()}}{
-Obtenir la variable la plus représentative d'un cluster
+Get the most representative variable of a cluster
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{VAR_CAH$get_representative_variable(cluster_id)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{cluster_id}}{Cluster identifier (integer between 1 and K)}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-VAR_CAH-get_tree"></a>}}
 \if{latex}{\out{\hypertarget{method-VAR_CAH-get_tree}{}}}
 \subsection{Method \code{get_tree()}}{
-Obtenir l'arbre hiérarchique des variables
+Get the hierarchical tree of variables
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{VAR_CAH$get_tree()}\if{html}{\out{</div>}}
 }
@@ -182,23 +202,23 @@ Obtenir l'arbre hiérarchique des variables
 \if{html}{\out{<a id="method-VAR_CAH-inertie"></a>}}
 \if{latex}{\out{\hypertarget{method-VAR_CAH-inertie}{}}}
 \subsection{Method \code{inertie()}}{
-Calculer les inerties du clustering
+Compute clustering inertias
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{VAR_CAH$inertie()}\if{html}{\out{</div>}}
 }
 
 \subsection{Details}{
-Cette méthode calcule l'inertie totale, intra-cluster et inter-cluster
-basée sur les corrélations des variables avec leur composante principale.
+This method computes total, within-cluster and between-cluster inertia
+based on correlations of variables with their principal component.
 }
 
 \subsection{Returns}{
-Liste avec les éléments suivants:
+List with following elements:
 \itemize{
-\item totale: Variance totale des corrélations
-\item intra: Inertie intra-cluster (variance moyenne dans les clusters)
-\item inter: Inertie inter-cluster (totale - intra)
-\item pct_expliquee: Pourcentage de variance expliquée par le clustering
+\item totale: Total variance of correlations
+\item intra: Within-cluster inertia (average variance within clusters)
+\item inter: Between-cluster inertia (total - within)
+\item pct_expliquee: Percentage of variance explained by clustering
 }
 }
 }

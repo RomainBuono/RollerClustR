@@ -1,69 +1,69 @@
 # ============================================================================
-# TESTS POUR VAR_CAH - Clustering Hiérarchique de Variables
+# TESTS FOR VAR_CAH - Hierarchical Variable Clustering
 # ============================================================================
-# 40+ tests couvrant tous les aspects de la classe VAR_CAH
+# 40+ tests covering all aspects of the VAR_CAH class
 
-context("VAR_CAH - Clustering Hiérarchique")
+context("VAR_CAH - Hierarchical Clustering")
 
 # ============================================================================
-# SECTION 1 : INITIALISATION ET CONSTRUCTION (8 tests)
+# SECTION 1: INITIALIZATION AND CONSTRUCTION (8 tests)
 # ============================================================================
 
-test_that("VAR_CAH: Initialisation basique avec K=2", {
+test_that("VAR_CAH: Basic initialization with K=2", {
   model <- VAR_CAH$new(K = 2)
   
   expect_s3_class(model, "VAR_CAH")
   expect_s3_class(model, "ClusterAnalysis")
   expect_equal(model$K, 2)
   
-  # Vérifier que les méthodes essentielles existent
+  # Check that essential methods exist
   expect_true("fit" %in% names(model))
   expect_true("summary" %in% names(model))
 })
 
-test_that("VAR_CAH: Initialisation avec différentes valeurs de K", {
+test_that("VAR_CAH: Initialization with different K values", {
   for (k in 2:5) {
     model <- VAR_CAH$new(K = k)
     expect_equal(model$K, k)
   }
 })
 
-test_that("VAR_CAH: Initialisation avec scale=TRUE", {
+test_that("VAR_CAH: Initialization with scale=TRUE", {
   model <- VAR_CAH$new(K = 2, scale = TRUE)
   expect_s3_class(model, "VAR_CAH")
 })
 
-test_that("VAR_CAH: Initialisation avec scale=FALSE", {
+test_that("VAR_CAH: Initialization with scale=FALSE", {
   model <- VAR_CAH$new(K = 2, scale = FALSE)
   expect_s3_class(model, "VAR_CAH")
 })
 
-test_that("VAR_CAH: Erreur si K < 2", {
-  expect_error(VAR_CAH$new(K = 1), "K doit être")
+test_that("VAR_CAH: Error if K < 2", {
+  expect_error(VAR_CAH$new(K = 1), "K must be")
 })
 
-test_that("VAR_CAH: Erreur si K = 0", {
-  expect_error(VAR_CAH$new(K = 0), "K doit être")
+test_that("VAR_CAH: Error if K = 0", {
+  expect_error(VAR_CAH$new(K = 0), "K must be")
 })
 
-test_that("VAR_CAH: Erreur si K négatif", {
-  expect_error(VAR_CAH$new(K = -3), "K doit être")
+test_that("VAR_CAH: Error if K negative", {
+  expect_error(VAR_CAH$new(K = -3), "K must be")
 })
 
-test_that("VAR_CAH: Erreur si K non numérique", {
-  expect_error(VAR_CAH$new(K = "deux"), "K doit être")
+test_that("VAR_CAH: Error if K non-numeric", {
+  expect_error(VAR_CAH$new(K = "two"), "K must be")
 })
 
 # ============================================================================
-# SECTION 2 : FIT SUR DONNÉES STANDARDS (10 tests)
+# SECTION 2: FIT ON STANDARD DATA (10 tests)
 # ============================================================================
 
-test_that("VAR_CAH: Fit sur iris", {
+test_that("VAR_CAH: Fit on iris", {
   data(iris)
   model <- VAR_CAH$new(K = 2)
   result <- model$fit(iris[, 1:4])
   
-  expect_identical(result, model)  # Retourne self
+  expect_identical(result, model)  # Returns self
   groups <- model$Groupes
   expect_length(groups, 4)
   expect_true(all(groups %in% 1:2))
@@ -71,7 +71,7 @@ test_that("VAR_CAH: Fit sur iris", {
   expect_true(all(!is.na(groups)))
 })
 
-test_that("VAR_CAH: Fit sur mtcars", {
+test_that("VAR_CAH: Fit on mtcars", {
   data(mtcars)
   model <- VAR_CAH$new(K = 3)
   model$fit(mtcars[, 1:7])
@@ -81,7 +81,7 @@ test_that("VAR_CAH: Fit sur mtcars", {
   expect_true(all(groups %in% 1:3))
 })
 
-test_that("VAR_CAH: Fit sur USArrests", {
+test_that("VAR_CAH: Fit on USArrests", {
   data(USArrests)
   model <- VAR_CAH$new(K = 2)
   model$fit(USArrests)
@@ -90,7 +90,7 @@ test_that("VAR_CAH: Fit sur USArrests", {
   expect_length(groups, 4)
 })
 
-test_that("VAR_CAH: Fit avec dataset petit", {
+test_that("VAR_CAH: Fit with small dataset", {
   set.seed(123)
   data_small <- as.data.frame(matrix(rnorm(50 * 5), ncol = 5))
   model <- VAR_CAH$new(K = 2)
@@ -99,7 +99,7 @@ test_that("VAR_CAH: Fit avec dataset petit", {
   expect_length(model$Groupes, ncol(data_small))
 })
 
-test_that("VAR_CAH: Fit avec dataset moyen", {
+test_that("VAR_CAH: Fit with medium dataset", {
   set.seed(123)
   data_medium <- as.data.frame(matrix(rnorm(200 * 10), ncol = 10))
   model <- VAR_CAH$new(K = 3)
@@ -108,9 +108,9 @@ test_that("VAR_CAH: Fit avec dataset moyen", {
   expect_length(model$Groupes, ncol(data_medium))
 })
 
-test_that("VAR_CAH: Fit avec données corrélées", {
+test_that("VAR_CAH: Fit with correlated data", {
   set.seed(123)
-  # Générer 3 groupes de variables corrélées
+  # Generate 3 groups of correlated variables
   x1 <- rnorm(100)
   x2 <- rnorm(100)
   x3 <- rnorm(100)
@@ -124,12 +124,12 @@ test_that("VAR_CAH: Fit avec données corrélées", {
   model <- VAR_CAH$new(K = 3)
   model$fit(data_cor)
   
-  # Devrait trouver 3 clusters (structure imposée)
+  # Should find 3 clusters (imposed structure)
   groups <- model$Groupes
   expect_equal(length(unique(groups)), 3)
 })
 
-test_that("VAR_CAH: Résultats reproductibles", {
+test_that("VAR_CAH: Reproducible results", {
   data(iris)
   
   model1 <- VAR_CAH$new(K = 2)
@@ -143,7 +143,7 @@ test_that("VAR_CAH: Résultats reproductibles", {
   expect_identical(groups1, groups2)
 })
 
-test_that("VAR_CAH: Noms des variables préservés", {
+test_that("VAR_CAH: Variable names preserved", {
   data(iris)
   model <- VAR_CAH$new(K = 2)
   model$fit(iris[, 1:4])
@@ -153,7 +153,7 @@ test_that("VAR_CAH: Noms des variables préservés", {
   expect_setequal(names(groups), colnames(iris)[1:4])
 })
 
-test_that("VAR_CAH: Fit avec colnames personnalisés", {
+test_that("VAR_CAH: Fit with custom colnames", {
   data_custom <- data.frame(
     VarA = rnorm(100),
     VarB = rnorm(100),
@@ -167,7 +167,7 @@ test_that("VAR_CAH: Fit avec colnames personnalisés", {
   expect_setequal(names(model$Groupes), c("VarA", "VarB", "VarC", "VarD"))
 })
 
-test_that("VAR_CAH: Fit retourne invisiblement self pour chaînage", {
+test_that("VAR_CAH: Fit returns invisibly self for chaining", {
   data(iris)
   model <- VAR_CAH$new(K = 2)
   
@@ -176,15 +176,15 @@ test_that("VAR_CAH: Fit retourne invisiblement self pour chaînage", {
 })
 
 # ============================================================================
-# SECTION 3 : ACTIVE BINDINGS (6 tests)
+# SECTION 3: ACTIVE BINDINGS (6 tests)
 # ============================================================================
 
-test_that("VAR_CAH: Active binding K en lecture", {
+test_that("VAR_CAH: Active binding K read access", {
   model <- VAR_CAH$new(K = 3)
   expect_equal(model$K, 3)
 })
 
-test_that("VAR_CAH: Active binding K en écriture", {
+test_that("VAR_CAH: Active binding K write access", {
   data(iris)
   model <- VAR_CAH$new(K = 2)
   model$fit(iris[, 1:4])
@@ -196,7 +196,7 @@ test_that("VAR_CAH: Active binding K en écriture", {
   expect_true(all(groups %in% 1:3))
 })
 
-test_that("VAR_CAH: Changement de K recalcule les groupes", {
+test_that("VAR_CAH: Changing K recalculates groups", {
   data(iris)
   model <- VAR_CAH$new(K = 2)
   model$fit(iris[, 1:4])
@@ -219,12 +219,12 @@ test_that("VAR_CAH: Active binding Groupes accessible", {
   expect_length(groups, 4)
 })
 
-test_that("VAR_CAH: Groupes échoue avant fit", {
+test_that("VAR_CAH: Groupes fails before fitting", {
   model <- VAR_CAH$new(K = 2)
-  expect_error(model$Groupes, "doit être ajusté|not been fitted")
+  expect_error(model$Groupes, "must be fitted")
 })
 
-test_that("VAR_CAH: Modification successive de K", {
+test_that("VAR_CAH: K sequential modification", {
   data(iris)
   model <- VAR_CAH$new(K = 2)
   model$fit(iris[, 1:4])
@@ -238,17 +238,17 @@ test_that("VAR_CAH: Modification successive de K", {
 })
 
 # ============================================================================
-# SECTION 4 : CAS LIMITES ET VALIDATION (8 tests)
+# SECTION 4: EDGE CASES AND VALIDATION (8 tests)
 # ============================================================================
 
-test_that("VAR_CAH: Erreur si K > nombre de variables", {
+test_that("VAR_CAH: Error if K > number of variables", {
   data_3vars <- iris[, 1:3]
   model <- VAR_CAH$new(K = 5)
   
-  expect_error(model$fit(data_3vars), "ne peut pas être supérieur")
+  expect_error(model$fit(data_3vars), "cannot exceed")
 })
 
-test_that("VAR_CAH: Fonctionne avec K = nombre de variables", {
+test_that("VAR_CAH: Works with K = number of variables", {
   data_4vars <- iris[, 1:4]
   model <- VAR_CAH$new(K = 4)
   
@@ -257,14 +257,14 @@ test_that("VAR_CAH: Fonctionne avec K = nombre de variables", {
   expect_equal(length(unique(groups)), 4)
 })
 
-test_that("VAR_CAH: Minimum 2 variables requises", {
+test_that("VAR_CAH: Minimum 2 variables required", {
   data_2vars <- iris[, 1:2]
   model <- VAR_CAH$new(K = 2)
   
   expect_error(model$fit(data_2vars), NA)
 })
 
-test_that("VAR_CAH: Gestion des NA avec pairwise.complete.obs", {
+test_that("VAR_CAH: Handling NA with pairwise.complete.obs", {
   data_na <- iris[, 1:4]
   data_na[1:5, 1] <- NA
   
@@ -276,11 +276,11 @@ test_that("VAR_CAH: Gestion des NA avec pairwise.complete.obs", {
   expect_true(all(!is.na(groups)))
 })
 
-test_that("VAR_CAH: Dataset avec beaucoup de NA", {
+test_that("VAR_CAH: Dataset with many NA", {
   set.seed(123)
   data_many_na <- iris[, 1:4]
   
-  # Convertir en matrice pour l'indexation, puis reconvertir
+  # Convert to matrix for indexing, then convert back
   data_matrix <- as.matrix(data_many_na)
   na_indices <- sample(1:length(data_matrix), 
                        size = floor(0.2 * length(data_matrix)))
@@ -296,7 +296,7 @@ test_that("VAR_CAH: Dataset avec beaucoup de NA", {
   expect_true(result %in% c("success", "error"))
 })
 
-test_that("VAR_CAH: Variables avec variance nulle", {
+test_that("VAR_CAH: Variables with zero variance", {
   data_const <- data.frame(
     x1 = rep(5, 100),
     x2 = rnorm(100),
@@ -313,7 +313,7 @@ test_that("VAR_CAH: Variables avec variance nulle", {
   expect_true(result %in% c("success", "error"))
 })
 
-test_that("VAR_CAH: Variables parfaitement corrélées", {
+test_that("VAR_CAH: Perfectly correlated variables", {
   data_perfect <- data.frame(
     x1 = 1:100,
     x2 = 1:100,
@@ -325,7 +325,7 @@ test_that("VAR_CAH: Variables parfaitement corrélées", {
   expect_error(model$fit(data_perfect), NA)
 })
 
-test_that("VAR_CAH: Variables très corrélées regroupées ensemble", {
+test_that("VAR_CAH: Highly correlated variables grouped together", {
   set.seed(123)
   x <- rnorm(100)
   data_highcor <- data.frame(
@@ -340,16 +340,16 @@ test_that("VAR_CAH: Variables très corrélées regroupées ensemble", {
   model$fit(data_highcor)
   
   groups <- model$Groupes
-  # x1, x2, x3 devraient être dans le même cluster
+  # x1, x2, x3 should be in the same cluster
   expect_equal(groups[["x1"]], groups[["x2"]])
   expect_equal(groups[["x1"]], groups[["x3"]])
 })
 
 # ============================================================================
-# SECTION 5 : STANDARDISATION (4 tests)
+# SECTION 5: STANDARDIZATION (4 tests)
 # ============================================================================
 
-test_that("VAR_CAH: scale=TRUE standardise les données", {
+test_that("VAR_CAH: scale=TRUE standardizes data", {
   data_scales <- data.frame(
     x1 = rnorm(100, mean = 0, sd = 1),
     x2 = rnorm(100, mean = 0, sd = 100),
@@ -361,7 +361,7 @@ test_that("VAR_CAH: scale=TRUE standardise les données", {
   expect_error(model$fit(data_scales), NA)
 })
 
-test_that("VAR_CAH: scale=FALSE préserve les échelles", {
+test_that("VAR_CAH: scale=FALSE preserves scales", {
   data_scales <- data.frame(
     x1 = rnorm(100, mean = 0, sd = 1),
     x2 = rnorm(100, mean = 0, sd = 100)
@@ -371,7 +371,7 @@ test_that("VAR_CAH: scale=FALSE préserve les échelles", {
   expect_error(model$fit(data_scales), NA)
 })
 
-test_that("VAR_CAH: Résultats identiques avec scale=TRUE sur données similaires", {
+test_that("VAR_CAH: Identical results with scale=TRUE on similar data", {
   set.seed(123)
   data_original <- data.frame(
     x1 = rnorm(100), x2 = rnorm(100), x3 = rnorm(100), x4 = rnorm(100)
@@ -389,7 +389,7 @@ test_that("VAR_CAH: Résultats identiques avec scale=TRUE sur données similaire
   expect_identical(groups1, groups2)
 })
 
-test_that("VAR_CAH: Résultats différents avec scale=FALSE sur échelles différentes", {
+test_that("VAR_CAH: Different results with scale=FALSE on different scales", {
   set.seed(123)
   data_original <- data.frame(
     x1 = rnorm(100), x2 = rnorm(100), x3 = rnorm(100), x4 = rnorm(100)
@@ -404,16 +404,16 @@ test_that("VAR_CAH: Résultats différents avec scale=FALSE sur échelles diffé
   model2$fit(data_scaled_1000)
   groups2 <- model2$Groupes
   
-  # Peut être identique ou différent selon les données
-  # On vérifie juste qu'il n'y a pas d'erreur
+  # May be identical or different depending on data
+  # We just check that there's no error
   expect_true(TRUE)
 })
 
 # ============================================================================
-# SECTION 6 : IMMUTABILITÉ ET EFFETS DE BORD (3 tests)
+# SECTION 6: IMMUTABILITY AND SIDE EFFECTS (3 tests)
 # ============================================================================
 
-test_that("VAR_CAH: Les données d'origine ne sont pas modifiées", {
+test_that("VAR_CAH: Original data is not modified", {
   data(iris)
   iris_copy <- iris[, 1:4]
   iris_original <- iris[, 1:4]
@@ -424,7 +424,7 @@ test_that("VAR_CAH: Les données d'origine ne sont pas modifiées", {
   expect_identical(iris_copy, iris_original)
 })
 
-test_that("VAR_CAH: Les rownames sont préservés", {
+test_that("VAR_CAH: Rownames are preserved", {
   data_rownames <- iris[, 1:4]
   rownames(data_rownames) <- paste0("Obs_", 1:nrow(data_rownames))
   original_rownames <- rownames(data_rownames)
@@ -435,7 +435,7 @@ test_that("VAR_CAH: Les rownames sont préservés", {
   expect_identical(rownames(data_rownames), original_rownames)
 })
 
-test_that("VAR_CAH: Les colnames sont préservés", {
+test_that("VAR_CAH: Colnames are preserved", {
   data_colnames <- iris[, 1:4]
   colnames(data_colnames) <- c("A", "B", "C", "D")
   original_colnames <- colnames(data_colnames)
@@ -447,10 +447,10 @@ test_that("VAR_CAH: Les colnames sont préservés", {
 })
 
 # ============================================================================
-# SECTION 7 : MÉTHODES PUBLIQUES (4 tests)
+# SECTION 7: PUBLIC METHODS (4 tests)
 # ============================================================================
 
-test_that("VAR_CAH: summary() fonctionne sans erreur", {
+test_that("VAR_CAH: summary() works without error", {
   data(iris)
   model <- VAR_CAH$new(K = 2)
   model$fit(iris[, 1:4])
@@ -459,13 +459,13 @@ test_that("VAR_CAH: summary() fonctionne sans erreur", {
   expect_output(model$summary(), "VAR_CAH")
 })
 
-test_that("VAR_CAH: summary() avant fit affiche message approprié", {
+test_that("VAR_CAH: summary() before fit displays appropriate message", {
   model <- VAR_CAH$new(K = 2)
-  # Le modèle génère une erreur si non ajusté
-  expect_error(model$summary(), "doit être ajusté|must be fitted|not fitted")
+  # Model generates an error if not fitted
+  expect_error(model$summary(), "must be fitted|not fitted")
 })
 
-test_that("VAR_CAH: get_cluster_variables() retourne les bonnes variables", {
+test_that("VAR_CAH: get_cluster_variables() returns correct variables", {
   data(iris)
   model <- VAR_CAH$new(K = 2)
   model$fit(iris[, 1:4])
@@ -477,7 +477,7 @@ test_that("VAR_CAH: get_cluster_variables() retourne les bonnes variables", {
   expect_setequal(cluster1_vars, expected_vars)
 })
 
-test_that("VAR_CAH: get_representative_variable() retourne une variable", {
+test_that("VAR_CAH: get_representative_variable() returns a variable", {
   data(iris)
   model <- VAR_CAH$new(K = 2)
   model$fit(iris[, 1:4])
@@ -486,28 +486,28 @@ test_that("VAR_CAH: get_representative_variable() retourne une variable", {
   expect_type(rep_var, "character")
   expect_length(rep_var, 1)
   
-  # La variable représentative doit être dans le cluster
+  # Representative variable must be in the cluster
   groups <- model$Groupes
   expect_true(rep_var %in% names(groups)[groups == 1])
 })
 
 # ============================================================================
-# SECTION 8 : VALIDATION MATHÉMATIQUE (7 tests)
+# SECTION 8: MATHEMATICAL VALIDATION (7 tests)
 # ============================================================================
 
-test_that("VAR_CAH: Principe de séparation respecté", {
+test_that("VAR_CAH: Separation principle respected", {
   data(iris)
   model <- VAR_CAH$new(K = 2)
   model$fit(iris[, 1:4])
   
   groups <- model$Groupes
-  # Vérifier que corrélation intra > corrélation inter (en moyenne)
-  # Simplification : on vérifie juste que les groupes sont cohérents
+  # Check that intra-correlation > inter-correlation (on average)
+  # Simplification: we just check that groups are coherent
   expect_true(all(groups %in% 1:2))
   expect_equal(length(unique(groups)), 2)
 })
 
-test_that("VAR_CAH: Tous les clusters ont au moins une variable", {
+test_that("VAR_CAH: All clusters have at least one variable", {
   data(iris)
   model <- VAR_CAH$new(K = 2)
   model$fit(iris[, 1:4])
@@ -519,7 +519,7 @@ test_that("VAR_CAH: Tous les clusters ont au moins une variable", {
   expect_equal(length(cluster_sizes), 2)
 })
 
-test_that("VAR_CAH: Cohérence hiérarchique K=2 vs K=3", {
+test_that("VAR_CAH: Hierarchical consistency K=2 vs K=3", {
   data(iris)
   X <- iris[, 1:4]
   
@@ -531,8 +531,8 @@ test_that("VAR_CAH: Cohérence hiérarchique K=2 vs K=3", {
   model_k3$fit(X)
   groups_k3 <- model_k3$Groupes
   
-  # K=3 devrait être un raffinement de K=2
-  # Un cluster de K=2 devrait être divisé en au plus 2 dans K=3
+  # K=3 should be a refinement of K=2
+  # A cluster from K=2 should be divided into at most 2 in K=3
   for (k in 1:2) {
     vars_k2 <- names(groups_k2)[groups_k2 == k]
     clusters_k3_in_k2 <- unique(groups_k3[vars_k2])
@@ -541,7 +541,7 @@ test_that("VAR_CAH: Cohérence hiérarchique K=2 vs K=3", {
   }
 })
 
-test_that("VAR_CAH: Invariance par permutation des colonnes", {
+test_that("VAR_CAH: Invariance under column permutation", {
   set.seed(123)
   data_original <- as.data.frame(matrix(rnorm(100 * 6), ncol = 6))
   perm_order <- sample(1:ncol(data_original))
@@ -555,12 +555,12 @@ test_that("VAR_CAH: Invariance par permutation des colonnes", {
   model_perm$fit(data_perm)
   groups_perm <- model_perm$Groupes
   
-  # Après réordonnancement, les groupes doivent correspondre
+  # After reordering, groups must match
   groups_perm_reordered <- groups_perm[colnames(data_original)]
   
-  # Les numéros de clusters peuvent être inversés (1↔2)
-  # On vérifie que la structure est identique (même partition)
-  # Deux variables sont dans le même cluster ssi elles ont le même label
+  # Cluster numbers may be swapped (1↔2)
+  # We check that the structure is identical (same partition)
+  # Two variables are in the same cluster iff they have the same label
   for (i in 1:(length(groups_original)-1)) {
     for (j in (i+1):length(groups_original)) {
       same_cluster_original <- groups_original[i] == groups_original[j]
@@ -570,55 +570,55 @@ test_that("VAR_CAH: Invariance par permutation des colonnes", {
   }
 })
 
-test_that("VAR_CAH: Matrice de corrélation calculée correctement", {
+test_that("VAR_CAH: Correlation matrix calculated correctly", {
   data(iris)
   X <- iris[, 1:4]
   
   model <- VAR_CAH$new(K = 2)
   model$fit(X)
   
-  # Les variables du même cluster devraient avoir des corrélations élevées
+  # Variables in the same cluster should have high correlations
   groups <- model$Groupes
   
   for (k in 1:2) {
     cluster_vars <- names(groups)[groups == k]
     if (length(cluster_vars) >= 2) {
-      # Calculer la corrélation intra-cluster directement
+      # Calculate intra-cluster correlation directly
       cor_matrix <- abs(cor(X[, cluster_vars], use = "pairwise.complete.obs"))
       intra_cor <- mean(cor_matrix[upper.tri(cor_matrix)])
       
       expect_true(!is.na(intra_cor))
-      # On s'attend à une corrélation positive en moyenne
+      # We expect positive correlation on average
       expect_gte(intra_cor, 0)
     }
   }
 })
 
-test_that("VAR_CAH: Distance euclidienne cohérente", {
+test_that("VAR_CAH: Euclidean distance coherent", {
   data(iris)
   model <- VAR_CAH$new(K = 2)
   model$fit(iris[, 1:4])
   
-  # Le modèle devrait avoir calculé une matrice de distance
-  # On vérifie simplement qu'il n'y a pas d'erreur
+  # Model should have calculated a distance matrix
+  # We simply check that there's no error
   expect_true(TRUE)
 })
 
-test_that("VAR_CAH: Dendrogramme implicite cohérent", {
+test_that("VAR_CAH: Implicit dendrogram coherent", {
   data(iris)
   model <- VAR_CAH$new(K = 2)
   model$fit(iris[, 1:4])
   
-  # Avec K croissant, on devrait avoir un raffinement
+  # With increasing K, we should have a refinement
   groups_k2 <- model$Groupes
   
   model$K <- 3
   groups_k3 <- model$Groupes
   
-  # Les deux clusterings devraient être liés hiérarchiquement
-  expect_true(TRUE)  # Vérification implicite de cohérence
+  # Both clusterings should be hierarchically related
+  expect_true(TRUE)  # Implicit coherence check
 })
 
 # ============================================================================
-# FIN DES TESTS VAR_CAH - 40+ tests au total
+# END OF VAR_CAH TESTS - 40+ tests total
 # ============================================================================

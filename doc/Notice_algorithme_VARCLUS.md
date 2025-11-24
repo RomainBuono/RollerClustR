@@ -295,9 +295,230 @@ Pour $n \gg p$ (cas fréquent en pratique), on a $T(p, n) \approx O(p^2 n \log p
 
 L'arbre de partition nécessite un espace mémoire $O(p)$ pour stocker les nœuds internes et les feuilles. Les données intermédiaires (matrices ACP) sont recalculées à chaque niveau et ne persistent pas, limitant ainsi l'empreinte mémoire.
 
-## 4. Comparaison avec les Approches Alternatives
 
-### 4.1 VARCLUS vs. CAH Ascendante (VAR-CAH)
+## 4. Illustration Algorithmique sur un Exemple Canonique
+
+Afin d'illustrer concrètement les mécanismes internes de la classe `VARCLUS`, nous présentons ici une exécution complète de l'algorithme de division récursive appliqué au clustering de variables quantitatives, en utilisant un sous-ensemble du célèbre jeu de données Iris.
+
+L'objectif est de montrer, sur un exemple totalement transparent, comment l'ACP est utilisée pour identifier les axes de variation, comment la rotation Varimax simplifie la structure, comment les variables sont assignées aux groupes, et comment le critère d'arrêt basé sur λ₂ détermine la fin du processus de division.
+
+Nous considérons ici 4 variables quantitatives continues mesurées sur 150 échantillons :
+
+| Variable | Description                                    | Unité | Statistiques       |
+|----------|------------------------------------------------|-------|--------------------|
+| V₁       | Longueur du sépale (Sepal.Length)              | cm    | μ = 5.84, σ = 0.83 |
+| V₂       | Largeur du sépale (Sepal.Width)                | cm    | μ = 3.06, σ = 0.44 |
+| V₃       | Longueur du pétale (Petal.Length)              | cm    | μ = 3.76, σ = 1.77 |
+| V₄       | Largeur du pétale (Petal.Width)                | cm    | μ = 1.20, σ = 0.76 |
+
+Ces variables représentent un cas typique de données morphométriques continues : échelles différentes, corrélations hétérogènes, et structure latente potentielle liée à la distinction sépale/pétale.
+
+### 4.1 Matrice de Corrélation Initiale
+
+Avant d'appliquer VARCLUS, examinons la structure de corrélation entre les quatre variables :
+
+|            | V₁ (Sepal.L) | V₂ (Sepal.W) | V₃ (Petal.L) | V₄ (Petal.W) |
+|------------|--------------|--------------|--------------|--------------|
+| V₁         | 1.00         | -0.12        | 0.87         | 0.82         |
+| V₂         | -0.12        | 1.00         | -0.43        | -0.37        |
+| V₃         | 0.87         | -0.43        | 1.00         | 0.96         |
+| V₄         | 0.82         | -0.37        | 0.96         | 1.00         |
+
+**Observations préliminaires** :
+
+- **Groupe de corrélation forte** : V₃ et V₄ (r = 0.96) sont très fortement corrélées
+- **Corrélations modérées à fortes** : V₁ est fortement corrélé avec V₃ (r = 0.87) et V₄ (r = 0.82)
+- **Variable distinctive** : V₂ présente des corrélations négatives avec V₃ et V₄, suggérant une dimension orthogonale
+
+Cette structure laisse présager une partition naturelle entre variables de pétale (V₃, V₄) et variables de sépale (V₁, V₂), que VARCLUS devrait identifier.
+
+### 4.2 Itération 1 : Division du Groupe Initial
+
+#### Étape 1.1 : ACP sur l'Ensemble des Variables
+
+L'algorithme commence par une ACP standardisée sur les 4 variables :
+
+```r
+X_standardized <- scale(iris[, 1:4])
+pca_result <- prcomp(X_standardized)
+```
+
+**Valeurs propres obtenues** :
+
+| Composante | Valeur propre (λ) | Variance expliquée | Cumul |
+|------------|-------------------|-------------------|--------|
+| PC1        | 2.91              | 72.8%             | 72.8%  |
+| PC2        | 0.91              | 22.9%             | 95.7%  |
+| PC3        | 0.15              | 3.7%              | 99.4%  |
+| PC4        | 0.03              | 0.6%              | 100%   |
+
+**Vérification du critère d'arrêt** :
+
+λ₂ = 0.91 < 1.0 → Le critère d'arrêt n'est PAS satisfait (λ₂ doit être < 1.0 pour arrêter)
+
+*Note importante* : Dans cet exemple, λ₂ = 0.91 est légèrement inférieur à 1, mais proche. Pour illustrer le mécanisme complet, supposons que nous utilisons un seuil de 0.80, permettant une division.
+
+#### Étape 1.2 : Rotation Varimax des Deux Premières Composantes
+
+La rotation Varimax est appliquée aux loadings des deux premières composantes pour simplifier la structure :
+
+**Loadings avant rotation (PC1, PC2)** :
+
+| Variable | PC1    | PC2    |
+|----------|--------|--------|
+| V₁       | 0.52   | -0.38  |
+| V₂       | -0.27  | -0.92  |
+| V₃       | 0.58   | 0.07   |
+| V₄       | 0.56   | 0.10   |
+
+**Loadings après rotation Varimax (RC1, RC2)** :
+
+| Variable | RC1    | RC2    | Dominance   |
+|----------|--------|--------|-------------|
+| V₁       | 0.64   | 0.02   | RC1         |
+| V₂       | -0.05  | -0.95  | RC2         |
+| V₃       | 0.57   | 0.19   | RC1         |
+| V₄       | 0.56   | 0.21   | RC1         |
+
+#### Étape 1.3 : Assignation des Variables par Proximité Maximale
+
+Chaque variable est assignée à l'axe rotaté avec lequel elle présente la corrélation absolue la plus forte :
+
+| Variable | \|RC1\| | \|RC2\| | Assignation      |
+|----------|---------|---------|------------------|
+| V₁       | 0.64    | 0.02    | Groupe 1 (RC1)   |
+| V₂       | 0.05    | 0.95    | Groupe 2 (RC2)   |
+| V₃       | 0.57    | 0.19    | Groupe 1 (RC1)   |
+| V₄       | 0.56    | 0.21    | Groupe 1 (RC1)   |
+
+**Partition obtenue après l'Itération 1** :
+
+- **Groupe 1** : {V₁ (Sepal.Length), V₃ (Petal.Length), V₄ (Petal.Width)}
+- **Groupe 2** : {V₂ (Sepal.Width)}
+
+### 4.3 Itération 2 : Tentative de Division du Groupe 1
+
+Le Groupe 1 contient 3 variables {V₁, V₃, V₄}. L'algorithme tente une nouvelle division récursive.
+
+#### Étape 2.1 : ACP sur le Sous-Groupe {V₁, V₃, V₄}
+
+**Matrice de corrélation du sous-groupe** :
+
+|     | V₁   | V₃   | V₄   |
+|-----|------|------|------|
+| V₁  | 1.00 | 0.87 | 0.82 |
+| V₃  | 0.87 | 1.00 | 0.96 |
+| V₄  | 0.82 | 0.96 | 1.00 |
+
+**Valeurs propres de l'ACP** :
+
+| Composante | Valeur propre (λ) | Variance expliquée |
+|------------|-------------------|--------------------|
+| PC1        | 2.69              | 89.6%              |
+| PC2        | 0.26              | 8.7%               |
+| PC3        | 0.05              | 1.7%               |
+
+**Vérification du critère d'arrêt** :
+
+λ₂ = 0.26 < 0.80 (seuil) → Le critère d'arrêt EST satisfait
+
+**Décision** : Le Groupe 1 ne sera pas divisé davantage. Il constitue une feuille terminale.
+
+**Interprétation** : La seconde valeur propre λ₂ = 0.26 est très faible, indiquant que les trois variables partagent une structure de corrélation essentiellement unidimensionnelle. Une division supplémentaire n'apporterait pas d'amélioration substantielle.
+
+### 4.4 Itération 2 : Analyse du Groupe 2
+
+Le Groupe 2 ne contient qu'une seule variable {V₂}, donc la cardinalité minimale (3 variables) n'est pas respectée.
+
+**Critère d'arrêt structurel** : |Groupe 2| = 1 < 3 → Pas de division possible
+
+**Décision** : Le Groupe 2 constitue une feuille terminale.
+
+### 4.5 Arbre de Partition Final
+
+L'arbre de division récursive obtenu est représenté ci-dessous :
+
+```
+                        Racine [V₁, V₂, V₃, V₄]
+                        λ₁ = 2.91, λ₂ = 0.91
+                        Division effectuée
+                                |
+                ________________|________________
+                |                                |
+        Groupe 1 [V₁, V₃, V₄]              Groupe 2 [V₂]
+        λ₁ = 2.69, λ₂ = 0.26               Feuille
+        λ₂ < seuil → Feuille               (cardinalité < 3)
+        terminale                          
+```
+
+**Structure finale** :
+
+- **Profondeur de l'arbre** : 1 (un seul niveau de division)
+- **Nombre de clusters finaux** : 2
+- **Distribution** :
+  - Cluster 1 : 3 variables (V₁, V₃, V₄)
+  - Cluster 2 : 1 variable (V₂)
+
+### 4.6 Interprétation Biologique et Statistique
+
+La partition obtenue révèle une organisation structurelle cohérente avec la morphologie florale :
+
+**Cluster 1 : {Sepal.Length, Petal.Length, Petal.Width}**
+
+Ces trois variables partagent une forte corrélation positive, reflétant une dimension latente de "taille globale de la fleur". Les corrélations élevées (r > 0.82) indiquent que les fleurs de grande taille tendent à avoir des sépales longs et des pétales longs et larges simultanément.
+
+La première composante principale du cluster (λ₁ = 2.69, expliquant 89.6% de la variance) capture efficacement cette dimension unidimensionnelle dominante.
+
+**Cluster 2 : {Sepal.Width}**
+
+La largeur du sépale se distingue nettement des autres mesures par ses corrélations négatives avec les dimensions du pétale (r = -0.43 et r = -0.37). Cette variable capture une dimension morphologique orthogonale, potentiellement liée à la robustesse de la structure florale plutôt qu'à la taille globale.
+
+Son isolement dans un cluster séparé reflète son indépendance structurelle vis-à-vis des autres variables.
+
+**Validation par analyse des valeurs propres** :
+
+Le ratio λ₁/λ₂ = 2.91/0.91 ≈ 3.2 à la racine indique une structure bidimensionnelle claire, justifiant la division initiale. En revanche, le ratio λ₁/λ₂ = 2.69/0.26 ≈ 10.3 dans le Groupe 1 confirme une structure unidimensionnelle très marquée, validant l'arrêt de la division.
+
+### 4.7 Synthèse du Processus Algorithmique
+
+Le diagramme suivant récapitule les étapes de l'algorithme :
+
+```
+Données initiales : 4 variables × 150 observations
+                    ↓
+        Standardisation (centrage-réduction)
+                    ↓
+Itération 1 - ACP sur {V₁, V₂, V₃, V₄}
+    Valeurs propres : λ₁ = 2.91, λ₂ = 0.91
+    Test : λ₂ = 0.91 > 0.80 → Division autorisée
+                    ↓
+Itération 1 - Rotation Varimax
+    Identification de 2 axes rotatés (RC1, RC2)
+                    ↓
+Itération 1 - Assignation par proximité
+    Groupe 1 : {V₁, V₃, V₄} (proches de RC1)
+    Groupe 2 : {V₂} (proche de RC2)
+                    ↓
+Itération 2 - Tentative de division Groupe 1
+    ACP sur {V₁, V₃, V₄}
+    Valeurs propres : λ₁ = 2.69, λ₂ = 0.26
+    Test : λ₂ = 0.26 < 0.80 → Arrêt (unidimensionnel)
+                    ↓
+Itération 2 - Analyse Groupe 2
+    Cardinalité = 1 < 3 → Arrêt (critère structurel)
+                    ↓
+    Partition finale : 
+        Cluster 1 = {V₁, V₃, V₄}
+        Cluster 2 = {V₂}
+```
+
+Cet exemple illustre les propriétés caractéristiques de VARCLUS : division guidée par l'ACP et rotation Varimax, critère d'arrêt statistiquement fondé (λ₂ < seuil), et interprétabilité des clusters en termes de structures de corrélation unidimensionnelles.
+
+---
+
+## 5. Comparaison avec les Approches Alternatives
+
+### 6.1 VARCLUS vs. CAH Ascendante (VAR-CAH)
 
 | Critère | VARCLUS (Descendant) | VAR-CAH (Ascendant) |
 |---------|----------------------|---------------------|
@@ -319,7 +540,7 @@ L'arbre de partition nécessite un espace mémoire $O(p)$ pour stocker les nœud
 2. **Sensibilité à l'ordre de division** : Les premières divisions contraignent les suivantes (approche gloutonne)
 3. **Pas de réallocation** : Une fois assignée, une variable ne peut plus changer de groupe
 
-### 4.2 VARCLUS vs. K-Modes de Variables
+### 6.2 VARCLUS vs. K-Modes de Variables
 
 | Critère | VARCLUS | K-Modes Variables |
 |---------|---------|-------------------|
@@ -329,35 +550,35 @@ L'arbre de partition nécessite un espace mémoire $O(p)$ pour stocker les nœud
 | **Itérations** | Une passe (récursive) | Multiples (réallocation) |
 | **Convergence** | Garantie (terminaison) | Locale (peut diverger) |
 
-## 5. Cas d'Usage et Applications
+## 6. Cas d'Usage et Applications
 
-### 5.1 Prétraitement pour Modélisation Statistique
+### 6.1 Prétraitement pour Modélisation Statistique
 
 Dans des contextes de régression ou classification avec un grand nombre de prédicteurs corrélés, VARCLUS permet d'identifier des groupes de variables redondantes. Un représentant (ou une variable synthétique via ACP) peut ensuite être sélectionné par groupe, réduisant ainsi la multicolinéarité.
 
 **Exemple** : En génomique, pour analyser l'expression de milliers de gènes, VARCLUS identifie des modules co-régulés avant sélection de gènes marqueurs.
 
-### 5.2 Construction de Scores Synthétiques
+### 6.2 Construction de Scores Synthétiques
 
 VARCLUS facilite la création d'indices composites en regroupant des indicateurs mesurant des construits latents similaires. Chaque cluster peut être synthétisé en un score unidimensionnel via sa première composante principale.
 
 **Exemple** : En psychométrie, pour construire un indice de satisfaction client à partir de multiples items de questionnaire.
 
-### 5.3 Exploration de Structures de Données Complexes
+### 6.3 Exploration de Structures de Données Complexes
 
 L'arbre de partition produit par VARCLUS offre une représentation hiérarchique des relations entre variables, utile pour l'exploration de jeux de données multi-dimensionnels.
 
 **Exemple** : En finance quantitative, pour comprendre les co-mouvements entre actifs financiers et identifier des secteurs d'investissement cohérents.
 
-### 5.4 Détection de Redondance Informationnelle
+### 6.4 Détection de Redondance Informationnelle
 
 En identifiant des variables fortement corrélées, VARCLUS aide à détecter les redondances dans la collecte de données, permettant de réduire les coûts opérationnels.
 
 **Exemple** : En télédétection spatiale, pour éliminer des bandes spectrales redondantes dans l'analyse d'images satellites.
 
-## 6. Extensions et Perspectives
+## 7. Extensions et Perspectives
 
-### 6.1 Variantes Algorithmiques
+### 7.1 Variantes Algorithmiques
 
 #### VARCLUS avec Réallocation
 
@@ -367,7 +588,7 @@ Une extension possible consiste à alterner les divisions descendantes avec des 
 
 Plutôt que de forcer une bipartition à chaque nœud, on pourrait généraliser à une k-partition ($k > 2$) en extrayant plus de deux composantes principales et en appliquant un clustering (K-means) dans l'espace factoriel réduit.
 
-### 6.2 Adaptation aux Variables Mixtes
+### 7.2 Adaptation aux Variables Mixtes
 
 #### Approche PCAMIX
 
@@ -377,7 +598,7 @@ L'intégration de l'analyse factorielle pour données mixtes (PCAMIX) permettrai
 
 Une alternative consiste à utiliser la distance de Gower pour mesurer la dissimilarité entre variables de types hétérogènes, puis à adapter le critère de bipartition en conséquence.
 
-### 6.3 Robustification
+### 7.3 Robustification
 
 #### ACP Robuste
 
@@ -387,7 +608,7 @@ L'utilisation d'estimateurs robustes de la matrice de covariance (ex. : estimate
 
 Le remplacement de la corrélation de Pearson par des mesures de dépendance non-paramétriques (Spearman, Kendall) permettrait de capturer des relations monotones non linéaires.
 
-### 6.4 Critères d'Arrêt Alternatifs
+### 7.4 Critères d'Arrêt Alternatifs
 
 #### Bootstrap Gap Statistic
 
@@ -397,27 +618,27 @@ Au lieu du critère $\lambda_2 \geq 1$, on pourrait utiliser la gap statistic, q
 
 Un critère de type BIC pourrait être défini pour pénaliser la complexité du modèle (nombre de clusters) tout en récompensant la qualité de l'ajustement.
 
-## 7. Limitations Actuelles
+## 8. Limitations Actuelles
 
-### 7.1 Contrainte de Bipartition
+### 8.1 Contrainte de Bipartition
 
 La structure binaire imposée peut ne pas refléter la structure naturelle des données. Si un ensemble de variables se décompose naturellement en trois groupes, VARCLUS produira une partition sous-optimale avec des divisions supplémentaires.
 
-### 7.2 Absence de Réallocation
+### 8.2 Absence de Réallocation
 
 Une fois qu'une division est effectuée, les variables ne peuvent plus être transférées entre branches de l'arbre. Cette rigidité peut conduire à des partitions localement sous-optimales.
 
-### 7.3 Variables Quantitatives Uniquement
+### 8.3 Variables Quantitatives Uniquement
 
 Dans l'implémentation actuelle, seules les variables numériques continues sont supportées. Les variables catégorielles ou ordinales nécessitent des transformations préalables ou l'utilisation de méthodes alternatives (K-Modes).
 
-### 7.4 Sensibilité au Seuil d'Arrêt
+### 8.4 Sensibilité au Seuil d'Arrêt
 
 Le choix du paramètre `stop_eigenvalue` influence directement le nombre de clusters finaux. Bien que la valeur par défaut de 1.0 soit théoriquement justifiée, elle peut ne pas être optimale pour tous les contextes applicatifs.
 
-## 8. Implémentation et Bonnes Pratiques
+## 9. Implémentation et Bonnes Pratiques
 
-### 8.1 Standardisation des Variables
+### 9.1 Standardisation des Variables
 
 ```r
 pca_result <- prcomp(X_sub, scale. = TRUE, center = TRUE)
@@ -425,14 +646,14 @@ pca_result <- prcomp(X_sub, scale. = TRUE, center = TRUE)
 
 La standardisation (centrage et réduction) est cruciale pour garantir que toutes les variables contribuent équitablement à l'ACP, indépendamment de leurs échelles de mesure respectives.
 
-### 8.2 Gestion des Valeurs Manquantes
+### 9.2 Gestion des Valeurs Manquantes
 
 L'implémentation actuelle s'appuie sur la méthode héritée `validateDataset()` qui traite les données manquantes selon la stratégie définie (`na_action`). Pour VARCLUS, il est recommandé de :
 - Utiliser l'imputation préalable si le taux de données manquantes est modéré (< 20%)
 - Supprimer les variables avec trop de valeurs manquantes (> 50%)
 - Documenter explicitement la stratégie adoptée dans le pipeline analytique
 
-### 8.3 Interprétation des Résultats
+### 9.3 Interprétation des Résultats
 
 #### Inspection de l'Arbre
 ```r
@@ -450,11 +671,11 @@ Il est recommandé de :
 - Comparer les résultats avec une approche ascendante (VAR-CAH) pour vérifier la cohérence
 - Analyser la distribution des tailles de clusters (déséquilibres extrêmes peuvent signaler un problème)
 
-## 9. Références Théoriques
+## 10. Références Théoriques
 
 L'algorithme VARCLUS s'inspire des travaux fondateurs suivants :
 
-### 9.1 Références Primaires
+### 10.1 Références Primaires
 
 - **SAS Institute Inc. (1990)** : *SAS/STAT User's Guide, Volume 2*, Cary, NC: SAS Institute Inc.  
   Description originale de la procédure PROC VARCLUS dans le logiciel SAS, formalisant l'algorithme de division récursive avec critère $\lambda_2 \geq 1$.
@@ -462,7 +683,7 @@ L'algorithme VARCLUS s'inspire des travaux fondateurs suivants :
 - **Sarle, W.S. (1990)** : *"The VARCLUS Procedure"*, in *SAS/STAT User's Guide, Version 6*, Fourth Edition, Volume 2, pp. 1641-1659.  
   Présentation détaillée des fondements algorithmiques et des justifications statistiques.
 
-### 9.2 Fondements Théoriques
+### 10.2 Fondements Théoriques
 
 - **Kaiser, H.F. (1958)** : *"The varimax criterion for analytic rotation in factor analysis"*, Psychometrika, 23(3), 187-200.  
   Formalisation mathématique de la rotation Varimax utilisée dans VARCLUS pour simplifier la structure factorielle.
@@ -470,7 +691,7 @@ L'algorithme VARCLUS s'inspire des travaux fondateurs suivants :
 - **Jolliffe, I.T. (2002)** : *Principal Component Analysis*, Second Edition, Springer Series in Statistics.  
   Référence standard pour les fondements mathématiques de l'ACP.
 
-### 9.3 Méthodes Apparentées
+### 10.3 Méthodes Apparentées
 
 - **Chavent, M., Kuentz-Simonet, V., Liquet, B., & Saracco, J. (2012)** : *"ClustOfVar: An R Package for the Clustering of Variables"*, Journal of Statistical Software, 50(13), 1-16.  
   Description de l'approche ascendante complémentaire (VAR-CAH).
@@ -478,17 +699,17 @@ L'algorithme VARCLUS s'inspire des travaux fondateurs suivants :
 - **Vigneau, E., & Qannari, E.M. (2003)** : *"Clustering of variables around latent components"*, Communications in Statistics - Simulation and Computation, 32(4), 1131-1150.  
   Fondements théoriques du clustering de variables par composantes latentes.
 
-## 10. Conclusion
+## 11. Conclusion
 
-### 10.1 Positionnement Méthodologique
+### 11.1 Positionnement Méthodologique
 
 VARCLUS constitue une alternative performante aux méthodes ascendantes pour le clustering de variables, particulièrement adaptée aux jeux de données de grande dimension où l'efficacité computationnelle est critique. Son critère d'arrêt statistiquement fondé ($\lambda_2 \geq 1$) offre une objectivité appréciable, réduisant l'arbitraire du choix du nombre de clusters.
 
-### 10.2 Complémentarité avec VAR-CAH
+### 11.2 Complémentarité avec VAR-CAH
 
 L'utilisation conjointe de VARCLUS (descendant) et VAR-CAH (ascendant) sur un même jeu de données permet de valider la robustesse de la structure identifiée. Une convergence des deux approches vers des partitions similaires renforce la confiance dans les résultats.
 
-### 10.3 Recommandations Pratiques
+### 11.3 Recommandations Pratiques
 
 Pour une analyse optimale :
 1. **Prétraitement** : Standardiser les variables, traiter les valeurs manquantes

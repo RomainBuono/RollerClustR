@@ -1,94 +1,179 @@
-# RollerClustR <img src="man/figures/logo.png" align="right" height="139" />
+# RollerClustR
 
-<!-- badges: start -->
-[![R-CMD-check](https://github.com/yourusername/RollerClustR/workflows/R-CMD-check/badge.svg)](https://github.com/yourusername/RollerClustR/actions)
-[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
-<!-- badges: end -->
+[![R](https://img.shields.io/badge/R-%3E%3D%204.0-blue.svg)](https://www.r-project.org/)
+[![License: GPL-3](https://img.shields.io/badge/License-GPL%203-yellow.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-## Vue d'ensemble
+**RollerClustR** is an R package for clustering **variables** (not observations). It implements three complementary approaches for analyzing relationships between variables:
 
-**RollerClustR** est un package R qui implémente des algorithmes avancés de clustering pour variables avec une architecture orientée objet R6. Le package propose trois méthodes de clustering spécialisées :
+- **VAR_CAH**: Hierarchical Agglomerative Clustering
+- **VARCLUS**: Divisive clustering with PCA
+- **TandemVarClust**: Tandem analysis (MCA + HAC) for mixed data
 
-- **VAR_CAH** : Clustering hiérarchique ascendant pour variables
-- **KmodesVarClust** : Clustering pour données catégorielles
-- **VARCLUS** : Clustering descendant avec division récursive basée sur l'ACP
-
-## Caractéristiques principales
-
-✨ **Architecture R6** : Classes orientées objet avec héritage et encapsulation
-
-🔧 **Flexibilité** : Paramètres de discrétisation configurables pour variables continues
-
-📊 **Robustesse** : Gestion complète des valeurs manquantes et validation des données
-
-🎯 **Simplicité** : Interface uniforme via la fonction wrapper `roller_clust()`
+---
 
 ## Installation
 
-Vous pouvez installer la version de développement depuis GitHub :
-
 ```r
+# Install from GitHub
 # install.packages("devtools")
-devtools::install_github("RomainBuono/RollerClustR")
+devtools::install_github("BryanMentos/RollerClustR")
 ```
 
-## Exemple rapide
+---
+
+## Quick Start
+
+### Example 1: Hierarchical Clustering (VAR_CAH)
 
 ```r
 library(RollerClustR)
-
-# Utilisation simple avec la fonction wrapper
 data(iris)
-result <- roller_clust(
+
+# Create and fit model in one command
+model <- roller_clust(
   X = iris[, 1:4],
-  method = "varclus",
+  method = "var_cah",
+  K = 2
+)
+
+# Display results
+model$summary()
+
+# Access variable clusters
+print(model$Groupes)
+# Sepal.Length Sepal.Width Petal.Length Petal.Width 
+#            1           2            1           1
+```
+
+### Example 2: Illustrative Variables with `predict()`
+
+```r
+# Create new variables for prediction
+new_vars <- data.frame(
+  SumPetals = iris$Petal.Length + iris$Petal.Width,
+  RatioPetals = iris$Petal.Length / iris$Petal.Width
+)
+
+# Predict their cluster membership
+predictions <- model$predict(new_vars)
+
+# View results
+print(predictions$cluster)
+# SumPetals RatioPetals 
+#         1           1
+
+print(predictions$scores)
+#             Cluster_1 Cluster_2
+# SumPetals      0.9845    0.3512
+# RatioPetals    0.8923    0.2134
+```
+
+**Understanding predict() output:**
+- `$cluster`: Assigned cluster for each new variable
+- `$scores`: Correlation with each cluster's synthetic variable
+- `$best_score`: Highest correlation score
+- `$second_best_score`: Second-best correlation (for ambiguity assessment)
+
+### Example 3: Categorical Data (TandemVarClust)
+
+```r
+# Create mixed data
+iris_mixed <- iris
+iris_mixed$Size <- cut(iris$Sepal.Length, breaks = 3, 
+                       labels = c("Small", "Medium", "Large"))
+
+# Tandem clustering
+model_tandem <- roller_clust(
+  X = iris_mixed[, c(1:4, 6)],
+  method = "tandem",
   K = 3
 )
 
-# Afficher le résumé
-result$summary()
-
-# Accéder aux groupes
-groups <- result$Groupes
+model_tandem$summary()
 ```
 
-## Utilisation avancée avec les classes R6
+---
+
+## Core Features
+
+### Unified Interface
+
+The `roller_clust()` function provides a single entry point:
 
 ```r
-# Clustering hiérarchique
-model_cah <- VAR_CAH$new(K = 3, scale = TRUE)
-model_cah$fit(iris[, 1:4])
-model_cah$summary()
-
-# Clustering VARCLUS
-model_vc <- VARCLUS$new(K = 2)
-model_vc$fit(iris[, 1:4])
-model_vc$summary()
-
-# Modifier le nombre de clusters après ajustement
-model_vc$K <- 3
+model <- roller_clust(
+  X = data,           # Data (data.frame or matrix)
+  method = "var_cah", # Method: "var_cah", "varclus", "tandem"
+  K = 2,              # Number of clusters
+  scale = TRUE        # Standardization
+)
 ```
 
-## Documentation
+### Essential Methods
 
-Pour plus de détails, consultez :
+```r
+# Fit the model (already done by roller_clust)
+model$fit(X)
 
-- La vignette d'introduction : `vignette("introduction", package = "RollerClustR")`
-- La documentation des fonctions : `help(package = "RollerClustR")`
-- Les exemples reproductibles : `example(roller_clust)`
+# Detailed summary
+model$summary()
 
-## Contribution
+# Prediction for illustrative variables
+predictions <- model$predict(newdata)
 
-Les contributions sont les bienvenues ! Veuillez consulter [CONTRIBUTING.md](CONTRIBUTING.md) pour les directives.
+# Change number of clusters (automatically refits)
+model$K <- 3
+```
+
+### Active Properties
+
+```r
+# Number of clusters
+model$K                    # Read
+model$K <- 4              # Write (refits model)
+
+# Variable groups
+groups <- model$Groupes  # Named vector of assignments
+```
+
+---
+
+## Method Selection Guide
+
+| Method | Data Type | Approach | Best For |
+|--------|-----------|----------|----------|
+| **VAR_CAH** | Numeric | Agglomerative | Initial exploration, dendrograms |
+| **VARCLUS** | Numeric | Divisive | Complex hierarchical structures |
+| **TandemVarClust** | Mixed | MCA + HAC | Categorical or mixed variables |
+
+---
+
+## Complete Documentation
+
+- **Full User Guide**: See `USERGUIDE.md`
+- **Function Documentation**: `?roller_clust`, `?VAR_CAH`, `?VARCLUS`, `?TandemVarClust`
+- **Vignettes**: `browseVignettes("RollerClustR")`
+
+---
 
 ## Citation
 
-Si vous utilisez RollerClustR dans vos travaux, veuillez citer :
+If you use **RollerClustR** in your research, please cite:
 
-```r
-citation("RollerClustR")
+```
+Mentos Vendetta, B. (2025). RollerClustR: Variable Clustering in R.
+R package version 1.0.0. https://github.com/BryanMentos/RollerClustR
 ```
 
-## Licence
+---
 
-MIT © 2025 Romain BUONO
+## License
+
+GPL-3 © Bryan Mentos Vendetta
+
+---
+
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/BryanMentos/RollerClustR/issues)
+- **Questions**: Open a discussion on GitHub

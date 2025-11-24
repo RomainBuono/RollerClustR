@@ -18,18 +18,21 @@ test_that("roller_clust works with varclus method", {
   expect_true(result$K >= 1)
 })
 
-test_that("roller_clust works with kmodes method", {
-  data(Titanic)
-  titanic_df <- as.data.frame(Titanic)
+test_that("roller_clust works with tandem method", {
+  # Create mixed data (categorical + numeric)
+  data(iris)
+  iris_mixed <- iris
+  iris_mixed$Species_char <- as.character(iris$Species)
   
   result <- roller_clust(
-    titanic_df[, c("Class", "Sex", "Age")],
-    method = "kmodes",
-    K = 2
+    iris_mixed[, c(1:4, 6)],  # numeric + categorical
+    method = "tandem",
+    K = 3,
+    n_bins = 3
   )
   
-  expect_s3_class(result, "KmodesVarClust")
-  expect_equal(result$K, 2)
+  expect_s3_class(result, "TandemVarClust")
+  expect_equal(result$K, 3)
 })
 
 test_that("roller_clust validates K parameter", {
@@ -37,12 +40,12 @@ test_that("roller_clust validates K parameter", {
   
   expect_error(
     roller_clust(iris[, 1:4], K = 1),
-    "K doit être un nombre entier >= 2"
+    "K must be an integer >= 2"
   )
   
   expect_error(
     roller_clust(iris[, 1:4], K = -3),
-    "K doit être un nombre entier >= 2"
+    "K must be an integer >= 2"
   )
 })
 
@@ -59,7 +62,7 @@ test_that("roller_clust validates input data", {
   # Pas un data.frame ni une matrice
   expect_error(
     roller_clust(c(1, 2, 3), K = 2),
-    "X doit être un data.frame ou une matrice"
+    "X must be a data.frame or a matrix"  
   )
 })
 
