@@ -1,8 +1,8 @@
 # RollerClustR User Guide
 
 **Version**: 1.0.0  
-**Author**: Bryan Mentos Vendetta  
-**Date**: November 2024
+**Author**: Romain Buono  
+**Date**: November 2025
 
 ---
 
