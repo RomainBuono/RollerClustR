@@ -55,7 +55,7 @@
 ```r
 # From GitHub (recommended)
 install.packages("devtools")
-devtools::install_github("BryanMentos/RollerClustR")
+devtools::install_github("RomainBuono/RollerClustR")
 
 # Load package
 library(RollerClustR)
@@ -860,8 +860,8 @@ model <- roller_clust(iris[, c(1, 3, 4)], method = "var_cah", K = 2)
 
 - **Package documentation**: `help(package = "RollerClustR")`
 - **Function help**: `?roller_clust`, `?VAR_CAH`, `?VARCLUS`, `?TandemVarClust`
-- **GitHub repository**: https://github.com/BryanMentos/RollerClustR
-- **Report issues**: https://github.com/BryanMentos/RollerClustR/issues
+- **GitHub repository**: https://github.com/RomainBuono/RollerClustR
+- **Report issues**: https://github.com/RomainBuono/RollerClustR/issues
 
 ---
 

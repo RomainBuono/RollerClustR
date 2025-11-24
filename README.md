@@ -16,7 +16,7 @@
 ```r
 # Install from GitHub
 # install.packages("devtools")
-devtools::install_github("BryanMentos/RollerClustR")
+devtools::install_github("RomainBuono/RollerClustR")
 ```
 
 ---
@@ -162,18 +162,18 @@ If you use **RollerClustR** in your research, please cite:
 
 ```
 Mentos Vendetta, B. (2025). RollerClustR: Variable Clustering in R.
-R package version 1.0.0. https://github.com/BryanMentos/RollerClustR
+R package version 1.0.0. https://github.com/RomainBuono/RollerClustR
 ```
 
 ---
 
 ## License
 
-GPL-3 © Bryan Mentos Vendetta
+GPL-3 © Romain Buono
 
 ---
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/BryanMentos/RollerClustR/issues)
+- **Issues**: [GitHub Issues](https://github.com/RomainBuono/RollerClustR/issues)
 - **Questions**: Open a discussion on GitHub
