@@ -29,7 +29,7 @@
 
 ## Introduction
 
-**RollerClustR** is an R package dedicated to **variable clustering** (not observation clustering). Unlike classical methods that group individuals, RollerClustR identifies groups of similar or redundant variables in your data.
+**RollerClustR** is an R package dedicated to **variable clustering**. Unlike classical methods that group individuals, RollerClustR identifies groups of similar or redundant variables in your data.
 
 ### Why Cluster Variables?
 
