@@ -7,7 +7,7 @@
 #' @field K Number of clusters
 #' @field Groupes Named integer vector of cluster assignments
 #' @field WithinClusterInertia Total within-cluster inertia
-#' @field FHomogeneite Overall homogeneity measure
+#' @field Homogeneite Overall homogeneity measure
 #' @field Converged Logical indicating convergence
 #' @field NIterations Number of iterations performed
 #'
@@ -189,10 +189,10 @@ VAR_KMEANS <- R6::R6Class(
       return(private$FWithinClusterInertia)
     },
     
-    #' @field FHomogeneite Overall homogeneity (read-only)
-    FHomogeneite = function() {
+    #' @field Homogeneite Overall homogeneity (read-only)
+    Homogeneite = function() {
       if (!private$FFitted) {
-        stop("The model must be fitted before accessing FHomogeneite")
+        stop("The model must be fitted before accessing Homogeneite")
       }
       return(private$FHomogeneite)
     },
@@ -361,7 +361,7 @@ VAR_KMEANS <- R6::R6Class(
       # Initialize cluster centers
       centers <- private$initialize_centers()
       
-      n_vars <- ncol(private$FX_scaled)
+      n_vars <- nrow(private$FX_scaled)  # Number of rows = variables
       clusters <- integer(n_vars)
       converged <- FALSE
       iteration <- 0
@@ -403,7 +403,7 @@ VAR_KMEANS <- R6::R6Class(
     #' ═══ CORRECTION 4: Initialize centers with empty cluster protection ═══
     initialize_centers = function() {
       
-      n_vars <- ncol(private$FX_scaled)
+      n_vars <- nrow(private$FX_scaled)  # Number of rows = variables
       
       # Verify K <= n_vars
       if (private$FNbGroupes > n_vars) {
@@ -445,7 +445,7 @@ VAR_KMEANS <- R6::R6Class(
       
       # Compute initial centers
       centers <- matrix(NA, nrow = private$FNbGroupes, 
-                        ncol = nrow(private$FX_scaled))
+                        ncol = ncol(private$FX_scaled))  # ncol = observations
       
       for (k in 1:private$FNbGroupes) {
         vars_in_cluster <- which(initial_assignment == k)
@@ -469,11 +469,11 @@ VAR_KMEANS <- R6::R6Class(
     #' Assign variables to nearest cluster
     assign_to_clusters = function(centers) {
       
-      n_vars <- ncol(private$FX_scaled)
+      n_vars <- nrow(private$FX_scaled)  # Number of rows = variables
       clusters <- integer(n_vars)
       
       for (j in 1:n_vars) {
-        var_j <- private$FX_scaled[, j]
+        var_j <- private$FX_scaled[j, ]  # Select j-th row (variable)
         
         # Compute distance to each center
         distances <- numeric(private$FNbGroupes)
@@ -495,7 +495,7 @@ VAR_KMEANS <- R6::R6Class(
     update_centers = function(clusters) {
       
       centers <- matrix(NA, nrow = private$FNbGroupes, 
-                        ncol = nrow(private$FX_scaled))
+                        ncol = ncol(private$FX_scaled))  # ncol = observations
       
       for (k in 1:private$FNbGroupes) {
         vars_in_cluster <- which(clusters == k)
@@ -506,8 +506,8 @@ VAR_KMEANS <- R6::R6Class(
           # Handle empty cluster (should be rare)
           warning("Empty cluster ", k, " detected during update")
           # Reinitialize randomly
-          random_var <- sample(ncol(private$FX_scaled), 1)
-          centers[k, ] <- private$FX_scaled[, random_var]
+          random_var <- sample(nrow(private$FX_scaled), 1)  # nrow = variables
+          centers[k, ] <- private$FX_scaled[random_var, ]
         }
       }
       
@@ -525,33 +525,21 @@ VAR_KMEANS <- R6::R6Class(
       
       if (length(var_indices) == 1) {
         # Single variable: return it as is
-        return(private$FX_scaled[, var_indices])
+        return(private$FX_scaled[var_indices, ])
       } else {
         # Multiple variables: first principal component
-        cluster_data <- private$FX_scaled[, var_indices, drop = FALSE]
+        # FX_scaled is (variables, observations), so select rows
+        cluster_data <- private$FX_scaled[var_indices, , drop = FALSE]
         
-        # PCA on variables (transpose)
-        pca_result <- tryCatch({
-          prcomp(t(cluster_data), center = FALSE, scale. = FALSE)
-        }, error = function(e) {
-          warning("PCA failed for cluster: ", e$message)
-          return(NULL)
-        })
+        # Compute mean correlation vector (simpler and more stable)
+        # Average of all variables in the cluster
+        center <- colMeans(cluster_data, na.rm = TRUE)
         
-        if (is.null(pca_result)) {
-          # Fallback: return mean
-          return(rowMeans(cluster_data, na.rm = TRUE))
+        # Normalize to unit length
+        center_norm <- sqrt(sum(center^2, na.rm = TRUE))
+        if (center_norm > 0) {
+          center <- center / center_norm
         }
-        
-        # First PC (in observation space)
-        pc1 <- pca_result$x[, 1]
-        
-        # Project back to observation space
-        center <- cluster_data %*% pca_result$rotation[, 1]
-        center <- as.vector(center)
-        
-        # Normalize
-        center <- center / sqrt(sum(center^2))
         
         return(center)
       }
@@ -572,7 +560,7 @@ VAR_KMEANS <- R6::R6Class(
         
         if (length(vars_in_cluster) > 0) {
           for (j in vars_in_cluster) {
-            var_j <- private$FX_scaled[, j]
+            var_j <- private$FX_scaled[j, ]  # Select j-th row (variable)
             cor_val <- cor(var_j, centers[k, ], use = "complete.obs")
             distance <- 1 - abs(cor_val)
             total_inertia <- total_inertia + distance
@@ -601,11 +589,15 @@ VAR_KMEANS <- R6::R6Class(
           homogeneities[k] <- 1
         } else {
           # Correlation with cluster center
-          cluster_data <- private$FX_scaled[, vars_in_cluster, drop = FALSE]
+          cluster_data <- private$FX_scaled[vars_in_cluster, , drop = FALSE]
           center_k <- private$FClusterCenters[k, ]
           
-          cors <- abs(cor(cluster_data, center_k, use = "complete.obs"))
-          homogeneities[k] <- mean(cors)
+          # Compute correlation for each variable with center
+          cors <- numeric(n_vars_k)
+          for (i in 1:n_vars_k) {
+            cors[i] <- abs(cor(cluster_data[i, ], center_k, use = "complete.obs"))
+          }
+          homogeneities[k] <- mean(cors, na.rm = TRUE)
         }
       }
       
@@ -655,8 +647,8 @@ VAR_KMEANS <- R6::R6Class(
       }
       
       # Ensure same number of observations
-      if (nrow(newdata) != nrow(private$FX)) {
-        stop("newdata must have ", nrow(private$FX), " observations")
+      if (nrow(newdata) != ncol(private$FX_scaled)) {
+        stop("newdata must have ", ncol(private$FX_scaled), " observations")
       }
       
       # Standardize if needed
@@ -666,19 +658,19 @@ VAR_KMEANS <- R6::R6Class(
         newdata_scaled <- as.matrix(newdata)
       }
       
-      # Transpose
+      # Transpose: rows = variables, cols = observations
       newdata_scaled <- t(newdata_scaled)
       
       # Predict for each new variable
       results <- list()
       
-      for (j in 1:ncol(newdata_scaled)) {
+      for (j in 1:nrow(newdata_scaled)) {  # nrow = variables
         var_name <- colnames(newdata)[j]
         if (is.null(var_name)) {
           var_name <- paste0("NewVar", j)
         }
         
-        var_j <- newdata_scaled[, j]
+        var_j <- newdata_scaled[j, ]  # Select j-th row (variable)
         
         # Compute correlation with each center
         scores <- numeric(private$FNbGroupes)
@@ -751,11 +743,15 @@ VAR_KMEANS <- R6::R6Class(
           
           # Cluster homogeneity
           if (n_vars_k > 1) {
-            cluster_data <- private$FX_scaled[, vars_in_k, drop = FALSE]
+            cluster_data <- private$FX_scaled[vars_in_k, , drop = FALSE]
             center_k <- private$FClusterCenters[k, ]
             
-            cors <- abs(cor(cluster_data, center_k, use = "complete.obs"))
-            mean_cor <- mean(cors)
+            # Compute correlation for each variable with center
+            cors <- numeric(n_vars_k)
+            for (i in 1:n_vars_k) {
+              cors[i] <- abs(cor(cluster_data[i, ], center_k, use = "complete.obs"))
+            }
+            mean_cor <- mean(cors, na.rm = TRUE)
             cat("  Homogeneity (mean |cor|):", round(mean_cor, 4), "\n")
           } else {
             cat("  Homogeneity: 1.0000 (single variable)\n")

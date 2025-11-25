@@ -2,115 +2,25 @@
 % Please edit documentation in R/VAR_KMEANS.R
 \name{VAR_KMEANS}
 \alias{VAR_KMEANS}
-\title{K-Means Clustering of Variables (VAR_KMEANS)}
-\value{
-An R6 object of class \code{VAR_KMEANS}
-}
+\title{VAR_KMEANS: K-Means Variable Clustering}
 \description{
-\code{VAR_KMEANS} implements a K-means algorithm with iterative reallocation
-for grouping numeric variables. Unlike hierarchical methods, this algorithm
-uses an iterative process to minimize within-cluster variance.
+Implementation of K-means algorithm adapted for variable clustering.
+Minimizes within-cluster inertia through iterative reallocation.
 }
-\details{
-\subsection{Algorithm Principle}{
-
-This is a reallocation method that iteratively optimizes variable assignments:
-\enumerate{
-\item Initialize K cluster centers (PC1 of random variable groups)
-\item \strong{Allocation}: Assign each variable to the cluster whose center has
-the highest correlation with it
-\item \strong{Representation}: Recompute cluster centers as the first principal
-component (PC1) of variables in each cluster
-\item Repeat steps 2-3 until convergence
-}
-}
-
-\subsection{Convergence Criteria}{
-
-The algorithm stops when one of the following conditions is met:
-\itemize{
-\item No variable changes cluster assignment
-\item Maximum number of iterations is reached
-\item Within-cluster variance (W) no longer decreases significantly
-}
-}
-
-\subsection{Key Differences from Hierarchical Methods}{
-\itemize{
-\item \strong{Iterative reallocation}: Variables can move between clusters during optimization
-\item \strong{Local optimization}: May converge to local minima (depends on initialization)
-\item \strong{Fixed K}: Number of clusters must be specified in advance
-\item \strong{Computational efficiency}: Generally faster than hierarchical methods for large datasets
-}
-}
-
-\subsection{Quality Metrics}{
-\itemize{
-\item \strong{Homogeneity}: Average within-cluster correlation
-\item \strong{Cluster Quality}: Variance explained by PC1
-\item \strong{Within-cluster inertia (W)}: Total dispersion within clusters
-}
-}
-}
-\section{Public methods}{
-
-\describe{
-\item{\verb{$new(...)}}{Class constructor}
-\item{\verb{$fit(X)}}{Fits the model on data X}
-\item{\verb{$summary()}}{Displays a detailed clustering summary}
-\item{\verb{$predict(newdata)}}{Predicts cluster assignment for new variables}
-\item{\verb{$refit_with_k(new_k)}}{Refits the model with a different number of clusters}
-}
-}
-
-\section{Active bindings}{
-
-\describe{
-\item{\verb{$K}}{Number of clusters (read/write)}
-\item{\verb{$Groupes}}{Named vector of variable assignments to clusters}
-\item{\verb{$ClusterCenters}}{Matrix of cluster centers (PC1 for each cluster)}
-\item{\verb{$WithinClusterInertia}}{Within-cluster inertia (W) value}
-\item{\verb{$Converged}}{Boolean indicating if algorithm converged}
-\item{\verb{$NIterations}}{Number of iterations performed}
-}
-}
-
 \examples{
-# Simple example with iris dataset
-library(RollerClustR)
-data(iris)
-
-# Create and fit the model
-model <- VAR_KMEANS$new(K = 2, max_iter = 100, n_init = 10)
+# Basic usage
+model <- VAR_KMEANS$new(K = 3, n_init = 20)
 model$fit(iris[, 1:4])
-
-# Display summary
+print(model$Groupes)
 model$summary()
 
-# Access variable groups
-groups <- model$Groupes
-print(groups)
-
-# Try different number of clusters
-model$K <- 3
-model$summary()
-
-# Predict cluster for new variable
-new_var <- iris$Sepal.Length + rnorm(nrow(iris), 0, 0.1)
+# Predict new variables
+new_var <- data.frame(NewVar = iris$Sepal.Length + iris$Petal.Length)
 prediction <- model$predict(new_var)
-print(prediction)
 
-}
-\references{
-MacQueen, J. (1967). Some methods for classification and analysis of multivariate
-observations. Proceedings of the Fifth Berkeley Symposium on Mathematical
-Statistics and Probability, 1(14), 281-297.
-
-Vigneau, E., & Qannari, E. M. (2003). Clustering of variables around latent
-components. Communications in Statistics - Simulation and Computation, 32(4), 1131-1150.
 }
 \seealso{
-\link{ClusterAnalysis}, \link{VAR_CAH}, \link{TandemVarClust}, \code{\link[=roller_clust]{roller_clust()}}
+\link{VAR_CAH}, \link{TandemVarClust}, \code{\link[=roller_clust]{roller_clust()}}
 }
 \section{Super class}{
 \code{\link[RollerClustR:ClusterAnalysis]{RollerClustR::ClusterAnalysis}} -> \code{VAR_KMEANS}
@@ -118,17 +28,29 @@ components. Communications in Statistics - Simulation and Computation, 32(4), 11
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{K}}{Number of clusters (read/write)}
+\item{\code{K}}{Number of clusters}
 
-\item{\code{Groupes}}{Variable assignments to clusters}
+\item{\code{Groupes}}{Named integer vector of cluster assignments}
 
-\item{\code{ClusterCenters}}{Matrix of cluster centers (PC1)}
+\item{\code{WithinClusterInertia}}{Total within-cluster inertia}
 
-\item{\code{WithinClusterInertia}}{Within-cluster inertia W}
+\item{\code{Homogeneite}}{Overall homogeneity measure}
 
-\item{\code{Converged}}{Convergence status}
+\item{\code{Converged}}{Logical indicating convergence}
 
 \item{\code{NIterations}}{Number of iterations performed}
+
+\item{\code{K}}{Number of clusters (modifiable)}
+
+\item{\code{Groupes}}{Cluster assignments (read-only)}
+
+\item{\code{WithinClusterInertia}}{Total within-cluster inertia (read-only)}
+
+\item{\code{Homogeneite}}{Overall homogeneity (read-only)}
+
+\item{\code{Converged}}{Convergence status (read-only)}
+
+\item{\code{NIterations}}{Number of iterations (read-only)}
 }
 \if{html}{\out{</div>}}
 }
@@ -136,6 +58,8 @@ components. Communications in Statistics - Simulation and Computation, 32(4), 11
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-VAR_KMEANS-new}{\code{VAR_KMEANS$new()}}
+\item \href{#method-VAR_KMEANS-get_cluster_variables}{\code{VAR_KMEANS$get_cluster_variables()}}
+\item \href{#method-VAR_KMEANS-get_cluster_centers}{\code{VAR_KMEANS$get_cluster_centers()}}
 \item \href{#method-VAR_KMEANS-clone}{\code{VAR_KMEANS$clone()}}
 }
 }
@@ -152,70 +76,70 @@ components. Communications in Statistics - Simulation and Computation, 32(4), 11
 \if{html}{\out{<a id="method-VAR_KMEANS-new"></a>}}
 \if{latex}{\out{\hypertarget{method-VAR_KMEANS-new}{}}}
 \subsection{Method \code{new()}}{
-Initialize cluster centers randomly
-
-
-Compute cluster center as PC1
-
-
-Allocate variables to nearest cluster center
-
-
-Update cluster centers based on current assignment
-
-
-Compute within-cluster inertia W
-
-
-Single K-means run
-
-
-Run K-means multiple times and keep best result
-
-
-Compute quality metrics for clusters
-
-
-do_fit method (called by fit())
-
-
-do_refit_with_k method
-
-
-Predicts cluster for new variables
-
-
-do_summary method (called by summary())
-
-
-Constructor for VAR_KMEANS class
+Initialize a new VAR_KMEANS object
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{VAR_KMEANS$new(
   K = 2,
+  n_init = 10,
   max_iter = 100,
   tolerance = 1e-06,
-  n_init = 10,
   scale = TRUE,
-  ...
+  na_action = "warn"
 )}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{K}}{Number of clusters (default: 2)}
-
-\item{\code{max_iter}}{Maximum iterations (default: 100)}
-
-\item{\code{tolerance}}{Convergence tolerance (default: 1e-6)}
+\item{\code{K}}{Number of clusters (integer >= 2)}
 
 \item{\code{n_init}}{Number of random initializations (default: 10)}
 
-\item{\code{scale}}{Standardize variables (default: TRUE)}
+\item{\code{max_iter}}{Maximum number of iterations (default: 100)}
 
-\item{\code{...}}{Other parameters (for compatibility)}
+\item{\code{tolerance}}{Convergence tolerance (default: 1e-6)}
+
+\item{\code{scale}}{Logical, standardize variables (default: TRUE)}
+
+\item{\code{na_action}}{How to handle missing values: "warn", "omit", or "fail"}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+A new VAR_KMEANS object
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-VAR_KMEANS-get_cluster_variables"></a>}}
+\if{latex}{\out{\hypertarget{method-VAR_KMEANS-get_cluster_variables}{}}}
+\subsection{Method \code{get_cluster_variables()}}{
+Get variables in a specific cluster
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{VAR_KMEANS$get_cluster_variables(k)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{k}}{Cluster number}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+Character vector of variable names
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-VAR_KMEANS-get_cluster_centers"></a>}}
+\if{latex}{\out{\hypertarget{method-VAR_KMEANS-get_cluster_centers}{}}}
+\subsection{Method \code{get_cluster_centers()}}{
+Get cluster centers
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{VAR_KMEANS$get_cluster_centers()}\if{html}{\out{</div>}}
+}
+
+\subsection{Returns}{
+Matrix of cluster centers
 }
 }
 \if{html}{\out{<hr>}}
