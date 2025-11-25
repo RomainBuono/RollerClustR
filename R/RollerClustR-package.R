@@ -2,15 +2,16 @@
 #'
 #' @description
 #' RollerClustR provides a comprehensive suite of clustering algorithms
-#' specifically designed for grouping variables (not observations). The package
+#' specifically designed for grouping variables. The package
 #' implements three complementary approaches with a unified R6 architecture.
 #'
 #' @section Main Features:
 #'
 #' **Three Clustering Methods:**
 #' - **VAR_CAH**: Hierarchical Ascendant Clustering using correlation-based distances
-#' - **VARCLUS**: Divisive clustering with PCA-based recursive splitting
+#' - **VARKMEANS**: K-means algorithm with iterative reallocation
 #' - **TandemVarClust**: Tandem clustering  adapted for categorical variables
+#' 
 #'
 #' **Unified Interface:**
 #' - Single wrapper function `roller_clust()` for all methods
@@ -46,7 +47,7 @@
 #'
 #' The package uses an object-oriented architecture with:
 #' - **ClusterAnalysis**: Parent class defining the common interface
-#' - **VAR_CAH, VARCLUS, TandemVarClust**: Specialized implementations
+#' - **VAR_CAH, VARKMEANS, TandemVarClust**: Specialized implementations
 #' - Template Method pattern for consistent behavior
 #' - Active bindings for clean API (e.g., `$K`, `$Groupes`)
 #'
@@ -57,7 +58,7 @@
 #' 
 #' **Clustering Classes:**
 #' - \code{VAR_CAH} - Hierarchical clustering of variables
-#' - \code{VARCLUS} - Divisive clustering with PCA
+#' - \code{VARKMEANS} - Divisive clustering with PCA
 #' - \code{TandemVarClust} - Tandem clustering (MCA + HAC) for mixed data
 #' 
 #' **Utilities:**

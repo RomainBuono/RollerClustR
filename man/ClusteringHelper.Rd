@@ -41,7 +41,7 @@ Genere un rapport textuel synthetique du clustering
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{objet_clustering}}{Objet de clustering ajuste (VAR_CAH, VARCLUS, ou KmodesVarClust)}
+\item{\code{objet_clustering}}{Objet de clustering ajuste (VAR_CAH, VAR_KMEANS, ou TandemVarClust)}
 
 \item{\code{file}}{Chemin du fichier ou ecrire le rapport (NULL pour affichage console)}
 }

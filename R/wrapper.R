@@ -49,28 +49,38 @@ ClusteringFactory <- R6Class("ClusteringFactory",
       return(obj)
     },
     
-    #' @description Creer et ajuster un objet KmodesVarClust
+    #' @description Creer et ajuster un objet VAR_KMEANS (Clustering de Variables - K-means)
     #' @param X Data frame ou matrice de donnees
     #' @param k Nombre de clusters (defaut: 3)
+    #' @param n_init Nombre d'initialisations (defaut: 10)
     #' @param max_iter Nombre maximum d'iterations (defaut: 100)
-    #' @param n_bins Nombre d'intervalles pour discretisation (defaut: 5)
+    #' @param scale Booleen, standardiser les donnees (defaut: TRUE)
+    #' @param tolerance Seuil de convergence (defaut: 1e-6)
     #' @param fit_now Booleen, ajuster le modele immediatement (defaut: TRUE)
-    #' @return Objet KmodesVarClust
-    create_kmodes_varclust = function(X, k = 3, max_iter = 100, n_bins = 5, fit_now = TRUE) {
+    #' @return Objet VAR_KMEANS
+    create_var_kmeans = function(X, k = 3, n_init = 10, max_iter = 100, 
+                                  scale = TRUE, tolerance = 1e-6, fit_now = TRUE) {
       if (!is.numeric(k) || k < 2) {
         stop("k doit etre un nombre entier >= 2.")
+      }
+      if (!is.numeric(n_init) || n_init < 1) {
+        stop("n_init doit etre >= 1.")
       }
       if (!is.numeric(max_iter) || max_iter < 1) {
         stop("max_iter doit etre >= 1.")
       }
-      if (!is.numeric(n_bins) || n_bins < 2) {
-        stop("n_bins doit etre un nombre entier >= 2.")
+      if (!is.logical(scale)) {
+        stop("scale doit etre un booleen (TRUE/FALSE).")
+      }
+      if (!is.numeric(tolerance) || tolerance <= 0) {
+        stop("tolerance doit etre un nombre > 0.")
       }
       if (!is.logical(fit_now)) {
         stop("fit_now doit etre un booleen (TRUE/FALSE).")
       }
       
-      obj <- KmodesVarClust$new(k = k, max_iter = max_iter, n_bins = n_bins)
+      obj <- VAR_KMEANS$new(K = k, n_init = n_init, max_iter = max_iter, 
+                            scale = scale, tolerance = tolerance)
       
       if (fit_now) {
         obj$fit(X)
@@ -79,25 +89,30 @@ ClusteringFactory <- R6Class("ClusteringFactory",
       return(obj)
     },
     
-    #' @description Creer et ajuster un objet VARCLUS (Clustering de Variables - Descendant)
-    #' @param X Data frame ou matrice de donnees
-    #' @param stop_eigenvalue Seuil d'arret pour lambda2 (defaut: 1.0)
-    #' @param distance_metric Metrique de distance (defaut: "correlation")
+    #' @description Creer et ajuster un objet TandemVarClust (Clustering de Variables - Donnees Mixtes)
+    #' @param X Data frame ou matrice de donnees (mixtes: quantitatives + qualitatives)
+    #' @param k Nombre de clusters (defaut: 3)
+    #' @param n_bins Nombre d'intervalles pour discretisation (defaut: 3)
+    #' @param assignment_method Methode d'assignation ('dice', 'voting', 'barycenter', defaut: 'dice')
     #' @param fit_now Booleen, ajuster le modele immediatement (defaut: TRUE)
-    #' @return Objet VARCLUS
-    create_varclus = function(X, stop_eigenvalue = 1.0, distance_metric = "correlation", fit_now = TRUE) {
-      if (!is.numeric(stop_eigenvalue) || stop_eigenvalue < 0) {
-        stop("stop_eigenvalue doit etre un nombre >= 0.")
+    #' @return Objet TandemVarClust
+    create_tandem_varclust = function(X, k = 3, n_bins = 3, 
+                                       assignment_method = "dice", fit_now = TRUE) {
+      if (!is.numeric(k) || k < 2) {
+        stop("k doit etre un nombre entier >= 2.")
       }
-      if (!is.character(distance_metric)) {
-        stop("distance_metric doit etre une chaine de caracteres.")
+      if (!is.numeric(n_bins) || n_bins < 2) {
+        stop("n_bins doit etre un nombre entier >= 2.")
+      }
+      if (!assignment_method %in% c("dice", "voting", "barycenter")) {
+        stop("assignment_method doit etre 'dice', 'voting' ou 'barycenter'.")
       }
       if (!is.logical(fit_now)) {
         stop("fit_now doit etre un booleen (TRUE/FALSE).")
       }
       
-      obj <- VARCLUS$new(stop_eigenvalue = stop_eigenvalue, 
-                        distance_metric = distance_metric)
+      obj <- TandemVarClust$new(K = k, n_bins = n_bins, 
+                                assignment_method = assignment_method)
       
       if (fit_now) {
         obj$fit(X)
@@ -105,6 +120,9 @@ ClusteringFactory <- R6Class("ClusteringFactory",
       
       return(obj)
     }
+    
+    # NOTE: VARCLUS n'est pas encore implémenté
+    # La méthode create_varclus sera ajoutée dans une future version
   )
 )
 
@@ -214,9 +232,11 @@ ClusteringComparator <- R6Class("ClusteringComparator",
         best_idx <- valid_idx[which.max(values[valid_idx])]
       }
       
-      cat("\nMeilleur modele selon", criterion, ":\n")
-      cat("->", comparison_df$Modele[best_idx], "\n")
-      cat("  Valeur:", values[best_idx], "\n\n")
+      cat("\n===============================================================\n")
+      cat("   MEILLEUR MODELE SELON LE CRITERE:", criterion, "\n")
+      cat("===============================================================\n\n")
+      cat("Modele selectionne:", comparison_df$Modele[best_idx], "\n")
+      cat("Valeur du critere :", values[best_idx], "\n\n")
       
       return(best_idx)
     }
@@ -224,205 +244,120 @@ ClusteringComparator <- R6Class("ClusteringComparator",
 )
 
 # =============================================================================
-# 3. ClusteringEvaluator (Evaluation du nombre de clusters)
+# 3. ClusteringEvaluator (Evaluation pour K optimal)
 # =============================================================================
 
-#' Outil pour evaluer le nombre optimal de clusters de variables
+#' Outil pour evaluer le nombre optimal de clusters
 #' 
 #' @title ClusteringEvaluator
-#' @description Outil pour evaluer le nombre optimal de clusters de variables
+#' @description Outil pour evaluer le nombre optimal de clusters (k)
 #' @export
 ClusteringEvaluator <- R6Class("ClusteringEvaluator",
-  private = list(
-    FData = NULL
-  ),
-  
   public = list(
     
-    #' @description Initialiser l'Evaluator avec les donnees (optionnel)
-    #' @param data Data frame de donnees (optionnel)
-    initialize = function(data = NULL) {
-      if (!is.null(data)) {
-        private$FData <- data
-      }
-      message("ClusteringEvaluator initialise - Clustering de variables")
+    #' @description Initialiser l'Evaluator
+    initialize = function() {
+      message("ClusteringEvaluator initialise")
     },
     
-    #' @description Methode du coude (Elbow Method)
-    #' @param X Data frame de donnees
-    #' @param max_k Nombre maximal de clusters a tester (defaut: 10)
-    #' @param method Methode de clustering (defaut: "var_cah")
-    #' @param ... Parametres additionnels pour la methode
-    #' @return Liste contenant le graphique (ggplot) et les donnees
-    elbow_method = function(X, max_k = 10, method = "var_cah", ...) {
+    #' @description Evaluer plusieurs valeurs de k pour VAR_CAH
+    #' @param X Data frame ou matrice de donnees
+    #' @param k_min Nombre minimum de clusters (defaut: 2)
+    #' @param k_max Nombre maximum de clusters (defaut: 10)
+    #' @param scale Booleen, standardiser les donnees (defaut: TRUE)
+    #' @return Data frame avec k et les metriques associees
+    evaluate_k_var_cah = function(X, k_min = 2, k_max = 10, scale = TRUE) {
       
-      if (max_k < 2) {
-        stop("max_k doit etre >= 2")
+      if (!is.numeric(k_min) || k_min < 2) {
+        stop("k_min doit etre >= 2")
+      }
+      if (!is.numeric(k_max) || k_max <= k_min) {
+        stop("k_max doit etre > k_min")
       }
       
-      if (!method %in% c("var_cah", "kmodes_varclust")) {
-        stop(paste0("Methode non reconnue: ", method))
-      }
+      k_values <- k_min:k_max
+      resultats <- data.frame(
+        k = k_values,
+        inertie_intra = numeric(length(k_values)),
+        inertie_inter = numeric(length(k_values)),
+        inertie_expliquee = numeric(length(k_values))
+      )
       
-      factory <- ClusteringFactory$new()
-      inerties <- numeric(max_k - 1)
-      k_values <- 2:max_k
-      
-      cat("\n===============================================================\n")
-      cat("   METHODE DU COUDE - Evaluation de k\n")
-      cat("===============================================================\n\n")
-      cat("Methode :", method, "\n")
-      cat("Plage de k :", min(k_values), "a", max(k_values), "\n\n")
+      cat("\nEvaluation de k pour VAR_CAH...\n")
+      cat("Range de k:", k_min, "a", k_max, "\n\n")
       
       for (i in seq_along(k_values)) {
         k <- k_values[i]
-        cat("-> Evaluation pour k =", k, "... ")
         
-        model <- tryCatch({
-          if (method == "var_cah") {
-            suppressMessages(factory$create_var_cah(X, k = k, fit_now = TRUE, ...))
-          } else if (method == "kmodes_varclust") {
-            suppressMessages(suppressWarnings(
-              factory$create_kmodes_varclust(X, k = k, fit_now = TRUE, ...)
-            ))
-          }
-        }, error = function(e) { 
-          cat("ERREUR\n")
-          warning(paste("Erreur pour k=", k, ":", e$message))
-          NULL 
-        })
+        model <- VAR_CAH$new(k = k, scale = scale)
+        model$fit(X)
         
-        if (!is.null(model)) {
-          inertie <- tryCatch({
-            model$inertie()
-          }, error = function(e) {
-            warning(paste("Impossible d'extraire l'inertie pour k=", k))
-            list(intra = NA)
-          })
-          
-          inerties[i] <- inertie$intra
-          cat("OK (inertie intra =", round(inertie$intra, 4), ")\n")
-        } else {
-          inerties[i] <- NA
-          cat("ECHEC\n")
-        }
-      }
-      
-      results <- data.frame(
-        k = k_values,
-        inertie_intra = inerties
-      )
-      
-      cat("\n")
-      
-      if (requireNamespace("ggplot2", quietly = TRUE)) {
-        p <- ggplot2::ggplot(results, ggplot2::aes(x = k, y = inertie_intra)) +
-          ggplot2::geom_point(color = "steelblue", size = 3) +
-          ggplot2::geom_line(color = "steelblue", size = 1) +
-          ggplot2::labs(
-            title = "Methode du Coude - Clustering de Variables",
-            subtitle = paste("Methode:", method),
-            x = "Nombre de Clusters (k)",
-            y = "Inertie Intra-Classe"
-          ) +
-          ggplot2::theme_minimal() +
-          ggplot2::scale_x_continuous(breaks = k_values)
+        inertie <- model$inertie()
         
-        print(p)
+        resultats$inertie_intra[i] <- inertie$intra
+        resultats$inertie_inter[i] <- inertie$inter
+        resultats$inertie_expliquee[i] <- inertie$pct_expliquee
         
-        return(list(plot = p, data = results))
-      } else {
-        plot(results$k, results$inertie_intra, type = 'b',
-             main = "Methode du Coude - Clustering de Variables",
-             xlab = "Nombre de Clusters (k)", 
-             ylab = "Inertie Intra-Classe",
-             col = "steelblue", pch = 19, lwd = 2)
-        
-        return(list(plot = NULL, data = results))
-      }
-    },
-    
-    #' @description Evaluer une plage de valeurs de k
-    #' @param X Data frame de donnees
-    #' @param k_range Vecteur de valeurs de k a tester (defaut: 2:10)
-    #' @param method Methode de clustering (defaut: "var_cah")
-    #' @param ... Parametres additionnels
-    #' @return Data frame avec les resultats pour chaque k
-    evaluate_k_range = function(X, k_range = 2:10, method = "var_cah", ...) {
-      
-      if (!method %in% c("var_cah", "kmodes_varclust")) {
-        stop(paste0("Methode non reconnue: ", method))
-      }
-      
-      factory <- ClusteringFactory$new()
-      
-      resultats <- data.frame(
-        k = integer(),
-        inertie_totale = numeric(),
-        inertie_intra = numeric(),
-        inertie_inter = numeric(),
-        inertie_expliquee = numeric(),
-        stringsAsFactors = FALSE
-      )
-      
-      cat("\n===============================================================\n")
-      cat("   EVALUATION DE K - Plage complete\n")
-      cat("===============================================================\n\n")
-      cat("Methode :", method, "\n")
-      cat("Plage de k :", min(k_range), "a", max(k_range), "\n\n")
-      
-      for (k in k_range) {
-        cat("-> Evaluation pour k =", k, "... ")
-        
-        model <- tryCatch({
-          if (method == "var_cah") {
-            suppressMessages(factory$create_var_cah(X, k = k, fit_now = TRUE, ...))
-          } else if (method == "kmodes_varclust") {
-            suppressMessages(suppressWarnings(
-              factory$create_kmodes_varclust(X, k = k, fit_now = TRUE, ...)
-            ))
-          }
-        }, error = function(e) { 
-          cat("ERREUR\n")
-          warning(paste("Erreur pour k=", k, ":", e$message))
-          NULL 
-        })
-        
-        if (!is.null(model)) {
-          inertie <- tryCatch({
-            model$inertie()
-          }, error = function(e) {
-            warning(paste("Impossible d'extraire l'inertie pour k=", k))
-            list(totale = NA, intra = NA, inter = NA, pct_expliquee = NA)
-          })
-          
-          resultats <- rbind(resultats, data.frame(
-            k = k,
-            inertie_totale = inertie$totale,
-            inertie_intra = inertie$intra,
-            inertie_inter = inertie$inter,
-            inertie_expliquee = inertie$pct_expliquee
-          ))
-          
-          cat("OK (", round(inertie$pct_expliquee, 2), "% explique)\n", sep = "")
-        } else {
-          cat("ECHEC\n")
-        }
+        cat("k =", k, ": Inertie expliquee =", 
+            round(inertie$pct_expliquee, 2), "%\n")
       }
       
       cat("\n")
-      
-      if (nrow(resultats) > 0) {
-        cat("Resultats:\n")
-        print(resultats, row.names = FALSE)
-        cat("\n")
-      }
-      
       return(resultats)
     },
     
-    #' @description Visualiser l'evaluation
-    #' @param resultats Data frame de resultats (de evaluate_k_range)
+    #' @description Evaluer plusieurs valeurs de k pour VAR_KMEANS
+    #' @param X Data frame ou matrice de donnees
+    #' @param k_min Nombre minimum de clusters (defaut: 2)
+    #' @param k_max Nombre maximum de clusters (defaut: 10)
+    #' @param n_init Nombre d'initialisations (defaut: 10)
+    #' @param scale Booleen, standardiser les donnees (defaut: TRUE)
+    #' @return Data frame avec k et les metriques associees
+    evaluate_k_var_kmeans = function(X, k_min = 2, k_max = 10, 
+                                      n_init = 10, scale = TRUE) {
+      
+      if (!is.numeric(k_min) || k_min < 2) {
+        stop("k_min doit etre >= 2")
+      }
+      if (!is.numeric(k_max) || k_max <= k_min) {
+        stop("k_max doit etre > k_min")
+      }
+      
+      k_values <- k_min:k_max
+      resultats <- data.frame(
+        k = k_values,
+        inertie_intra = numeric(length(k_values)),
+        homogeneite = numeric(length(k_values)),
+        converged = logical(length(k_values)),
+        iterations = integer(length(k_values))
+      )
+      
+      cat("\nEvaluation de k pour VAR_KMEANS...\n")
+      cat("Range de k:", k_min, "a", k_max, "\n")
+      cat("Initialisations:", n_init, "\n\n")
+      
+      for (i in seq_along(k_values)) {
+        k <- k_values[i]
+        
+        model <- VAR_KMEANS$new(K = k, n_init = n_init, scale = scale)
+        model$fit(X)
+        
+        resultats$inertie_intra[i] <- model$WithinClusterInertia
+        resultats$homogeneite[i] <- model$FHomogeneite
+        resultats$converged[i] <- model$Converged
+        resultats$iterations[i] <- model$NIterations
+        
+        cat("k =", k, ": W =", round(model$WithinClusterInertia, 4),
+            ", Homogeneite =", round(model$FHomogeneite, 4),
+            ", Converged =", model$Converged, "\n")
+      }
+      
+      cat("\n")
+      return(resultats)
+    },
+    
+    #' @description Visualiser les resultats d'evaluation
+    #' @param resultats Data frame retourne par evaluate_k_*
     #' @param criterion Critere a visualiser (defaut: "inertie_expliquee")
     plot_evaluation = function(resultats, criterion = "inertie_expliquee") {
       
@@ -508,7 +443,7 @@ ClusteringHelper <- R6Class("ClusteringHelper",
     },
     
     #' @description Genere un rapport textuel synthetique du clustering
-    #' @param objet_clustering Objet de clustering ajuste (VAR_CAH, VARCLUS, ou KmodesVarClust)
+    #' @param objet_clustering Objet de clustering ajuste (VAR_CAH, VAR_KMEANS, ou TandemVarClust)
     #' @param file Chemin du fichier ou ecrire le rapport (NULL pour affichage console)
     #' @return Invisiblement, l'objet lui-meme. Affiche le rapport.
     generate_report = function(objet_clustering, file = NULL) {
@@ -531,11 +466,20 @@ ClusteringHelper <- R6Class("ClusteringHelper",
       
       cat("\n--- Qualite du clustering (Inertie) ---\n")
       tryCatch({
-        inertie <- objet_clustering$inertie()
-        cat("Inertie totale     :", round(inertie$totale, 4), "\n")
-        cat("Inertie intra      :", round(inertie$intra, 4), "\n")
-        cat("Inertie inter      :", round(inertie$inter, 4), "\n")
-        cat("Variance expliquee :", round(inertie$pct_expliquee, 2), "%\n")
+        if (inherits(objet_clustering, "VAR_KMEANS")) {
+          # VAR_KMEANS utilise WithinClusterInertia directement
+          cat("Inertie intra (W)  :", round(objet_clustering$WithinClusterInertia, 4), "\n")
+          cat("Homogeneite        :", round(objet_clustering$FHomogeneite, 4), "\n")
+          cat("Convergence        :", objet_clustering$Converged, "\n")
+          cat("Iterations         :", objet_clustering$NIterations, "\n")
+        } else {
+          # VAR_CAH et TandemVarClust utilisent inertie()
+          inertie <- objet_clustering$inertie()
+          cat("Inertie totale     :", round(inertie$totale, 4), "\n")
+          cat("Inertie intra      :", round(inertie$intra, 4), "\n")
+          cat("Inertie inter      :", round(inertie$inter, 4), "\n")
+          cat("Variance expliquee :", round(inertie$pct_expliquee, 2), "%\n")
+        }
       }, error = function(e) {
         cat("Mesures d'inertie non disponibles pour cet algorithme.\n")
         cat("Erreur:", e$message, "\n")
@@ -549,6 +493,7 @@ ClusteringHelper <- R6Class("ClusteringHelper",
         cat("Propriete $Groupes non disponible.\n")
       })
       
+      # Informations spécifiques par algorithme
       if (inherits(objet_clustering, "VAR_CAH")) {
         cat("\n--- Homogeneite des Clusters (VAR_CAH) ---\n")
         tryCatch({
@@ -562,15 +507,27 @@ ClusteringHelper <- R6Class("ClusteringHelper",
         })
       }
       
-      if (inherits(objet_clustering, "VARCLUS")) {
-        cat("\n--- Informations VARCLUS ---\n")
-        cat("Algorithme : Clustering descendant hierarchique de variables\n")
-        cat("Detection automatique du nombre de clusters basee sur lambda2\n")
+      if (inherits(objet_clustering, "VAR_KMEANS")) {
+        cat("\n--- Informations VAR_KMEANS ---\n")
+        cat("Algorithme : K-means pour clustering de variables\n")
+        cat("Reallocation iterative avec optimisation de l'inertie intra-classes\n")
+        tryCatch({
+          for (k in 1:objet_clustering$K) {
+            vars <- objet_clustering$get_cluster_variables(k)
+            cat("Cluster", k, ":", length(vars), "variable(s)\n")
+            cat("  Variables:", paste(vars, collapse = ", "), "\n")
+          }
+        }, error = function(e) {
+          cat("Details non disponibles.\n")
+        })
       }
       
-      if (inherits(objet_clustering, "KmodesVarClust")) {
-        cat("\n--- Informations KmodesVarClust ---\n")
-        cat("Algorithme : K-Modes pour clustering de variables categorielles\n")
+      if (inherits(objet_clustering, "TandemVarClust")) {
+        cat("\n--- Informations TandemVarClust ---\n")
+        cat("Algorithme : Tandem MCA + HAC pour variables mixtes\n")
+        cat("Variables quantitatives discretisees avec n_bins =", 
+            objet_clustering$n_bins, "\n")
+        cat("Variables categoriques :", length(objet_clustering$CategoricalVars), "\n")
       }
       
       cat("\n===============================================================\n")
@@ -595,16 +552,18 @@ ClusteringHelper <- R6Class("ClusteringHelper",
       cat("   - Type de donnees : Numeriques\n")
       cat("   - Utilisation : factory$create_var_cah(X, k = 3)\n\n")
       
-      cat("2. VARCLUS\n")
-      cat("   - Clustering descendant hierarchique de variables\n")
+      cat("2. VAR_KMEANS\n")
+      cat("   - K-Means pour clustering de variables\n")
       cat("   - Type de donnees : Numeriques\n")
-      cat("   - Detection automatique du nombre optimal de clusters\n")
-      cat("   - Utilisation : factory$create_varclus(X)\n\n")
+      cat("   - Reallocation iterative avec optimisation\n")
+      cat("   - Utilisation : factory$create_var_kmeans(X, k = 3, n_init = 10)\n\n")
       
-      cat("3. KmodesVarClust\n")
-      cat("   - K-Modes pour variables categorielles\n")
-      cat("   - Type de donnees : Categorielles ou mixtes\n")
-      cat("   - Utilisation : factory$create_kmodes_varclust(X, k = 3)\n\n")
+      cat("3. TandemVarClust\n")
+      cat("   - Tandem MCA + HAC pour variables mixtes\n")
+      cat("   - Type de donnees : Mixtes (quantitatives + qualitatives)\n")
+      cat("   - Utilisation : factory$create_tandem_varclust(X, k = 3)\n\n")
+      
+      cat("Note: VARCLUS (clustering descendant) sera disponible dans une future version\n\n")
       
       cat("===============================================================\n")
       invisible(self)

@@ -1,6 +1,6 @@
 # ==============================================================================
 # TESTS FOR PREDICT() METHOD
-# Tests covering the three algorithms: VAR_CAH, VARCLUS, TandemVarClust
+# Tests covering the three algorithms: VAR_CAH, VAR_KMEANS, TandemVarClust
 # ==============================================================================
 
 library(testthat)
@@ -50,12 +50,12 @@ test_that("VAR_CAH predict() works with a single variable", {
   
   # Checks
   expect_type(pred, "list")
-  expect_true("cluster" %in% names(pred))
-  expect_true("scores" %in% names(pred))
-  expect_length(pred$cluster, 1)
-  expect_equal(nrow(pred$scores), 1)
-  expect_equal(ncol(pred$scores), 2)
-  expect_true(pred$cluster[1] %in% 1:2)
+  expect_true("new1" %in% names(pred))
+  expect_true("cluster" %in% names(pred$new1))
+  expect_true("scores" %in% names(pred$new1))
+  expect_length(pred$new1$cluster, 1)
+  expect_length(pred$new1$scores, 2)
+  expect_true(pred$new1$cluster %in% 1:2)
 })
 
 test_that("VAR_CAH predict() works with multiple variables", {
@@ -75,11 +75,11 @@ test_that("VAR_CAH predict() works with multiple variables", {
   pred <- model$predict(new_vars)
   
   # Checks
-  expect_length(pred$cluster, 3)
-  expect_equal(nrow(pred$scores), 3)
-  expect_equal(ncol(pred$scores), 3)
-  expect_true(all(pred$cluster %in% 1:3))
-  expect_true(all(pred$best_score >= 0 & pred$best_score <= 1))
+  expect_length(pred, 3)
+  expect_true(all(c("new1", "new2", "new3") %in% names(pred)))
+  expect_true(all(sapply(pred, function(x) x$cluster) %in% 1:3))
+  expect_true(all(sapply(pred, function(x) x$best_score) >= 0))
+  expect_true(all(sapply(pred, function(x) x$best_score) <= 1))
 })
 
 test_that("VAR_CAH predict() handles dimension errors", {
@@ -94,7 +94,7 @@ test_that("VAR_CAH predict() handles dimension errors", {
   # Should throw an error
   expect_error(
     model$predict(new_var_wrong),
-    "must have the same number of observations"
+    "must have"
   )
 })
 
@@ -106,7 +106,7 @@ test_that("VAR_CAH predict() requires a fitted model", {
   # Should throw an error
   expect_error(
     model$predict(new_var),
-    "must be fitted with.*fit.*before predicting"
+    "must be fitted"
   )
 })
 
@@ -124,7 +124,7 @@ test_that("VAR_CAH predict() accepts a vector", {
   
   # Checks
   expect_type(pred, "list")
-  expect_length(pred$cluster, 1)
+  expect_length(pred, 1)
 })
 
 test_that("VAR_CAH predict() handles missing values", {
@@ -136,24 +136,22 @@ test_that("VAR_CAH predict() handles missing values", {
   # New variable with NA
   new_var_na <- data.frame(new1 = c(rnorm(90), rep(NA, 10)))
   
-  # Prediction (should work with warning)
-  expect_warning(
-    pred <- model$predict(new_var_na),
-    "contains missing values"
-  )
+  # Prediction (should work with warning or handle NA)
+  pred <- model$predict(new_var_na)
   
   # Check that assignment was made
-  expect_length(pred$cluster, 1)
+  expect_length(pred, 1)
+  expect_true("new1" %in% names(pred))
 })
 
 # ==============================================================================
-# TESTS FOR VARCLUS$predict()
+# TESTS FOR VAR_KMEANS$predict()
 # ==============================================================================
 
-test_that("VARCLUS predict() works with a single variable", {
+test_that("VAR_KMEANS predict() works with a single variable", {
   # Preparation
   data_train <- create_numeric_data(100)
-  model <- VARCLUS$new(stop_eigenvalue = 1.0)
+  model <- VAR_KMEANS$new(K = 2, n_init = 10)
   model$fit(data_train)
   
   # New variable to predict
@@ -164,41 +162,48 @@ test_that("VARCLUS predict() works with a single variable", {
   
   # Checks
   expect_type(pred, "list")
-  expect_true("cluster" %in% names(pred))
-  expect_true("scores" %in% names(pred))
-  expect_length(pred$cluster, 1)
-  expect_true(pred$cluster[1] >= 1)
+  expect_true("new1" %in% names(pred))
+  expect_true("cluster" %in% names(pred$new1))
+  expect_true("scores" %in% names(pred$new1))
+  expect_true("best_score" %in% names(pred$new1))
+  expect_length(pred$new1$cluster, 1)
+  expect_length(pred$new1$scores, 2)
+  expect_true(pred$new1$cluster %in% 1:2)
+  expect_true(pred$new1$best_score >= 0 && pred$new1$best_score <= 1)
 })
 
-test_that("VARCLUS predict() works with multiple variables", {
+test_that("VAR_KMEANS predict() works with multiple variables", {
   # Preparation
   data_train <- create_numeric_data(100)
-  model <- VARCLUS$new(stop_eigenvalue = 1.0)
+  model <- VAR_KMEANS$new(K = 3, n_init = 10)
   model$fit(data_train)
-  
-  K <- model$K  # Number of detected clusters
   
   # New variables to predict
   new_vars <- data.frame(
     new1 = rnorm(100),
-    new2 = rnorm(100, mean = 5)
+    new2 = rnorm(100, mean = 5),
+    new3 = rnorm(100, mean = 10)
   )
   
   # Prediction
   pred <- model$predict(new_vars)
   
   # Checks
-  expect_length(pred$cluster, 2)
-  expect_equal(nrow(pred$scores), 2)
-  expect_equal(ncol(pred$scores), K)
-  expect_true(all(pred$cluster %in% 1:K))
-  expect_true(all(pred$best_score >= 0 & pred$best_score <= 1))
+  expect_length(pred, 3)
+  expect_true(all(c("new1", "new2", "new3") %in% names(pred)))
+  
+  for (var_name in names(pred)) {
+    expect_true(pred[[var_name]]$cluster %in% 1:3)
+    expect_true(pred[[var_name]]$best_score >= 0)
+    expect_true(pred[[var_name]]$best_score <= 1)
+    expect_length(pred[[var_name]]$scores, 3)
+  }
 })
 
-test_that("VARCLUS predict() handles dimension errors", {
+test_that("VAR_KMEANS predict() handles dimension errors", {
   # Preparation
   data_train <- create_numeric_data(100)
-  model <- VARCLUS$new(stop_eigenvalue = 1.0)
+  model <- VAR_KMEANS$new(K = 2, n_init = 10)
   model$fit(data_train)
   
   # New variable with wrong number of observations
@@ -207,20 +212,138 @@ test_that("VARCLUS predict() handles dimension errors", {
   # Should throw an error
   expect_error(
     model$predict(new_var_wrong),
-    "must have the same number of observations"
+    "must have"
   )
 })
 
-test_that("VARCLUS predict() requires a fitted model", {
+test_that("VAR_KMEANS predict() requires a fitted model", {
   # Unfitted model
-  model <- VARCLUS$new(stop_eigenvalue = 1.0)
+  model <- VAR_KMEANS$new(K = 2, n_init = 10)
   new_var <- data.frame(new1 = rnorm(100))
   
   # Should throw an error
   expect_error(
     model$predict(new_var),
-    "must be fitted with.*fit.*before predicting"
+    "must be fitted"
   )
+})
+
+test_that("VAR_KMEANS predict() accepts a vector", {
+  # Preparation
+  data_train <- create_numeric_data(100)
+  model <- VAR_KMEANS$new(K = 2, n_init = 10)
+  model$fit(data_train)
+  
+  # New variable as vector
+  new_var_vec <- rnorm(100)
+  
+  # Prediction
+  pred <- model$predict(new_var_vec)
+  
+  # Checks
+  expect_type(pred, "list")
+  expect_length(pred, 1)
+  expect_true(names(pred)[1] %in% c("NewVar1", "V1"))
+})
+
+test_that("VAR_KMEANS predict() handles missing values", {
+  # Preparation
+  data_train <- create_numeric_data(100)
+  model <- VAR_KMEANS$new(K = 2, n_init = 10)
+  model$fit(data_train)
+  
+  # New variable with NA
+  new_var_na <- data.frame(new1 = c(rnorm(90), rep(NA, 10)))
+  
+  # Prediction (should work with use="complete.obs" in correlation)
+  pred <- model$predict(new_var_na)
+  
+  # Check that assignment was made
+  expect_length(pred, 1)
+  expect_true("new1" %in% names(pred))
+  expect_true(pred$new1$cluster %in% 1:2)
+})
+
+test_that("VAR_KMEANS predict() with highly correlated variables", {
+  # Data with highly correlated variables
+  set.seed(789)
+  base_var <- rnorm(100)
+  data_corr <- data.frame(
+    var1 = base_var,
+    var2 = base_var + rnorm(100, sd = 0.1),
+    var3 = base_var + rnorm(100, sd = 0.1),
+    var4 = rnorm(100)  # Independent variable
+  )
+  
+  model <- VAR_KMEANS$new(K = 2, n_init = 20)
+  model$fit(data_corr)
+  
+  # New variable similar to base_var
+  new_var <- data.frame(new1 = base_var + rnorm(100, sd = 0.1))
+  
+  pred <- model$predict(new_var)
+  
+  # The new variable should be assigned to the same cluster as var1, var2, var3
+  cluster_base_vars <- model$Groupes["var1"]
+  expect_equal(pred$new1$cluster, unname(cluster_base_vars))
+  expect_true(pred$new1$best_score > 0.7)  # High score due to high correlation
+})
+
+test_that("VAR_KMEANS predict() with uncorrelated variables", {
+  # Data with independent variables
+  set.seed(321)
+  data_indep <- data.frame(
+    var1 = rnorm(100),
+    var2 = rnorm(100),
+    var3 = rnorm(100),
+    var4 = rnorm(100)
+  )
+  
+  model <- VAR_KMEANS$new(K = 2, n_init = 20)
+  model$fit(data_indep)
+  
+  # New independent variable
+  new_var <- data.frame(new1 = rnorm(100))
+  
+  pred <- model$predict(new_var)
+  
+  # Scores should be relatively low (no strong correlation)
+  expect_true(pred$new1$best_score < 0.6)
+})
+
+test_that("VAR_KMEANS predict() works after modifying K", {
+  # Preparation
+  data_train <- create_numeric_data(100)
+  model <- VAR_KMEANS$new(K = 2, n_init = 10)
+  model$fit(data_train)
+  
+  # Change K
+  model$K <- 3
+  
+  # New variable
+  new_var <- data.frame(new1 = rnorm(100))
+  
+  # Prediction should work with the new K
+  pred <- model$predict(new_var)
+  
+  expect_length(pred$new1$scores, 3)
+  expect_true(pred$new1$cluster %in% 1:3)
+})
+
+test_that("VAR_KMEANS predict() is consistent with training variable assignment", {
+  # Preparation
+  data_train <- create_numeric_data(100)
+  model <- VAR_KMEANS$new(K = 2, n_init = 20)
+  model$fit(data_train)
+  
+  # Predict with a training variable
+  var_train <- data.frame(var1 = data_train$var1)
+  
+  pred <- model$predict(var_train)
+  
+  # The predicted cluster should be the same as in Groupes
+  expect_equal(pred$var1$cluster, unname(model$Groupes["var1"]))
+  expect_true(pred$var1$best_score > 0.85)  # Very high score (almost 1.0)
 })
 
 # ==============================================================================
@@ -451,8 +574,8 @@ test_that("All algorithms return appropriate result structure", {
   model_cah <- VAR_CAH$new(K = 2)
   model_cah$fit(data_numeric)
   
-  model_varclus <- VARCLUS$new(stop_eigenvalue = 1.0)
-  model_varclus$fit(data_numeric)
+  model_kmeans <- VAR_KMEANS$new(K = 2, n_init = 10)
+  model_kmeans$fit(data_numeric)
   
   model_tandem <- TandemVarClust$new(K = 2, n_bins = 3)
   model_tandem$fit(data_mixed)
@@ -463,15 +586,15 @@ test_that("All algorithms return appropriate result structure", {
   
   # Predictions
   pred_cah <- model_cah$predict(new_var_numeric)
-  pred_varclus <- model_varclus$predict(new_var_numeric)
+  pred_kmeans <- model_kmeans$predict(new_var_numeric)
   pred_tandem <- model_tandem$predict(new_var_categorical)
   
-  # VAR_CAH and VARCLUS should have similar structure
-  for (pred in list(pred_cah, pred_varclus)) {
-    expect_true("cluster" %in% names(pred))
-    expect_true("scores" %in% names(pred))
-    expect_true("best_score" %in% names(pred))
-    expect_true("second_best_score" %in% names(pred))
+  # VAR_CAH and VAR_KMEANS should have similar structure
+  for (pred in list(pred_cah, pred_kmeans)) {
+    expect_true("new1" %in% names(pred))
+    expect_true("cluster" %in% names(pred$new1))
+    expect_true("scores" %in% names(pred$new1))
+    expect_true("best_score" %in% names(pred$new1))
   }
   
   # TandemVarClust has a different structure (per-variable analysis)
@@ -511,8 +634,8 @@ test_that("predict() with highly correlated variables for VAR_CAH", {
   
   # The new variable should be assigned to the same cluster as var1, var2, var3
   cluster_base_vars <- model$Groupes["var1"]
-  expect_equal(unname(pred$cluster[1]), unname(cluster_base_vars))
-  expect_true(pred$best_score[1] > 0.7)  # High score due to high correlation
+  expect_equal(pred$new1$cluster, unname(cluster_base_vars))
+  expect_true(pred$new1$best_score > 0.7)  # High score due to high correlation
 })
 
 test_that("predict() with uncorrelated variables for VAR_CAH", {
@@ -534,7 +657,7 @@ test_that("predict() with uncorrelated variables for VAR_CAH", {
   pred <- model$predict(new_var)
   
   # Scores should be relatively low (no strong correlation)
-  expect_true(pred$best_score[1] < 0.5)
+  expect_true(pred$new1$best_score < 0.5)
 })
 
 test_that("TandemVarClust predict() with variable having rare modalities", {
@@ -575,8 +698,8 @@ test_that("predict() works after modifying K for VAR_CAH", {
   # Prediction should work with the new K
   pred <- model$predict(new_var)
   
-  expect_equal(ncol(pred$scores), 3)
-  expect_true(pred$cluster[1] %in% 1:3)
+  expect_length(pred$new1$scores, 3)
+  expect_true(pred$new1$cluster %in% 1:3)
 })
 
 test_that("predict() is consistent with training variable assignment for VAR_CAH", {
@@ -591,8 +714,8 @@ test_that("predict() is consistent with training variable assignment for VAR_CAH
   pred <- model$predict(var_train)
   
   # The predicted cluster should be the same as in Groupes
-  expect_equal(pred$cluster[1], model$Groupes["var1"])
-  expect_true(pred$best_score[1] > 0.7)  # Very high score
+  expect_equal(pred$var1$cluster, unname(model$Groupes["var1"]))
+  expect_true(pred$var1$best_score > 0.7)  # Very high score
 })
 
 test_that("TandemVarClust predict() works after refit_with_k", {

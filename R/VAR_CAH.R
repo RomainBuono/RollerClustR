@@ -67,7 +67,7 @@
 #'   \item{`$Groupes`}{Named vector of variable assignments to clusters}
 #' }
 #'
-#' @seealso [ClusterAnalysis], [VARCLUS], \code{TandemVarClust}, [roller_clust()]
+#' @seealso [ClusterAnalysis], [VAR_KMEANS], [TandemVarClust], [roller_clust()]
 #'
 #' @export
 #' @importFrom R6 R6Class

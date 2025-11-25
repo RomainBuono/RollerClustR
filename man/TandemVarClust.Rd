@@ -115,7 +115,7 @@ Husson, F., Lê, S., & Pagès, J. (2016). Analyse de données avec R (2e éd.).
 Presses Universitaires de Rennes.
 }
 \seealso{
-\link{VAR_CAH}, \link{VARCLUS}, \code{\link[=roller_clust]{roller_clust()}}
+\link{ClusterAnalysis},\link{VAR_CAH}, \link{TandemVarClust}, \code{\link[=roller_clust]{roller_clust()}}
 }
 \section{Super class}{
 \code{\link[RollerClustR:ClusterAnalysis]{RollerClustR::ClusterAnalysis}} -> \code{TandemVarClust}

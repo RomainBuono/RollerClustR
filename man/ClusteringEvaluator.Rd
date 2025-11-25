@@ -4,17 +4,17 @@
 \alias{ClusteringEvaluator}
 \title{ClusteringEvaluator}
 \description{
-Outil pour evaluer le nombre optimal de clusters de variables
+Outil pour evaluer le nombre optimal de clusters (k)
 }
 \details{
-Outil pour evaluer le nombre optimal de clusters de variables
+Outil pour evaluer le nombre optimal de clusters
 }
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-ClusteringEvaluator-new}{\code{ClusteringEvaluator$new()}}
-\item \href{#method-ClusteringEvaluator-elbow_method}{\code{ClusteringEvaluator$elbow_method()}}
-\item \href{#method-ClusteringEvaluator-evaluate_k_range}{\code{ClusteringEvaluator$evaluate_k_range()}}
+\item \href{#method-ClusteringEvaluator-evaluate_k_var_cah}{\code{ClusteringEvaluator$evaluate_k_var_cah()}}
+\item \href{#method-ClusteringEvaluator-evaluate_k_var_kmeans}{\code{ClusteringEvaluator$evaluate_k_var_kmeans()}}
 \item \href{#method-ClusteringEvaluator-plot_evaluation}{\code{ClusteringEvaluator$plot_evaluation()}}
 \item \href{#method-ClusteringEvaluator-get_best_k}{\code{ClusteringEvaluator$get_best_k()}}
 \item \href{#method-ClusteringEvaluator-clone}{\code{ClusteringEvaluator$clone()}}
@@ -24,81 +24,77 @@ Outil pour evaluer le nombre optimal de clusters de variables
 \if{html}{\out{<a id="method-ClusteringEvaluator-new"></a>}}
 \if{latex}{\out{\hypertarget{method-ClusteringEvaluator-new}{}}}
 \subsection{Method \code{new()}}{
-Initialiser l'Evaluator avec les donnees (optionnel)
+Initialiser l'Evaluator
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{ClusteringEvaluator$new(data = NULL)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{ClusteringEvaluator$new()}\if{html}{\out{</div>}}
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{data}}{Data frame de donnees (optionnel)}
-}
-\if{html}{\out{</div>}}
-}
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-ClusteringEvaluator-elbow_method"></a>}}
-\if{latex}{\out{\hypertarget{method-ClusteringEvaluator-elbow_method}{}}}
-\subsection{Method \code{elbow_method()}}{
-Methode du coude (Elbow Method)
+\if{html}{\out{<a id="method-ClusteringEvaluator-evaluate_k_var_cah"></a>}}
+\if{latex}{\out{\hypertarget{method-ClusteringEvaluator-evaluate_k_var_cah}{}}}
+\subsection{Method \code{evaluate_k_var_cah()}}{
+Evaluer plusieurs valeurs de k pour VAR_CAH
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{ClusteringEvaluator$elbow_method(X, max_k = 10, method = "var_cah", ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{ClusteringEvaluator$evaluate_k_var_cah(X, k_min = 2, k_max = 10, scale = TRUE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{X}}{Data frame de donnees}
+\item{\code{X}}{Data frame ou matrice de donnees}
 
-\item{\code{max_k}}{Nombre maximal de clusters a tester (defaut: 10)}
+\item{\code{k_min}}{Nombre minimum de clusters (defaut: 2)}
 
-\item{\code{method}}{Methode de clustering (defaut: "var_cah")}
+\item{\code{k_max}}{Nombre maximum de clusters (defaut: 10)}
 
-\item{\code{...}}{Parametres additionnels pour la methode}
+\item{\code{scale}}{Booleen, standardiser les donnees (defaut: TRUE)}
 }
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-Liste contenant le graphique (ggplot) et les donnees
+Data frame avec k et les metriques associees
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-ClusteringEvaluator-evaluate_k_range"></a>}}
-\if{latex}{\out{\hypertarget{method-ClusteringEvaluator-evaluate_k_range}{}}}
-\subsection{Method \code{evaluate_k_range()}}{
-Evaluer une plage de valeurs de k
+\if{html}{\out{<a id="method-ClusteringEvaluator-evaluate_k_var_kmeans"></a>}}
+\if{latex}{\out{\hypertarget{method-ClusteringEvaluator-evaluate_k_var_kmeans}{}}}
+\subsection{Method \code{evaluate_k_var_kmeans()}}{
+Evaluer plusieurs valeurs de k pour VAR_KMEANS
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{ClusteringEvaluator$evaluate_k_range(
+\if{html}{\out{<div class="r">}}\preformatted{ClusteringEvaluator$evaluate_k_var_kmeans(
   X,
-  k_range = 2:10,
-  method = "var_cah",
-  ...
+  k_min = 2,
+  k_max = 10,
+  n_init = 10,
+  scale = TRUE
 )}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{X}}{Data frame de donnees}
+\item{\code{X}}{Data frame ou matrice de donnees}
 
-\item{\code{k_range}}{Vecteur de valeurs de k a tester (defaut: 2:10)}
+\item{\code{k_min}}{Nombre minimum de clusters (defaut: 2)}
 
-\item{\code{method}}{Methode de clustering (defaut: "var_cah")}
+\item{\code{k_max}}{Nombre maximum de clusters (defaut: 10)}
 
-\item{\code{...}}{Parametres additionnels}
+\item{\code{n_init}}{Nombre d'initialisations (defaut: 10)}
+
+\item{\code{scale}}{Booleen, standardiser les donnees (defaut: TRUE)}
 }
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-Data frame avec les resultats pour chaque k
+Data frame avec k et les metriques associees
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-ClusteringEvaluator-plot_evaluation"></a>}}
 \if{latex}{\out{\hypertarget{method-ClusteringEvaluator-plot_evaluation}{}}}
 \subsection{Method \code{plot_evaluation()}}{
-Visualiser l'evaluation
+Visualiser les resultats d'evaluation
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ClusteringEvaluator$plot_evaluation(resultats, criterion = "inertie_expliquee")}\if{html}{\out{</div>}}
 }
@@ -106,7 +102,7 @@ Visualiser l'evaluation
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{resultats}}{Data frame de resultats (de evaluate_k_range)}
+\item{\code{resultats}}{Data frame retourne par evaluate_k_*}
 
 \item{\code{criterion}}{Critere a visualiser (defaut: "inertie_expliquee")}
 }

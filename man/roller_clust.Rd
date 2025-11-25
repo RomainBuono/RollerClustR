@@ -6,7 +6,7 @@
 \usage{
 roller_clust(
   X,
-  method = c("var_cah", "varclus", "tandem"),
+  method = c("var_cah", "var_kmeans", "tandem"),
   K = 2,
   scale = TRUE,
   na.action = c("warn", "omit", "fail"),
@@ -20,7 +20,7 @@ the variables to be clustered.}
 \item{method}{Clustering method to use:
 \itemize{
 \item \code{"var_cah"}: Hierarchical Agglomerative Clustering (default)
-\item \code{"varclus"}: Divisive clustering with PCA
+\item \code{"var_kmeans"}: K-means clustering with iterative reallocation
 \item \code{"tandem"}: Tandem clustering (MCA + HAC) for mixed data
 }}
 
@@ -38,30 +38,37 @@ centered and scaled (default: TRUE).}
 
 \item{...}{Additional method-specific arguments:
 \itemize{
-\item For VAR_CAH: \code{max.iter}, \code{tolerance}
-\item For VARCLUS: \code{stop_eigenvalue}
-\item For TandemVarClust: \code{n_bins}, \code{method_cah}, \code{n_factors}
+\item For VAR_CAH: No additional arguments required
+\item For VAR_KMEANS: \code{n_init} (number of initializations, default: 10),
+\code{max_iter} (maximum iterations, default: 100),
+\code{tolerance} (convergence threshold, default: 1e-6)
+\item For TandemVarClust: \code{n_bins} (number of bins for discretization, default: 3),
+\code{assignment_method} (assignment method: "dice", "voting", or "barycenter")
 }}
 }
 \value{
-An R6 object of the corresponding class (VAR_CAH, VARCLUS, or
+An R6 object of the corresponding class (VAR_CAH, VAR_KMEANS, or
 TandemVarClust) already fitted to the data.
 }
 \description{
 \code{roller_clust()} is the main function of the RollerClustR package. It
 provides a simple and unified interface to access the three variable
-clustering algorithms: VAR_CAH, VARCLUS, and TandemVarClust.
+clustering algorithms: VAR_CAH, VAR_KMEANS, and TandemVarClust.
 }
 \details{
 \subsection{Choosing the Method}{
 \itemize{
-\item \strong{VAR_CAH}: Agglomerative approach, progressive merging. Recommended for
-initial exploration or when variables are continuous numeric.
-\item \strong{VARCLUS}: Divisive approach, recursive splitting. Better for
-identifying complex hierarchical structures.
+\item \strong{VAR_CAH}: Agglomerative hierarchical approach with progressive merging.
+Recommended for initial exploration and visualization (dendrograms).
+Provides a complete hierarchy that can be cut at any level.
+\item \strong{VAR_KMEANS}: Iterative reallocation approach that explicitly minimizes
+within-cluster inertia. Recommended when K is known in advance and when
+optimality of the partition is important. Uses multiple initializations
+for robustness. Faster convergence than hierarchical methods for large datasets.
 \item \strong{TandemVarClust}: Specialized for mixed data (quantitative and categorical).
 Uses Multiple Correspondence Analysis (MCA) followed by Hierarchical
-Agglomerative Clustering (HAC) on modalities.
+Agglomerative Clustering (HAC) on modalities. Automatically handles
+discretization of quantitative variables.
 }
 }
 
@@ -70,8 +77,33 @@ Agglomerative Clustering (HAC) on modalities.
 The returned object has the following methods and properties:
 \itemize{
 \item \verb{$summary()}: Displays a detailed clustering summary
-\item \verb{$Groupes}: Accesses the assignment vector
-\item \verb{$K}: Reads or modifies the number of clusters
+\item \verb{$Groupes}: Accesses the cluster assignment vector
+\item \verb{$K}: Reads or modifies the number of clusters (triggers refitting)
+\item \verb{$predict(new_data)}: Assigns new variables to existing clusters
+}
+}
+
+\subsection{Algorithm-Specific Properties}{
+
+\strong{VAR_CAH:}
+\itemize{
+\item \verb{$Tree}: Access to the hierarchical tree (hclust object)
+\item \verb{$get_cluster_variables(k)}: Get variables in cluster k
+}
+
+\strong{VAR_KMEANS:}
+\itemize{
+\item \verb{$WithinClusterInertia}: Within-cluster inertia (lower is better)
+\item \verb{$Converged}: Boolean indicating if algorithm converged
+\item \verb{$NIterations}: Number of iterations until convergence
+\item \verb{$get_cluster_centers()}: Get cluster centers (PC1 of each cluster)
+}
+
+\strong{TandemVarClust:}
+\itemize{
+\item \verb{$VarianceExplained}: Variance explained by MCA dimensions
+\item \verb{$CategoricalVars}: Names of categorical variables
+\item \verb{$DisjunctiveTable}: Complete disjunctive table used for MCA
 }
 }
 }
@@ -87,14 +119,20 @@ model_cah <- roller_clust(
   scale = TRUE
 )
 model_cah$summary()
+print(model_cah$Groupes)
 
-# Example 2: Divisive VARCLUS clustering
-model_vc <- roller_clust(
+# Example 2: K-means clustering with multiple initializations
+model_kmeans <- roller_clust(
   X = iris[, 1:4],
-  method = "varclus",
-  K = 3
+  method = "var_kmeans",
+  K = 3,
+  n_init = 20,        # 20 random initializations
+  max_iter = 100,
+  scale = TRUE
 )
-print(model_vc$Groupes)
+model_kmeans$summary()
+print(model_kmeans$WithinClusterInertia)
+print(model_kmeans$Converged)
 
 # Example 3: Tandem clustering for mixed data
 # Create mixed data (quantitative + categorical)
@@ -107,14 +145,43 @@ model_tandem <- roller_clust(
   X = iris_mixed[, c(1:4, 6)],
   method = "tandem",
   K = 3,
-  n_bins = 5
+  n_bins = 3,
+  assignment_method = "dice"
 )
 model_tandem$summary()
 
-# Example 4: Modify K after fitting
+# Example 4: Modify K after fitting (automatic refitting)
 model_cah$K <- 3  # Automatically refits with K=3
+model_cah$summary()
+
+# Example 5: Compare methods on same data
+\dontrun{
+# Fit all three methods
+cah <- roller_clust(iris[, 1:4], method = "var_cah", K = 3)
+kmeans <- roller_clust(iris[, 1:4], method = "var_kmeans", K = 3, n_init = 10)
+
+# Compare cluster assignments
+table(cah$Groupes, kmeans$Groupes)
+
+# VAR_KMEANS typically has lower within-cluster inertia
+print(kmeans$WithinClusterInertia)
+}
+
+# Example 6: Predict cluster for new variables
+\dontrun{
+model <- roller_clust(iris[, 1:4], method = "var_kmeans", K = 2)
+
+# Create a new variable (linear combination)
+new_var <- data.frame(
+  NewVar = iris$Sepal.Length + iris$Sepal.Width
+)
+
+# Predict cluster assignment
+prediction <- model$predict(new_var)
+print(prediction)
+}
 
 }
 \seealso{
-\link{VAR_CAH}, \link{VARCLUS}, \code{TandemVarClust}
+\link{VAR_CAH}, \link{VAR_KMEANS}, \link{TandemVarClust}
 }

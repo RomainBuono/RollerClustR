@@ -8,7 +8,7 @@
 #'
 #' @details
 #' This class should not be instantiated directly. It serves as a base for
-#' child classes: [VAR_CAH], \code{TandemVarClust}, and [VARCLUS].
+#' child classes: [VAR_CAH], [VAR_KMEANS] and [TandemVarClust].
 #'
 #' ## Public Methods
 #'
@@ -39,7 +39,7 @@
 #' model$summary()
 #' }
 #'
-#' @seealso [VAR_CAH], \code{TandemVarClust}, [VARCLUS], [roller_clust()]
+#' @seealso [VAR_CAH], [VAR_KMEANS], [TandemVarClust], [roller_clust()]
 #'
 #' @importFrom R6 R6Class
 #' @export

@@ -14,8 +14,8 @@ Factory pour créer et initialiser les objets de clustering de variables
 \itemize{
 \item \href{#method-ClusteringFactory-new}{\code{ClusteringFactory$new()}}
 \item \href{#method-ClusteringFactory-create_var_cah}{\code{ClusteringFactory$create_var_cah()}}
-\item \href{#method-ClusteringFactory-create_kmodes_varclust}{\code{ClusteringFactory$create_kmodes_varclust()}}
-\item \href{#method-ClusteringFactory-create_varclus}{\code{ClusteringFactory$create_varclus()}}
+\item \href{#method-ClusteringFactory-create_var_kmeans}{\code{ClusteringFactory$create_var_kmeans()}}
+\item \href{#method-ClusteringFactory-create_tandem_varclust}{\code{ClusteringFactory$create_tandem_varclust()}}
 \item \href{#method-ClusteringFactory-clone}{\code{ClusteringFactory$clone()}}
 }
 }
@@ -56,16 +56,18 @@ Objet VAR_CAH
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-ClusteringFactory-create_kmodes_varclust"></a>}}
-\if{latex}{\out{\hypertarget{method-ClusteringFactory-create_kmodes_varclust}{}}}
-\subsection{Method \code{create_kmodes_varclust()}}{
-Creer et ajuster un objet KmodesVarClust
+\if{html}{\out{<a id="method-ClusteringFactory-create_var_kmeans"></a>}}
+\if{latex}{\out{\hypertarget{method-ClusteringFactory-create_var_kmeans}{}}}
+\subsection{Method \code{create_var_kmeans()}}{
+Creer et ajuster un objet VAR_KMEANS (Clustering de Variables - K-means)
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{ClusteringFactory$create_kmodes_varclust(
+\if{html}{\out{<div class="r">}}\preformatted{ClusteringFactory$create_var_kmeans(
   X,
   k = 3,
+  n_init = 10,
   max_iter = 100,
-  n_bins = 5,
+  scale = TRUE,
+  tolerance = 1e-06,
   fit_now = TRUE
 )}\if{html}{\out{</div>}}
 }
@@ -77,28 +79,33 @@ Creer et ajuster un objet KmodesVarClust
 
 \item{\code{k}}{Nombre de clusters (defaut: 3)}
 
+\item{\code{n_init}}{Nombre d'initialisations (defaut: 10)}
+
 \item{\code{max_iter}}{Nombre maximum d'iterations (defaut: 100)}
 
-\item{\code{n_bins}}{Nombre d'intervalles pour discretisation (defaut: 5)}
+\item{\code{scale}}{Booleen, standardiser les donnees (defaut: TRUE)}
+
+\item{\code{tolerance}}{Seuil de convergence (defaut: 1e-6)}
 
 \item{\code{fit_now}}{Booleen, ajuster le modele immediatement (defaut: TRUE)}
 }
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-Objet KmodesVarClust
+Objet VAR_KMEANS
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-ClusteringFactory-create_varclus"></a>}}
-\if{latex}{\out{\hypertarget{method-ClusteringFactory-create_varclus}{}}}
-\subsection{Method \code{create_varclus()}}{
-Creer et ajuster un objet VARCLUS (Clustering de Variables - Descendant)
+\if{html}{\out{<a id="method-ClusteringFactory-create_tandem_varclust"></a>}}
+\if{latex}{\out{\hypertarget{method-ClusteringFactory-create_tandem_varclust}{}}}
+\subsection{Method \code{create_tandem_varclust()}}{
+Creer et ajuster un objet TandemVarClust (Clustering de Variables - Donnees Mixtes)
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{ClusteringFactory$create_varclus(
+\if{html}{\out{<div class="r">}}\preformatted{ClusteringFactory$create_tandem_varclust(
   X,
-  stop_eigenvalue = 1,
-  distance_metric = "correlation",
+  k = 3,
+  n_bins = 3,
+  assignment_method = "dice",
   fit_now = TRUE
 )}\if{html}{\out{</div>}}
 }
@@ -106,18 +113,20 @@ Creer et ajuster un objet VARCLUS (Clustering de Variables - Descendant)
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{X}}{Data frame ou matrice de donnees}
+\item{\code{X}}{Data frame ou matrice de donnees (mixtes: quantitatives + qualitatives)}
 
-\item{\code{stop_eigenvalue}}{Seuil d'arret pour lambda2 (defaut: 1.0)}
+\item{\code{k}}{Nombre de clusters (defaut: 3)}
 
-\item{\code{distance_metric}}{Metrique de distance (defaut: "correlation")}
+\item{\code{n_bins}}{Nombre d'intervalles pour discretisation (defaut: 3)}
+
+\item{\code{assignment_method}}{Methode d'assignation ('dice', 'voting', 'barycenter', defaut: 'dice')}
 
 \item{\code{fit_now}}{Booleen, ajuster le modele immediatement (defaut: TRUE)}
 }
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-Objet VARCLUS
+Objet TandemVarClust
 }
 }
 \if{html}{\out{<hr>}}

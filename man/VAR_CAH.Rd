@@ -78,7 +78,7 @@ model$summary()
 
 }
 \seealso{
-\link{ClusterAnalysis}, \link{VARCLUS}, \code{TandemVarClust}, \code{\link[=roller_clust]{roller_clust()}}
+\link{ClusterAnalysis}, \link{VAR_KMEANS}, \link{TandemVarClust}, \code{\link[=roller_clust]{roller_clust()}}
 }
 \section{Super class}{
 \code{\link[RollerClustR:ClusterAnalysis]{RollerClustR::ClusterAnalysis}} -> \code{VAR_CAH}

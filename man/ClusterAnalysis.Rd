@@ -11,7 +11,7 @@ different clustering methods.
 }
 \details{
 This class should not be instantiated directly. It serves as a base for
-child classes: \link{VAR_CAH}, \code{TandemVarClust}, and \link{VARCLUS}.
+child classes: \link{VAR_CAH}, \link{VAR_KMEANS} and \link{TandemVarClust}.
 \subsection{Public Methods}{
 \itemize{
 \item \code{fit(X)} : Fits the model to the data
@@ -78,7 +78,7 @@ predictions <- model$predict(iris[101:150, 1:4])
 }
 }
 \seealso{
-\link{VAR_CAH}, \code{TandemVarClust}, \link{VARCLUS}, \code{\link[=roller_clust]{roller_clust()}}
+\link{VAR_CAH}, \link{VAR_KMEANS}, \link{TandemVarClust}, \code{\link[=roller_clust]{roller_clust()}}
 }
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}

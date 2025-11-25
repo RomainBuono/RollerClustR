@@ -113,7 +113,8 @@
 #' Husson, F., Lê, S., & Pagès, J. (2016). Analyse de données avec R (2e éd.).
 #'   Presses Universitaires de Rennes.
 #'
-#' @seealso [VAR_CAH], [VARCLUS], [roller_clust()]
+#' @seealso [ClusterAnalysis],[VAR_CAH], [TandemVarClust], [roller_clust()]
+#' 
 #'
 #' @export
 TandemVarClust <- R6::R6Class(
