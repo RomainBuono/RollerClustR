@@ -4,13 +4,6 @@
 #' Implementation of K-means algorithm adapted for variable clustering.
 #' Minimizes within-cluster inertia through iterative reallocation.
 #'
-#' @field K Number of clusters
-#' @field Groupes Named integer vector of cluster assignments
-#' @field WithinClusterInertia Total within-cluster inertia
-#' @field Homogeneite Overall homogeneity measure
-#' @field Converged Logical indicating convergence
-#' @field NIterations Number of iterations performed
-#'
 #' @examples
 #' # Basic usage
 #' model <- VAR_KMEANS$new(K = 3, n_init = 20)
@@ -29,9 +22,9 @@ VAR_KMEANS <- R6::R6Class(
   "VAR_KMEANS",
   inherit = ClusterAnalysis,
   
-  # ═══════════════════════════════════════════════════════════
+  # ===========================================================
   # PUBLIC INTERFACE
-  # ═══════════════════════════════════════════════════════════
+  # ===========================================================
   
   public = list(
     
@@ -53,7 +46,7 @@ VAR_KMEANS <- R6::R6Class(
                           scale = TRUE,
                           na_action = "warn") {
       
-      # ═══ CORRECTION 1: Validation K avec is.numeric() ═══
+      # === CORRECTION 1: Validation K avec is.numeric() ===
       if (!is.numeric(K)) {
         stop("K must be a numeric value")
       }
@@ -89,7 +82,7 @@ VAR_KMEANS <- R6::R6Class(
         stop("na_action must be 'warn', 'omit', or 'fail'")
       }
       
-      # Initialisation des champs privés
+      # Initialisation des champs prives
       private$FNbGroupes <- K
       private$Fn_init <- n_init
       private$Fmax_iter <- max_iter
@@ -97,17 +90,17 @@ VAR_KMEANS <- R6::R6Class(
       private$FScale <- scale
       private$FNAAction <- na_action
       
-      # ═══ CORRECTION 2: Initialiser FGroupes pour éviter NULL ═══
+      # === CORRECTION 2: Initialiser FGroupes pour eviter NULL ===
       private$FGroupes <- integer(0)
       
-      # Initialisation des métriques
+      # Initialisation des metriques
       private$FWithinClusterInertia <- Inf
       private$FHomogeneite <- 0
       private$FConverged <- FALSE
       private$FNIterations <- 0
       private$FClusterCenters <- NULL
       
-      # Initialisation des données
+      # Initialisation des donnees
       private$FFitted <- FALSE
       private$FX <- NULL
       private$FX_scaled <- NULL
@@ -136,18 +129,27 @@ VAR_KMEANS <- R6::R6Class(
     #' @description
     #' Get cluster centers
     #'
-    #' @return Matrix of cluster centers
+    #' @return Matrix of cluster centers (observations x clusters)
     get_cluster_centers = function() {
       if (!private$FFitted) {
         stop("Model must be fitted first")
       }
-      return(private$FClusterCenters)
+      if (is.null(private$FClusterCenters)) {
+        stop("Cluster centers not available")
+      }
+      # Transpose: FClusterCenters is (clusters, observations)
+      # Return (observations, clusters)
+      centers <- t(private$FClusterCenters)
+      if (!is.matrix(centers)) {
+        centers <- as.matrix(centers)
+      }
+      return(centers)
     }
   ),
   
-  # ═══════════════════════════════════════════════════════════
+  # ===========================================================
   # ACTIVE BINDINGS
-  # ═══════════════════════════════════════════════════════════
+  # ===========================================================
   
   active = list(
     
@@ -214,9 +216,9 @@ VAR_KMEANS <- R6::R6Class(
     }
   ),
   
-  # ═══════════════════════════════════════════════════════════
+  # ===========================================================
   # PRIVATE IMPLEMENTATION
-  # ═══════════════════════════════════════════════════════════
+  # ===========================================================
   
   private = list(
     
@@ -240,11 +242,11 @@ VAR_KMEANS <- R6::R6Class(
     FHasMissing = NULL,
     FNAIndices = NULL,
     
-    # ═══════════════════════════════════════════════════════════
+    # ===========================================================
     # MAIN ALGORITHM
-    # ═══════════════════════════════════════════════════════════
+    # ===========================================================
     
-    #' @description
+    #'
     #' Fit the K-means model
     do_fit = function(X) {
       
@@ -316,7 +318,7 @@ VAR_KMEANS <- R6::R6Class(
       # Calculate homogeneity
       private$FHomogeneite <- private$compute_homogeneity()
       
-      # ═══ CORRECTION 3: Assignation noms sécurisée ═══
+      # ===  Assignation noms securisee ===
       if (!is.null(private$FGroupes) && 
           !is.null(private$FVarNames) &&
           length(private$FGroupes) == length(private$FVarNames)) {
@@ -335,7 +337,7 @@ VAR_KMEANS <- R6::R6Class(
       invisible(self)
     },
     
-    #' @description
+    #'
     #' Run K-means with multiple random initializations
     kmeans_multiple_runs = function() {
       
@@ -354,7 +356,7 @@ VAR_KMEANS <- R6::R6Class(
       return(best_result)
     },
     
-    #' @description
+    #'
     #' Single run of K-means algorithm
     kmeans_single_run = function() {
       
@@ -395,12 +397,12 @@ VAR_KMEANS <- R6::R6Class(
       ))
     },
     
-    # ═══════════════════════════════════════════════════════════
+    # ===========================================================
     # INITIALIZATION
-    # ═══════════════════════════════════════════════════════════
+    # ===========================================================
     
-    #' @description
-    #' ═══ CORRECTION 4: Initialize centers with empty cluster protection ═══
+    #'
+    #' Initialize centers with empty cluster protection ===
     initialize_centers = function() {
       
       n_vars <- nrow(private$FX_scaled)  # Number of rows = variables
@@ -461,11 +463,11 @@ VAR_KMEANS <- R6::R6Class(
       return(centers)
     },
     
-    # ═══════════════════════════════════════════════════════════
+    # ===========================================================
     # ASSIGNMENT AND UPDATE
-    # ═══════════════════════════════════════════════════════════
+    # ===========================================================
     
-    #' @description
+    #'
     #' Assign variables to nearest cluster
     assign_to_clusters = function(centers) {
       
@@ -490,7 +492,7 @@ VAR_KMEANS <- R6::R6Class(
       return(clusters)
     },
     
-    #' @description
+    #'
     #' Update cluster centers
     update_centers = function(clusters) {
       
@@ -514,11 +516,11 @@ VAR_KMEANS <- R6::R6Class(
       return(centers)
     },
     
-    #' @description
+    #'
     #' Compute cluster center (first principal component)
     compute_cluster_center = function(var_indices) {
       
-      # ═══ CORRECTION 5: Verify cluster is not empty ═══
+      # ===  Verify cluster is not empty ===
       if (length(var_indices) == 0) {
         stop("Cannot compute center for empty cluster")
       }
@@ -545,11 +547,11 @@ VAR_KMEANS <- R6::R6Class(
       }
     },
     
-    # ═══════════════════════════════════════════════════════════
+    # ===========================================================
     # METRICS
-    # ═══════════════════════════════════════════════════════════
+    # ===========================================================
     
-    #' @description
+    #'
     #' Compute within-cluster inertia
     compute_inertia = function(clusters, centers) {
       
@@ -571,7 +573,7 @@ VAR_KMEANS <- R6::R6Class(
       return(total_inertia)
     },
     
-    #' @description
+    #'
     #' Compute overall homogeneity
     compute_homogeneity = function() {
       
@@ -607,11 +609,11 @@ VAR_KMEANS <- R6::R6Class(
       return(overall_homogeneity)
     },
     
-    # ═══════════════════════════════════════════════════════════
+    # ===========================================================
     # REFIT WITH NEW K
-    # ═══════════════════════════════════════════════════════════
+    # ===========================================================
     
-    #' @description
+    #'
     #' Refit model with new number of clusters
     do_refit_with_k = function(new_k) {
       
@@ -630,16 +632,21 @@ VAR_KMEANS <- R6::R6Class(
       invisible(self)
     },
     
-    # ═══════════════════════════════════════════════════════════
+    # ===========================================================
     # PREDICTION
-    # ═══════════════════════════════════════════════════════════
+    # ===========================================================
     
-    #' @description
+    #'
     #' Predict cluster for new variables
     do_predict = function(newdata) {
       
       if (!private$FFitted) {
         stop("Model must be fitted before prediction")
+      }
+      
+      # Handle vector input explicitly
+      if (is.vector(newdata)) {
+        newdata <- data.frame(V1 = newdata)
       }
       
       if (!is.data.frame(newdata)) {
@@ -666,8 +673,8 @@ VAR_KMEANS <- R6::R6Class(
       
       for (j in 1:nrow(newdata_scaled)) {  # nrow = variables
         var_name <- colnames(newdata)[j]
-        if (is.null(var_name)) {
-          var_name <- paste0("NewVar", j)
+        if (is.null(var_name) || var_name == "") {
+          var_name <- paste0("V", j)
         }
         
         var_j <- newdata_scaled[j, ]  # Select j-th row (variable)
@@ -692,12 +699,12 @@ VAR_KMEANS <- R6::R6Class(
       return(results)
     },
     
-    # ═══════════════════════════════════════════════════════════
+    # ===========================================================
     # SUMMARY
-    # ═══════════════════════════════════════════════════════════
+    # ===========================================================
     
-    #' @description
-    #' ═══ CORRECTION 6: Display summary with fitted verification ═══
+    #'
+    #' === CORRECTION 6: Display summary with fitted verification ===
     do_summary = function() {
       
       # Verify model is fitted
@@ -707,9 +714,9 @@ VAR_KMEANS <- R6::R6Class(
       
       # Display banner
       cat("\n")
-      cat("═══════════════════════════════════════════════════════════\n")
+      cat("===========================================================\n")
       cat("   VAR_KMEANS - K-Means Variable Clustering Summary\n")
-      cat("═══════════════════════════════════════════════════════════\n\n")
+      cat("===========================================================\n\n")
       
       # Algorithm parameters
       cat("Algorithm: K-Means for Variable Clustering\n")
@@ -722,14 +729,14 @@ VAR_KMEANS <- R6::R6Class(
       cat("Number of variables:", length(private$FGroupes), "\n\n")
       
       # Quality metrics
-      cat("═══ Clustering Quality Metrics ═══\n\n")
+      cat("=== Clustering Quality Metrics ===\n\n")
       cat("Within-cluster inertia (W):", round(private$FWithinClusterInertia, 4), "\n")
       cat("Overall homogeneity:", round(private$FHomogeneite, 4), "\n")
       cat("Convergence status:", private$FConverged, "\n")
       cat("Number of iterations:", private$FNIterations, "\n\n")
       
       # Cluster details
-      cat("═══ Cluster Details ═══\n\n")
+      cat("=== Cluster Details ===\n\n")
       
       for (k in 1:private$FNbGroupes) {
         vars_in_k <- which(private$FGroupes == k)
@@ -760,7 +767,7 @@ VAR_KMEANS <- R6::R6Class(
         cat("\n")
       }
       
-      cat("═══════════════════════════════════════════════════════════\n")
+      cat("===========================================================\n")
       
       invisible(self)
     }

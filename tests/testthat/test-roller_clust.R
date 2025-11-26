@@ -8,15 +8,6 @@ test_that("roller_clust works with var_cah method", {
   expect_length(result$Groupes, 4)
 })
 
-test_that("roller_clust works with varclus method", {
-  data(iris)
-  
-  result <- roller_clust(iris[, 1:4], method = "varclus", K = 2)
-  
-  expect_s3_class(result, "VARCLUS")
-  # VARCLUS détermine automatiquement K, donc on vérifie juste que K >= 1
-  expect_true(result$K >= 1)
-})
 
 test_that("roller_clust works with tandem method", {
   # Create mixed data (categorical + numeric)

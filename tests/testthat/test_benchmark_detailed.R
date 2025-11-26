@@ -5,7 +5,7 @@
 # This script measures RollerClustR performance across several dimensions:
 # 1. Execution time as a function of data size
 # 2. Scalability (observations vs variables)
-# 3. Comparison between 3 methods (VAR_CAH, VARCLUS, TandemVarClust)
+# 3. Comparison between 3 methods (VAR_CAH, VAR_KMEANS, TandemVarClust)
 # 4. Memory profiling
 # 5. Comparison with competing packages
 # 6. TandemVarClust specific tests (categorical data, modalities)
@@ -32,16 +32,16 @@ if (!require("cluster")) install.packages("cluster")
 if (!require("FactoMineR")) install.packages("FactoMineR")
 
 cat("\n")
-cat("═══════════════════════════════════════════════════════════════════\n")
+cat("===================================================================\n")
 cat("   DETAILED BENCHMARKING - RollerClustR\n")
-cat("═══════════════════════════════════════════════════════════════════\n\n")
+cat("===================================================================\n\n")
 
 # ============================================================================
 # 1. SCALABILITY IN NUMBER OF OBSERVATIONS (NUMERIC DATA)
 # ============================================================================
 
 cat("1. SCALABILITY IN NUMBER OF OBSERVATIONS (NUMERIC DATA)\n")
-cat("────────────────────────────────────────────────────────\n\n")
+cat("------------------------------------------------------------\n\n")
 
 n_obs_sizes <- c(100, 500, 1000, 2000, 5000)
 n_vars <- 10
@@ -65,20 +65,20 @@ for (n in n_obs_sizes) {
     model_cah$fit(data_test)
   })[3]
   
-  # VARCLUS
-  time_vc <- system.time({
-    model_vc <- VARCLUS$new()
-    model_vc$fit(data_test)
+  # VAR_KMEANS
+  time_kmeans <- system.time({
+    model_kmeans <- VAR_KMEANS$new(K = K, n_init = 10)
+    model_kmeans$fit(data_test)
   })[3]
   
   results_obs <- rbind(results_obs, data.frame(
     n_obs = c(n, n),
-    method = c("VAR_CAH", "VARCLUS"),
-    time_sec = c(time_cah, time_vc)
+    method = c("VAR_CAH", "VAR_KMEANS"),
+    time_sec = c(time_cah, time_kmeans)
   ))
   
-  cat("    VAR_CAH  :", round(time_cah, 3), "s\n")
-  cat("    VARCLUS  :", round(time_vc, 3), "s\n\n")
+  cat("    VAR_CAH    :", round(time_cah, 3), "s\n")
+  cat("    VAR_KMEANS :", round(time_kmeans, 3), "s\n\n")
 }
 
 # Display table
@@ -87,7 +87,7 @@ print(results_obs)
 # Plot
 if (require("ggplot2")) {
   p1 <- ggplot(results_obs, aes(x = n_obs, y = time_sec, color = method)) +
-    geom_line(size = 1.2) +
+    geom_line(linewidth = 1.2) +
     geom_point(size = 3) +
     labs(title = "Scalability in Observations (Numeric Data)",
          x = "Number of observations",
@@ -106,7 +106,7 @@ cat("\n")
 # ============================================================================
 
 cat("2. SCALABILITY IN NUMBER OF VARIABLES (NUMERIC DATA)\n")
-cat("────────────────────────────────────────────────────────\n\n")
+cat("------------------------------------------------------------\n\n")
 
 n_obs <- 500
 n_vars_sizes <- c(5, 10, 20, 30, 50)
@@ -130,25 +130,20 @@ for (p in n_vars_sizes) {
     model_cah$fit(data_test)
   })[3]
   
-  # VARCLUS (only if p >= 3)
-  if (p >= 3) {
-    time_vc <- system.time({
-      model_vc <- VARCLUS$new()
-      model_vc$fit(data_test)
-    })[3]
-  } else {
-    time_vc <- NA
-  }
+  # VAR_KMEANS
+  time_kmeans <- system.time({
+    model_kmeans <- VAR_KMEANS$new(K = K, n_init = 10)
+    model_kmeans$fit(data_test)
+  })[3]
   
   results_vars <- rbind(results_vars, data.frame(
     n_vars = c(p, p),
-    method = c("VAR_CAH", "VARCLUS"),
-    time_sec = c(time_cah, time_vc)
+    method = c("VAR_CAH", "VAR_KMEANS"),
+    time_sec = c(time_cah, time_kmeans)
   ))
   
-  cat("    VAR_CAH :", round(time_cah, 3), "s\n")
-  if (!is.na(time_vc)) cat("    VARCLUS :", round(time_vc, 3), "s\n")
-  cat("\n")
+  cat("    VAR_CAH    :", round(time_cah, 3), "s\n")
+  cat("    VAR_KMEANS :", round(time_kmeans, 3), "s\n\n")
 }
 
 # Display table
@@ -158,7 +153,7 @@ print(results_vars)
 if (require("ggplot2")) {
   p2 <- ggplot(results_vars[!is.na(results_vars$time_sec), ], 
                aes(x = n_vars, y = time_sec, color = method)) +
-    geom_line(size = 1.2) +
+    geom_line(linewidth = 1.2) +
     geom_point(size = 3) +
     labs(title = "Scalability in Variables (Numeric Data)",
          x = "Number of variables",
@@ -177,7 +172,7 @@ cat("\n")
 # ============================================================================
 
 cat("3. TANDEMVARCLUST: SCALABILITY WITH CATEGORICAL DATA\n")
-cat("────────────────────────────────────────────────────────\n\n")
+cat("------------------------------------------------------------\n\n")
 
 # Test with varying number of observations (categorical data)
 cat("  3a. Scalability in observations (categorical):\n\n")
@@ -224,7 +219,7 @@ print(results_tandem_obs)
 # Plot
 if (require("ggplot2")) {
   p3 <- ggplot(results_tandem_obs, aes(x = n_obs, y = time_sec)) +
-    geom_line(size = 1.2, color = "purple") +
+    geom_line(linewidth = 1.2, color = "purple") +
     geom_point(size = 3, color = "purple") +
     labs(title = "TandemVarClust: Scalability in Observations",
          subtitle = paste(n_cat_vars, "categorical variables"),
@@ -284,7 +279,7 @@ cat("\n")
 # ============================================================================
 
 cat("4. TANDEMVARCLUST: IMPACT OF NUMBER OF MODALITIES\n")
-cat("────────────────────────────────────────────────────────\n\n")
+cat("------------------------------------------------------------\n\n")
 
 n_obs_mod <- 1000
 n_vars_mod <- 5
@@ -327,7 +322,7 @@ print(results_modalities)
 # Plot
 if (require("ggplot2")) {
   p4 <- ggplot(results_modalities, aes(x = n_total_modalities, y = time_sec)) +
-    geom_line(size = 1.2, color = "darkgreen") +
+    geom_line(linewidth = 1.2, color = "darkgreen") +
     geom_point(size = 3, color = "darkgreen") +
     labs(title = "TandemVarClust: Impact of Modality Count",
          x = "Total number of modalities",
@@ -344,7 +339,7 @@ cat("\n")
 # ============================================================================
 
 cat("5. TANDEMVARCLUST: MIXED DATA PERFORMANCE\n")
-cat("────────────────────────────────────────────────────────\n\n")
+cat("------------------------------------------------------------\n\n")
 
 n_obs_mixed <- 1000
 mix_configs <- list(
@@ -407,7 +402,7 @@ cat("\n")
 # ============================================================================
 
 cat("6. TANDEMVARCLUST: IMPACT OF DISCRETIZATION (n_bins)\n")
-cat("────────────────────────────────────────────────────────\n\n")
+cat("------------------------------------------------------------\n\n")
 
 n_obs_bins <- 1000
 n_num_vars <- 5
@@ -448,7 +443,7 @@ print(results_bins)
 # Plot
 if (require("ggplot2")) {
   p5 <- ggplot(results_bins, aes(x = n_bins, y = time_sec)) +
-    geom_line(size = 1.2, color = "orange") +
+    geom_line(linewidth = 1.2, color = "orange") +
     geom_point(size = 3, color = "orange") +
     labs(title = "TandemVarClust: Impact of Discretization",
          subtitle = paste(n_num_vars, "numeric variables"),
@@ -466,7 +461,7 @@ cat("\n")
 # ============================================================================
 
 cat("7. COMPARISON BETWEEN ALL METHODS\n")
-cat("────────────────────────────────────────────────────────\n\n")
+cat("------------------------------------------------------------\n\n")
 
 set.seed(123)
 n_benchmark <- 1000
@@ -474,7 +469,7 @@ p_benchmark <- 15
 data_benchmark_num <- as.data.frame(matrix(rnorm(n_benchmark * p_benchmark), 
                                            ncol = p_benchmark))
 
-cat("  Numeric dataset:", n_benchmark, "observations ×", p_benchmark, "variables\n\n")
+cat("  Numeric dataset:", n_benchmark, "observations x", p_benchmark, "variables\n\n")
 
 # Benchmark with microbenchmark (10 repetitions)
 if (require("microbenchmark")) {
@@ -483,8 +478,8 @@ if (require("microbenchmark")) {
       model <- VAR_CAH$new(K = 3)
       model$fit(data_benchmark_num)
     },
-    VARCLUS = {
-      model <- VARCLUS$new()
+    VAR_KMEANS = {
+      model <- VAR_KMEANS$new(K = 3, n_init = 10)
       model$fit(data_benchmark_num)
     },
     TandemVarClust = {
@@ -510,7 +505,7 @@ cat("\n")
 # ============================================================================
 
 cat("8. MEMORY PROFILING\n")
-cat("────────────────────────────────────────────────────────\n\n")
+cat("------------------------------------------------------------\n\n")
 
 memory_results <- data.frame(
   n_obs = integer(),
@@ -530,7 +525,7 @@ for (size in test_sizes) {
   n <- size$n
   p <- size$p
   
-  cat("  Testing", n, "obs ×", p, "vars...\n")
+  cat("  Testing", n, "obs x", p, "vars...\n")
   
   # Numeric data
   set.seed(123)
@@ -544,13 +539,13 @@ for (size in test_sizes) {
   mem_after <- sum(gc()[, 2])
   mem_cah <- mem_after - mem_before
   
-  # VARCLUS
+  # VAR_KMEANS
   gc()
   mem_before <- sum(gc()[, 2])
-  model_vc <- VARCLUS$new()
-  model_vc$fit(data_num)
+  model_kmeans <- VAR_KMEANS$new(K = 3, n_init = 10)
+  model_kmeans$fit(data_num)
   mem_after <- sum(gc()[, 2])
-  mem_vc <- mem_after - mem_before
+  mem_kmeans <- mem_after - mem_before
   
   # TandemVarClust (numeric)
   gc()
@@ -564,17 +559,17 @@ for (size in test_sizes) {
     n_obs = c(n, n, n),
     n_vars = c(p, p, p),
     data_type = c("numeric", "numeric", "numeric"),
-    method = c("VAR_CAH", "VARCLUS", "TandemVarClust"),
-    memory_mb = c(mem_cah, mem_vc, mem_tandem)
+    method = c("VAR_CAH", "VAR_KMEANS", "TandemVarClust"),
+    memory_mb = c(mem_cah, mem_kmeans, mem_tandem)
   ))
   
-  cat("    VAR_CAH       :", round(mem_cah, 2), "MB\n")
-  cat("    VARCLUS       :", round(mem_vc, 2), "MB\n")
-  cat("    TandemVarClust:", round(mem_tandem, 2), "MB\n\n")
+  cat("    VAR_CAH        :", round(mem_cah, 2), "MB\n")
+  cat("    VAR_KMEANS     :", round(mem_kmeans, 2), "MB\n")
+  cat("    TandemVarClust :", round(mem_tandem, 2), "MB\n\n")
 }
 
 # Test with categorical data
-cat("  Testing with categorical data (1000 × 10)...\n")
+cat("  Testing with categorical data (1000 x 10)...\n")
 set.seed(123)
 data_cat <- as.data.frame(lapply(1:10, function(i) {
   factor(sample(LETTERS[1:5], 1000, replace = TRUE))
@@ -606,7 +601,7 @@ cat("\n")
 # ============================================================================
 
 cat("9. COMPARISON WITH COMPETING PACKAGES\n")
-cat("────────────────────────────────────────────────────────\n\n")
+cat("------------------------------------------------------------\n\n")
 
 set.seed(123)
 data_comp <- as.data.frame(matrix(rnorm(500 * 10), ncol = 10))
@@ -671,14 +666,14 @@ cat("\n")
 # ============================================================================
 
 cat("10. EXTREME SCALABILITY TESTS\n")
-cat("────────────────────────────────────────────────────────\n\n")
+cat("------------------------------------------------------------\n\n")
 
 extreme_tests <- list(
   list(name = "VAR_CAH: Many observations", method = "VAR_CAH", 
        n = 10000, p = 10, data_type = "numeric"),
   list(name = "VAR_CAH: Many variables", method = "VAR_CAH", 
        n = 100, p = 100, data_type = "numeric"),
-  list(name = "VARCLUS: Large balanced", method = "VARCLUS", 
+  list(name = "VAR_KMEANS: Large balanced", method = "VAR_KMEANS", 
        n = 2000, p = 50, data_type = "numeric"),
   list(name = "TandemVarClust: Many observations (cat)", method = "TandemVarClust", 
        n = 10000, p = 8, data_type = "categorical"),
@@ -696,7 +691,7 @@ extreme_results <- data.frame(
 )
 
 for (test in extreme_tests) {
-  cat("  ", test$name, "(", test$n, "×", test$p, ")...\n")
+  cat("  ", test$name, "(", test$n, "x", test$p, ")...\n")
   
   set.seed(123)
   
@@ -719,8 +714,8 @@ for (test in extreme_tests) {
       if (test$method == "VAR_CAH") {
         model <- VAR_CAH$new(K = 3)
         model$fit(data_extreme)
-      } else if (test$method == "VARCLUS") {
-        model <- VARCLUS$new()
+      } else if (test$method == "VAR_KMEANS") {
+        model <- VAR_KMEANS$new(K = 3, n_init = 10)
         model$fit(data_extreme)
       } else if (test$method == "TandemVarClust") {
         model <- TandemVarClust$new(K = 3)
@@ -742,9 +737,9 @@ for (test in extreme_tests) {
   ))
   
   if (success) {
-    cat("    Time:", round(time_taken, 2), "seconds ✓\n")
+    cat("    Time:", round(time_taken, 2), "seconds OK\n")
   } else {
-    cat("    FAILED ✗\n")
+    cat("    FAILED X\n")
   }
   cat("\n")
 }
@@ -758,7 +753,7 @@ cat("\n")
 # ============================================================================
 
 cat("11. ALGORITHMIC COMPLEXITY ANALYSIS\n")
-cat("────────────────────────────────────────────────────────\n\n")
+cat("------------------------------------------------------------\n\n")
 
 # Test growth rate as function of n
 n_values <- seq(100, 1000, by = 200)
@@ -785,6 +780,12 @@ for (n in n_values) {
     model$fit(data_num)
   })[3]
   
+  # VAR_KMEANS
+  time_kmeans <- system.time({
+    model <- VAR_KMEANS$new(K = 3, n_init = 10)
+    model$fit(data_num)
+  })[3]
+  
   # TandemVarClust
   time_tandem <- system.time({
     model <- TandemVarClust$new(K = 3)
@@ -792,19 +793,19 @@ for (n in n_values) {
   })[3]
   
   complexity_results <- rbind(complexity_results, data.frame(
-    method = c("VAR_CAH", "TandemVarClust"),
-    n = c(n, n),
-    time = c(time_cah, time_tandem)
+    method = c("VAR_CAH", "VAR_KMEANS", "TandemVarClust"),
+    n = c(n, n, n),
+    time = c(time_cah, time_kmeans, time_tandem)
   ))
   
-  cat("    n =", n, "→ VAR_CAH:", round(time_cah, 4), "s | Tandem:", 
-      round(time_tandem, 4), "s\n")
+  cat("    n =", n, "-> VAR_CAH:", round(time_cah, 4), "s | VAR_KMEANS:", 
+      round(time_kmeans, 4), "s | Tandem:", round(time_tandem, 4), "s\n")
 }
 
 cat("\n")
 
 # Estimate complexity
-for (method_name in c("VAR_CAH", "TandemVarClust")) {
+for (method_name in c("VAR_CAH", "VAR_KMEANS", "TandemVarClust")) {
   data_method <- complexity_results[complexity_results$method == method_name, ]
   data_valid <- data_method[data_method$time > 0, ]
   
@@ -815,11 +816,11 @@ for (method_name in c("VAR_CAH", "TandemVarClust")) {
     cat("  ", method_name, "complexity: O(n^", round(exponent, 2), ")\n", sep = "")
     
     if (exponent < 1.5) {
-      cat("    -> Quasi-linear complexity ✓\n")
+      cat("    -> Quasi-linear complexity OK\n")
     } else if (exponent < 2.5) {
       cat("    -> Quadratic complexity\n")
     } else {
-      cat("    -> > Quadratic complexity ⚠\n")
+      cat("    -> > Quadratic complexity WARNING\n")
     }
   }
 }
@@ -831,26 +832,26 @@ cat("\n")
 # ============================================================================
 
 cat("\n")
-cat("═══════════════════════════════════════════════════════════════════\n")
+cat("===================================================================\n")
 cat("                   FINAL BENCHMARK REPORT\n")
-cat("═══════════════════════════════════════════════════════════════════\n\n")
+cat("===================================================================\n\n")
 
 cat("PERFORMANCE SUMMARY:\n\n")
 
 cat("1. Scalability in observations:\n")
-cat("   - VAR_CAH     : Handles up to 10,000 observations\n")
-cat("   - VARCLUS     : Reasonable for < 5,000 observations\n")
+cat("   - VAR_CAH      : Handles up to 10,000 observations\n")
+cat("   - VAR_KMEANS   : Handles up to 5,000 observations\n")
 cat("   - TandemVarClust: Handles 10,000+ observations (categorical)\n\n")
 
 cat("2. Scalability in variables:\n")
-cat("   - VAR_CAH     : Up to 100 variables\n")
-cat("   - VARCLUS     : Performance degrades for p > 50\n")
+cat("   - VAR_CAH      : Up to 100 variables\n")
+cat("   - VAR_KMEANS   : Up to 50 variables (depends on n_init)\n")
 cat("   - TandemVarClust: Depends on total modalities count\n\n")
 
 cat("3. Method comparison (numeric data):\n")
-cat("   - VAR_CAH        : Fastest, deterministic\n")
-cat("   - VARCLUS        : Slower, automatic\n")
-cat("   - TandemVarClust : Designed for categorical/mixed data\n\n")
+cat("   - VAR_CAH      : Fastest, deterministic\n")
+cat("   - VAR_KMEANS   : Slower (multiple initializations), iterative\n")
+cat("   - TandemVarClust: Designed for categorical/mixed data\n\n")
 
 cat("4. TandemVarClust specific:\n")
 cat("   - Efficient with categorical data\n")
@@ -860,36 +861,45 @@ cat("   - Handles mixed data well\n\n")
 
 cat("5. Memory:\n")
 cat("   - Reasonable consumption (< 50 MB for medium datasets)\n")
-cat("   - TandemVarClust similar to VAR_CAH/VARCLUS\n\n")
+cat("   - VAR_KMEANS slightly more than VAR_CAH (stores centers)\n")
+cat("   - TandemVarClust similar to VAR_CAH\n\n")
 
 cat("6. Vs competing packages:\n")
 cat("   - Acceptable overhead vs base hclust\n")
 cat("   - TandemVarClust competitive with FactoMineR\n\n")
 
 cat("7. Algorithmic complexity:\n")
-cat("   - VAR_CAH     : O(n^1-2) depending on case\n")
-cat("   - TandemVarClust: O(n × m) where m = modalities\n\n")
+cat("   - VAR_CAH      : O(n^1-2) depending on case\n")
+cat("   - VAR_KMEANS   : O(n x p x K x iter x n_init)\n")
+cat("   - TandemVarClust: O(n x m) where m = modalities\n\n")
 
 cat("USAGE RECOMMENDATIONS:\n\n")
 
-cat("✓ Recommended for:\n")
-cat("  VAR_CAH/VARCLUS:\n")
+cat("OK Recommended for:\n")
+cat("  VAR_CAH:\n")
+cat("    - n < 10000 observations\n")
+cat("    - p < 100 variables\n")
+cat("    - Numeric data\n")
+cat("    - Deterministic clustering needed\n\n")
+cat("  VAR_KMEANS:\n")
 cat("    - n < 5000 observations\n")
 cat("    - p < 50 variables\n")
-cat("    - Numeric data\n\n")
+cat("    - Numeric data\n")
+cat("    - K known in advance\n\n")
 cat("  TandemVarClust:\n")
 cat("    - n < 10000 observations\n")
 cat("    - Total modalities < 100\n")
 cat("    - Categorical or mixed data\n")
 cat("    - n_bins = 3-5 for discretization\n\n")
 
-cat("⚠ Caution for:\n")
+cat("WARNING Caution for:\n")
 cat("  - n > 10000 observations\n")
 cat("  - p > 100 variables\n")
 cat("  - > 200 total modalities (TandemVarClust)\n")
-cat("  - Very imbalanced datasets\n\n")
+cat("  - Very imbalanced datasets\n")
+cat("  - VAR_KMEANS with high n_init (> 20) and large p\n\n")
 
-cat("═══════════════════════════════════════════════════════════════════\n\n")
+cat("===================================================================\n\n")
 
 cat("To save results:\n")
 cat("  save(results_obs, results_vars, results_tandem_obs,\n")

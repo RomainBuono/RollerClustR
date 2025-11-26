@@ -233,22 +233,28 @@ VAR_CAH <- R6Class("VAR_CAH",
       # Convert to data.frame if necessary
       newdata <- as.data.frame(newdata)
       
-      # Process each new variable
-      n_new_vars <- ncol(newdata)
-      predictions <- integer(n_new_vars)
-      scores_matrix <- matrix(NA, nrow = n_new_vars, ncol = private$FNbGroupes)
-      colnames(scores_matrix) <- paste0("Cluster_", 1:private$FNbGroupes)
-      rownames(scores_matrix) <- colnames(newdata)
+      # Process each new variable - STRUCTURE PAR VARIABLE
+      results <- list()
       
-      for (i in 1:n_new_vars) {
+      for (i in 1:ncol(newdata)) {
+        var_name <- colnames(newdata)[i]
+        if (is.null(var_name) || var_name == "") {
+          var_name <- paste0("V", i)
+        }
+        
         new_var <- newdata[, i, drop = TRUE]
         
         # Handle missing values
         if (any(is.na(new_var))) {
-          warning(paste0("Variable '", colnames(newdata)[i], 
+          warning(paste0("Variable '", var_name, 
                         "' contains missing values. Assignment to cluster 1 by default."))
-          predictions[i] <- 1
-          scores_matrix[i, ] <- NA
+          
+          results[[var_name]] <- list(
+            cluster = 1L,
+            scores = rep(NA_real_, private$FNbGroupes),
+            best_score = NA_real_,
+            second_best_score = NA_real_
+          )
           next
         }
         
@@ -258,36 +264,32 @@ VAR_CAH <- R6Class("VAR_CAH",
         }
         
         # Compute similarity score with each cluster
-        # Score = |cor(new_var, cluster_synthetic_variable)|
         cluster_scores <- numeric(private$FNbGroupes)
         
         for (k in 1:private$FNbGroupes) {
           synth_var <- private$FVariablesSynthetiques[, k]
-          
-          # Compute correlation
           cor_val <- cor(new_var, synth_var, use = "pairwise.complete.obs")
           cluster_scores[k] <- abs(cor_val)
         }
         
         # Assign to cluster with highest score
-        predictions[i] <- which.max(cluster_scores)
-        scores_matrix[i, ] <- cluster_scores
+        best_cluster <- which.max(cluster_scores)
+        best_score <- cluster_scores[best_cluster]
+        
+        # Second best score
+        sorted_scores <- sort(cluster_scores, decreasing = TRUE)
+        second_best <- if (length(sorted_scores) >= 2) sorted_scores[2] else NA_real_
+        
+        # Store result for this variable
+        results[[var_name]] <- list(
+          cluster = best_cluster,
+          scores = cluster_scores,
+          best_score = best_score,
+          second_best_score = second_best
+        )
       }
       
-      # Prepare result
-      names(predictions) <- colnames(newdata)
-      
-      result <- list(
-        cluster = predictions,
-        scores = scores_matrix,
-        best_score = apply(scores_matrix, 1, max, na.rm = TRUE),
-        second_best_score = apply(scores_matrix, 1, function(x) {
-          sorted <- sort(x, decreasing = TRUE)
-          if (length(sorted) >= 2) sorted[2] else NA
-        })
-      )
-      
-      return(result)
+      return(results)
     },
     
     #' @description Cluster evaluation
@@ -335,9 +337,9 @@ VAR_CAH <- R6Class("VAR_CAH",
          stop("The model must be fitted with $fit() first.")
       }
       
-      cat("\n═══════════════════════════════════════════════════════════\n")
+      cat("\n===========================================================\n")
       cat("   VAR_CAH - Hierarchical Variable Clustering Summary\n")
-      cat("═══════════════════════════════════════════════════════════\n\n")
+      cat("===========================================================\n\n")
       
       cat("Algorithm: Hierarchical Agglomerative Clustering (HAC) on variables\n")
       cat("Linkage Method: Complete (on 1 - |Correlation|)\n")

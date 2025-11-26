@@ -28,18 +28,6 @@ prediction <- model$predict(new_var)
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{K}}{Number of clusters}
-
-\item{\code{Groupes}}{Named integer vector of cluster assignments}
-
-\item{\code{WithinClusterInertia}}{Total within-cluster inertia}
-
-\item{\code{Homogeneite}}{Overall homogeneity measure}
-
-\item{\code{Converged}}{Logical indicating convergence}
-
-\item{\code{NIterations}}{Number of iterations performed}
-
 \item{\code{K}}{Number of clusters (modifiable)}
 
 \item{\code{Groupes}}{Cluster assignments (read-only)}
@@ -50,7 +38,31 @@ prediction <- model$predict(new_var)
 
 \item{\code{Converged}}{Convergence status (read-only)}
 
-\item{\code{NIterations}}{Number of iterations (read-only)}
+\item{\code{NIterations}}{Number of iterations (read-only)
+
+Fit the K-means model
+
+Run K-means with multiple random initializations
+
+Single run of K-means algorithm
+
+Initialize centers with empty cluster protection ===
+
+Assign variables to nearest cluster
+
+Update cluster centers
+
+Compute cluster center (first principal component)
+
+Compute within-cluster inertia
+
+Compute overall homogeneity
+
+Refit model with new number of clusters
+
+Predict cluster for new variables
+
+=== CORRECTION 6: Display summary with fitted verification ===}
 }
 \if{html}{\out{</div>}}
 }
@@ -139,7 +151,7 @@ Get cluster centers
 }
 
 \subsection{Returns}{
-Matrix of cluster centers
+Matrix of cluster centers (observations x clusters)
 }
 }
 \if{html}{\out{<hr>}}
