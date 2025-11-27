@@ -37,7 +37,7 @@ La transposition interne (`private$FX_scaled`) est cruciale : les opérations ve
 
 #### Stratégie d'Initialisation Multiple
 
-Le K-Means étant sensible aux optimums locaux, l'algorithme implémente une stratégie de redémarrage multiple (`n_init`) pour assurer la robustesse de la solution.
+Le K-Means étant sensible aux optimums locaux, l'algorithme implémente une stratégie de redémarrage multiple (`n_init`) pour assurer la robustesse de la solution. En effet, un des défauts de l'algorithme K-Means dans cette implémentation concerne le problème de l'optimum local. À chaque étape d'itération, l'algorithme cherche la meilleure amélioration possible à partir de l'état actuel.Cependant, il n'explore pas toutes les configurations possibles. Si l'initialisation des centres est mauvaise, l'algorithme peut rapidement converger vers une solution qui est localement optimale (la meilleure possible dans un voisinage immédiat) mais qui est loin de l'optimum global (la meilleure solution possible sur l'ensemble du domaine). Le critère d'optimisation est l'inertie définie par la somme des corrélations au carré ($r^2$) :$$\max T = \sum_{k=1}^K \sum_{j \in C_k} r^2(x_j, u_k)$$Une mauvaise initialisation peut conduire à une partition qui donne une valeur $T$ faible, même si l'algorithme a "convergé" (c'est-à-dire que l'affectation des variables n'évolue plus).
 
 ```r
 kmeans_multiple_runs = function() {
