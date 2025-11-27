@@ -28,19 +28,31 @@ ui <- dashboardPage(
     sidebarMenu(
       id = "sidebar",
       
-      menuItem("Accueil", tabName = "home", icon = icon("home")),
-      menuItem("Données", tabName = "data", icon = icon("database")),
-      menuItem("⚙️ Configuration", tabName = "config", icon = icon("cogs")),
-      menuItem("Clustering", tabName = "clustering", icon = icon("project-diagram")),
-      menuItem("Résultats", tabName = "results", icon = icon("chart-line")),
-      menuItem("Prédiction", tabName = "prediction", icon = icon("magic")),
-      menuItem("Diagnostics", tabName = "diagnostics", icon = icon("search")),
-      menuItem("Comparaison", tabName = "comparison", icon = icon("balance-scale")),
-      menuItem("Historique", tabName = "history", icon = icon("history")),
-      menuItem("Export", tabName = "export", icon = icon("download")),
-      menuItem("Aide", tabName = "help", icon = icon("question-circle"))
+      menuItem("Accueil", tabName = "home"),
+      menuItem("Données", tabName = "data"),
+      menuItem("Configuration", tabName = "config"),
+      menuItem("Clustering", tabName = "clustering"),
+      
+      menuItem(" Résultats & Analyses", startExpanded = FALSE,
+               menuSubItem("Résultats Principaux", tabName = "results"),
+               menuSubItem(" Contribution Variables", tabName = "contribution"),
+               menuSubItem("Diagnostics", tabName = "diagnostics"),
+               menuSubItem("Stabilité Bootstrap", tabName = "stability")
+      ),
+      
+      #menuItem(" Visualisations", startExpanded = FALSE,
+      #         menuSubItem("Projection 2D", tabName = "projection_2d"),
+      #         menuSubItem("Projection 3D", tabName = "projection_3d")
+      #),
+      
+      menuItem("Prédiction", tabName = "prediction"),
+      menuItem("Comparaison", tabName = "comparison"),
+      menuItem(" Historique", tabName = "history"),
+      menuItem(" Export", tabName = "export"),
+      menuItem("Aide", tabName = "help")
     )
-  ),
+  )
+  ,
   
   # ============================================================================
   # BODY
@@ -87,11 +99,12 @@ ui <- dashboardPage(
                 width = 6,
                 div(
                   style = "background-color: #fff5f0; padding: 15px; border-radius: 5px; margin-bottom: 10px;",
-                  h5(icon("project-diagram"), strong(" Algorithmes Développés"), style = "color: #d9534f;"),
+                  h5(strong(" Algorithmes Développés"), style = "color: #d9534f;"),
                   tags$ul(
                     tags$li(strong("VAR_CAH :"), "CAH classique sur variables"),
-                    tags$li(strong("KmodesVarClust :"), "K-Modes pour catégorielles"),
-                    tags$li(strong("VARCLUS :"), "Clustering descendant (λ₂)")
+                    tags$li(strong("VAR_KMEANS :"), "K-Means"),
+                    tags$li(strong("TandemVarClust :"), "TandemVarClust : Approche Tandem (ACM + CAH) pour variables mixtes")
+                    
                   )
                 )
               ),
@@ -100,7 +113,7 @@ ui <- dashboardPage(
                 width = 6,
                 div(
                   style = "background-color: #f0f8ff; padding: 15px; border-radius: 5px; margin-bottom: 10px;",
-                  h5(icon("star"), strong("Fonctionnalités"), style = "color: #3c8dbc;"),
+                  h5(strong("Fonctionnalités"), style = "color: #3c8dbc;"),
                   tags$ul(
                     tags$li(strong("Prédiction :"), "Classifier de nouvelles variables"),
                     tags$li(strong("Historique :"), "Sauvegarder vos sessions"),
@@ -119,7 +132,7 @@ ui <- dashboardPage(
               tags$li("", strong("Clustering :"), "Lancez l'analyse"),
               tags$li("", strong("Résultats :"), "Visualisez et interprétez"),
               tags$li("", strong("Prédiction :"), "Classez de nouvelles variables"),
-              tags$li("📥 ", strong("Export :"), "Téléchargez vos résultats")
+              tags$li("", strong("Export :"), "Téléchargez vos résultats")
             )
           )
         ),
@@ -147,7 +160,7 @@ ui <- dashboardPage(
             fileInput(
               "file_input",
               "Choisir un fichier",
-              accept = c(".csv", ".txt", ".xlsx", ".xls"),
+              accept = c(".csv", ".txt", ".xlsx", ".xls"),  # ← Ajouter .txt
               buttonLabel = "Parcourir...",
               placeholder = "Aucun fichier sélectionné"
             ),
@@ -177,11 +190,19 @@ ui <- dashboardPage(
               "sample_type",
               "Type de données :",
               choices = c(
+                "=== Données Générées ===" = "",
                 "Économique" = "economic",
                 "Biologique" = "biological",
                 "Marketing" = "marketing",
                 "Mixte (num + cat)" = "mixed",
-                "Catégoriel pur" = "categorical"
+                "Catégoriel pur" = "categorical",
+                "=== Datasets R ===" = "",
+                "iris (fleurs)" = "r_iris",
+                "mtcars (voitures)" = "r_mtcars",
+                "USArrests (criminalité)" = "r_usarrests",
+                "swiss (fertilité)" = "r_swiss",
+                "state.x77 (USA états)" = "r_statex77",
+                "airquality (qualité air)" = "r_airquality"
               ),
               selected = "economic"
             ),
@@ -197,7 +218,7 @@ ui <- dashboardPage(
             
             br(),
             actionButton("load_sample", "Générer", 
-                         class = "btn-success btn-lg", icon = icon("dice"))
+                         class = "btn-success btn-lg")
           )
         ),
         
@@ -210,6 +231,36 @@ ui <- dashboardPage(
             collapsible = TRUE,
             
             DTOutput("data_preview")
+          )
+        ),
+        
+        # conversion des données
+        fluidRow(
+          box(
+            title = " Conversion des Types de Variables",
+            width = 12,
+            status = "warning",
+            solidHeader = TRUE,
+            collapsible = TRUE,
+            collapsed = TRUE,
+            
+            p("Convertissez automatiquement les types de variables détectés incorrectement."),
+            
+            fluidRow(
+              column(
+                width = 6,
+                actionButton("auto_convert_types", " Conversion Automatique", 
+                             class = "btn-warning"),
+                br(), br(),
+                verbatimTextOutput("conversion_report")
+              ),
+              
+              column(
+                width = 6,
+                h5("Conversion Manuelle"),
+                uiOutput("manual_type_conversion_ui")
+              )
+            )
           )
         ),
         
@@ -256,9 +307,9 @@ ui <- dashboardPage(
               "algorithm",
               "Choisir l'algorithme :",
               choices = c(
-                "VAR_CAH" = "var_cah",
-                "KmodesVarClust" = "kmodes",
-                "VARCLUS" = "varclus"
+                "VAR_CAH (Hiérarchique)" = "var_cah",
+                "VAR_KMEANS (Réallocation)" = "var_kmeans",           
+                "TandemVarClust (Mixte)" = "tandem"
               ),
               selected = "var_cah"
             ),
@@ -330,30 +381,39 @@ ui <- dashboardPage(
         
         fluidRow(
           box(
-            title = " Sélection des Variables",
+            title = "Sélection des Variables",
             width = 12,
             status = "success",
             solidHeader = TRUE,
             
             fluidRow(
               column(
-                width = 12,
+                width = 6,
                 h4("Variables Actives (à clustériser)"),
-                uiOutput("active_vars_ui")
-              )
-            ),
-            
-            hr(),
-            
-            fluidRow(
-              column(
-                width = 12,
+                uiOutput("active_vars_ui"),
+                
+                hr(),
+                
                 actionButton("select_all_active", "✓ Tout sélectionner", 
                              class = "btn-sm btn-info"),
                 actionButton("deselect_all_active", "✗ Tout désélectionner", 
                              class = "btn-sm btn-warning"),
                 actionButton("select_numeric", "🔢 Sélectionner numériques", 
                              class = "btn-sm btn-success")
+              ),
+              
+              column(
+                width = 6,
+                h4("Variables Illustratives (optionnel)"),
+                p(class = "text-muted", 
+                  "Variables qui ne participent pas au clustering mais seront projetées."),
+                
+                uiOutput("illustrative_vars_ui"),
+                
+                hr(),
+                
+                actionButton("swap_vars", "🔄 Inverser Actives ↔ Illustratives", 
+                             class = "btn-sm btn-primary")
               )
             )
           )
@@ -388,7 +448,6 @@ ui <- dashboardPage(
                   "run_clustering",
                   "▶ LANCER LE CLUSTERING",
                   class = "btn-success btn-lg",
-                  icon = icon("play"),
                   style = "width: 100%; height: 80px; font-size: 20px;"
                 ),
                 br(), br(),
@@ -477,12 +536,13 @@ ui <- dashboardPage(
                       "projection_method",
                       "Méthode :",
                       choices = c(
-                        "ACP (Rapide)" = "pca",
+                        "Algorithme (Optimal)" = "algo_specific",  # ← NOUVEAU
+                        "ACP (Standard)" = "pca",
                         "MDS" = "mds",
                         "t-SNE" = "tsne",
                         "UMAP" = "umap"
                       ),
-                      selected = "pca"
+                      selected = "algo_specific"  # ← Par défaut
                     ),
                     
                     conditionalPanel(
@@ -506,7 +566,7 @@ ui <- dashboardPage(
                     
                     br(),
                     actionButton("compute_projection", "🔄 Calculer", 
-                                 class = "btn-primary btn-block", icon = icon("refresh"))
+                                 class = "btn-primary btn-block")
                   ),
                   
                   # Informations qualité
@@ -520,7 +580,276 @@ ui <- dashboardPage(
                   verbatimTextOutput("projection_summary")
                 )
               )
+            ),
+            
+            tabPanel(
+              "Projection 3D",
+              
+              fluidRow(
+                # ═══════════════════════════════════════════════════════════
+                # COLONNE GAUCHE : Contrôles
+                # ═══════════════════════════════════════════════════════════
+                column(
+                  width = 3,
+                  
+                  wellPanel(
+                    h4(" Paramètres 3D"),
+                    
+                    selectInput(
+                      "projection_3d_method",
+                      "Méthode de projection :",
+                      choices = c(
+                        "ACP (3 axes)" = "pca",
+                        "MDS 3D" = "mds",
+                        "t-SNE 3D" = "tsne",
+                        "UMAP 3D" = "umap"
+                      ),
+                      selected = "pca"
+                    ),
+                    
+                    hr(),
+                    
+                    h5(" Apparence"),
+                    
+                    sliderInput(
+                      "point_size_3d",
+                      "Taille des points :",
+                      min = 3,
+                      max = 15,
+                      value = 8,
+                      step = 1
+                    ),
+                    
+                    checkboxInput(
+                      "show_labels_3d",
+                      "Afficher noms variables",
+                      value = TRUE
+                    ),
+                    
+                    selectInput(
+                      "color_scheme_3d",
+                      "Palette de couleurs :",
+                      choices = c(
+                        "Viridis" = "Viridis",
+                        "Set2" = "Set2",
+                        "Dark2" = "Dark2",
+                        "Pastel" = "Pastel1",
+                        "Accent" = "Accent"
+                      ),
+                      selected = "Set2"
+                    ),
+                    
+                    hr(),
+                    
+                    h5(" Animation"),
+                    
+                    checkboxInput(
+                      "enable_animation_3d",
+                      "Activer l'animation Avant/Après",
+                      value = TRUE
+                    ),
+                    
+                    conditionalPanel(
+                      condition = "input.enable_animation_3d == true",
+                      
+                      sliderInput(
+                        "animation_speed",
+                        "Vitesse (ms par frame) :",
+                        min = 50,
+                        max = 500,
+                        value = 200,
+                        step = 50
+                      ),
+                      
+                      actionButton(
+                        "play_animation",
+                        " Lancer Animation",
+                        class = "btn-success btn-block"
+                      ),
+                      
+                      br(),
+                      
+                      div(
+                        class = "alert alert-info",
+                        style = "padding: 8px; font-size: 12px;",
+                        
+                        " L'animation montre la transformation des variables non-clustérisées 
+            vers leur regroupement final."
+                      )
+                    ),
+                    
+                    hr(),
+                    
+                    actionButton(
+                      "compute_3d", " Calculer Projection",
+                      class = "btn-primary btn-block"
+                    )
+                  ),
+                  
+                  # ═══════════════════════════════════════════════════════════
+                  # Boîte qualité
+                  # ═══════════════════════════════════════════════════════════
+                  uiOutput("projection_3d_quality")
+                ),
+                
+                # ═══════════════════════════════════════════════════════════
+                # COLONNE DROITE : Visualisations
+                # ═══════════════════════════════════════════════════════════
+                column(
+                  width = 9,
+                  
+                  tabBox(
+                    width = 12,
+                    
+                    # ─────────────────────────────────────────────────────────
+                    # TAB 1 : Projection 3D Principale
+                    # ─────────────────────────────────────────────────────────
+                    tabPanel(
+                      title = tagList(" Projection 3D Interactive"),
+                      
+                      div(
+                        style = "background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                     padding: 15px; border-radius: 8px; margin-bottom: 15px;",
+                        h4(style = "color: white; margin: 0;",  " Exploration 3D des Variables")
+                      ),
+                      
+                      plotlyOutput("plot_3d_main", height = "650px"),
+                      
+                      br(),
+                      
+                      fluidRow(
+                        column(
+                          width = 6,
+                          wellPanel(
+                            style = "background-color: #f8f9fa;",
+                            h5(" Variance Expliquée"),
+                            uiOutput("variance_3d_bars")
+                          )
+                        ),
+                        column(
+                          width = 6,
+                          wellPanel(
+                            style = "background-color: #f8f9fa;",
+                            h5(" Statistiques"),
+                            verbatimTextOutput("stats_3d")
+                          )
+                        )
+                      )
+                    ),
+                    
+                    # ─────────────────────────────────────────────────────────
+                    # TAB 2 : Animation Avant/Après
+                    # ─────────────────────────────────────────────────────────
+                    tabPanel(
+                      title = tagList(" Animation Avant/Après"),
+                      
+                      div(
+                        style = "background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
+                     padding: 15px; border-radius: 8px; margin-bottom: 15px;",
+                        h4(style = "color: white; margin: 0;", 
+                           " Transformation Progressive des Variables")
+                      ),
+                      
+                      fluidRow(
+                        column(
+                          width = 6,
+                          div(
+                            style = "border: 3px solid #667eea; border-radius: 8px; 
+                         padding: 10px; background: white;",
+                            h4(style = "text-align: center; color: #667eea;",  " AVANT Clustering"),
+                            plotlyOutput("plot_3d_before", height = "500px")
+                          )
+                        ),
+                        
+                        column(
+                          width = 6,
+                          div(
+                            style = "border: 3px solid #f5576c; border-radius: 8px; 
+                         padding: 10px; background: white;",
+                            h4(style = "text-align: center; color: #f5576c;", 
+                               " APRÈS Clustering"),
+                            plotlyOutput("plot_3d_after", height = "500px")
+                          )
+                        )
+                      ),
+                      
+                      br(),
+                      
+                      div(
+                        class = "alert alert-success",
+                        style = "font-size: 15px;",
+                        strong(" Interprétation : "),
+                        "Observez comment les variables se regroupent naturellement après le clustering. 
+            Les variables proches dans l'espace 3D partagent des caractéristiques similaires."
+                      )
+                    ),
+                    
+                    # ─────────────────────────────────────────────────────────
+                    # TAB 3 : Analyse par Cluster
+                    # ─────────────────────────────────────────────────────────
+                    tabPanel(
+                      title = tagList( " Analyse par Cluster"),
+                      
+                      h4(" Visualisation Cluster par Cluster"),
+                      
+                      br(),
+                      
+                      fluidRow(
+                        column(
+                          width = 3,
+                          wellPanel(
+                            h5("Sélectionner un cluster :"),
+                            uiOutput("cluster_selector_3d")
+                          )
+                        ),
+                        
+                        column(
+                          width = 9,
+                          plotlyOutput("plot_3d_cluster_focus", height = "500px"),
+                          
+                          br(),
+                          
+                          wellPanel(
+                            h5(" Variables dans ce cluster :"),
+                            verbatimTextOutput("cluster_vars_list")
+                          )
+                        )
+                      )
+                    ),
+                    
+                    # ─────────────────────────────────────────────────────────
+                    # TAB 4 : Trajectoires de Variables
+                    # ─────────────────────────────────────────────────────────
+                    tabPanel(
+                      title = tagList(" Trajectoires"),
+                      
+                      h4(" Trajectoires des Variables dans l'Espace 3D"),
+                      
+                      p(class = "text-muted", 
+                        "Visualisez comment chaque variable se déplace vers son cluster."),
+                      
+                      br(),
+                      
+                      plotlyOutput("plot_3d_trajectories", height = "600px"),
+                      
+                      br(),
+                      
+                      wellPanel(
+                        style = "background-color: #fff3cd;",
+                        h5(" Lecture du graphique :"),
+                        tags$ul(
+                          tags$li("Chaque ligne représente la trajectoire d'une variable"),
+                          tags$li("Point de départ : position initiale (avant clustering)"),
+                          tags$li("Point d'arrivée : position finale (après clustering)"),
+                          tags$li("Couleur : cluster d'appartenance final")
+                        )
+                      )
+                    )
+                  )
+                )
+              )
             )
+            
           )
         ),
         
@@ -533,6 +862,176 @@ ui <- dashboardPage(
             collapsible = TRUE,
             
             DTOutput("clusters_table")
+          )
+        )
+      ),
+      
+      
+      ##### contributions
+      # ============================================================================
+      # NOUVEL ONGLET : ANALYSE DE CONTRIBUTION DES VARIABLES
+      # À ajouter dans ui.R après "Résultats"
+      # ============================================================================
+      
+      tabItem(
+        tabName = "contribution",
+        
+        fluidRow(
+          box(
+            title = "Analyse de Contribution des Variables",
+            width = 12,
+            status = "primary",
+            solidHeader = TRUE,
+            
+            p("Cette analyse identifie les variables les plus représentatives de chaque cluster 
+        et évalue leur importance dans la structure de clustering."),
+            
+            fluidRow(
+              column(
+                width = 12,
+                
+                tabBox(
+                  width = 12,
+                  
+                  # ─────────────────────────────────────────────────────────
+                  # TAB 1 : Contribution Globale
+                  # ─────────────────────────────────────────────────────────
+                  tabPanel(
+                    title = tagList(" Contribution Globale"),
+                    
+                    fluidRow(
+                      column(
+                        width = 8,
+                        div(
+                          style = "background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                             padding: 15px; border-radius: 8px; margin-bottom: 15px;",
+                          h4(style = "color: white; margin: 0;", 
+                              " Importance des Variables")
+                        ),
+                        plotlyOutput("plot_contribution_global", height = "500px")
+                      ),
+                      
+                      column(
+                        width = 4,
+                        wellPanel(
+                          style = "background-color: #f8f9fa;",
+                          h5(" Top 10 Variables"),
+                          DTOutput("table_top_variables")
+                        ),
+                        
+                        wellPanel(
+                          style = "background-color: #fff3cd;",
+                          h5(" Interprétation"),
+                          p(style = "font-size: 13px;",
+                            "Les variables avec une contribution élevée sont 
+                      fortement corrélées avec leur cluster et peu 
+                      corrélées avec les autres clusters.")
+                        )
+                      )
+                    )
+                  ),
+                  
+                  # ─────────────────────────────────────────────────────────
+                  # TAB 2 : Contribution par Cluster
+                  # ─────────────────────────────────────────────────────────
+                  tabPanel(
+                    title = tagList(" Par Cluster"),
+                    
+                    fluidRow(
+                      column(
+                        width = 3,
+                        wellPanel(
+                          h5("Sélectionner un cluster :"),
+                          uiOutput("cluster_selector_contrib"),
+                          
+                          hr(),
+                          
+                          h5( " Statistiques"),
+                          verbatimTextOutput("cluster_contrib_stats")
+                        )
+                      ),
+                      
+                      column(
+                        width = 9,
+                        h4(" Variables du Cluster Sélectionné"),
+                        plotlyOutput("plot_contribution_cluster", height = "400px"),
+                        
+                        br(),
+                        
+                        h5(" Détails des Contributions"),
+                        DTOutput("table_contribution_cluster")
+                      )
+                    )
+                  ),
+                  
+                  # ─────────────────────────────────────────────────────────
+                  # TAB 3 : Analyse Discriminante
+                  # ─────────────────────────────────────────────────────────
+                  tabPanel(
+                    title = tagList(" Variables Discriminantes"),
+                    
+                    p("Identifie les variables qui différencient le mieux les clusters."),
+                    
+                    fluidRow(
+                      column(
+                        width = 6,
+                        h4(" Top Variables Discriminantes"),
+                        plotlyOutput("plot_discriminant_vars", height = "400px")
+                      ),
+                      
+                      column(
+                        width = 6,
+                        h4(" Ratio Inter/Intra Variance"),
+                        plotlyOutput("plot_variance_ratio", height = "400px")
+                      )
+                    ),
+                    
+                    br(),
+                    
+                    wellPanel(
+                      h5(" Tableau Complet"),
+                      DTOutput("table_discriminant_analysis")
+                    )
+                  ),
+                  
+                  # ─────────────────────────────────────────────────────────
+                  # TAB 4 : Similarité Intra-Cluster
+                  # ─────────────────────────────────────────────────────────
+                  tabPanel(
+                    title = tagList(" Cohésion Intra-Cluster"),
+                    
+                    p("Mesure la similarité (corrélation) entre variables au sein de chaque cluster."),
+                    
+                    plotlyOutput("plot_intra_cluster_similarity", height = "400px"),
+                    
+                    br(),
+                    
+                    fluidRow(
+                      column(
+                        width = 6,
+                        wellPanel(
+                          h5(" Statistiques par Cluster"),
+                          DTOutput("table_intra_similarity")
+                        )
+                      ),
+                      
+                      column(
+                        width = 6,
+                        wellPanel(
+                          style = "background-color: #d1ecf1;",
+                          h5(" Critères de Qualité"),
+                          tags$ul(
+                            tags$li(strong("Corrélation moyenne > 0.7 :"), " Excellent"),
+                            tags$li(strong("Corrélation moyenne > 0.5 :"), " Bon"),
+                            tags$li(strong("Corrélation moyenne < 0.5 :"), " Faible cohésion")
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
           )
         )
       ),
@@ -579,7 +1078,6 @@ ui <- dashboardPage(
                   "run_prediction",
                   "▶ PRÉDIRE CLUSTERS",
                   class = "btn-success btn-lg",
-                  icon = icon("magic"),
                   style = "width: 100%; height: 60px;"
                 ),
                 
@@ -642,7 +1140,7 @@ ui <- dashboardPage(
                               placeholder = "Description de cette analyse...", rows = 3),
                 br(),
                 actionButton("save_session", "Sauvegarder", 
-                             class = "btn-success btn-lg", icon = icon("save"))
+                             class = "btn-success btn-lg")
               ),
               
               column(
@@ -651,10 +1149,10 @@ ui <- dashboardPage(
                 uiOutput("session_selector"),
                 br(),
                 actionButton("load_session", " Charger", 
-                             class = "btn-info btn-lg", icon = icon("folder-open")),
+                             class = "btn-info btn-lg"),
                 br(), br(),
-                actionButton("delete_session", "🗑️ Supprimer", 
-                             class = "btn-danger", icon = icon("trash"))
+                actionButton("delete_session", "️ Supprimer", 
+                             class = "btn-danger")
               )
             )
           )
@@ -815,6 +1313,430 @@ ui <- dashboardPage(
         )
       ),
       
+      # ============================================================================
+      # NOUVEL ONGLET : ANALYSE DE STABILITÉ (Bootstrap)
+      # À ajouter dans ui.R après l'onglet "Diagnostics"
+      # ============================================================================
+      
+      tabItem(
+        tabName = "stability",
+        
+        fluidRow(
+          box(
+            title = "Analyse de Stabilité par Bootstrap",
+            width = 12,
+            status = "primary",
+            solidHeader = TRUE,
+            
+            p("L'analyse de stabilité évalue la robustesse de votre clustering en re-clustérisant 
+        des échantillons bootstrap des observations. Un clustering stable produit des résultats 
+        similaires même avec des variations dans les données."),
+            
+            fluidRow(
+              column(
+                width = 4,
+                wellPanel(
+                  h4(" Paramètres Bootstrap"),
+                  
+                  sliderInput(
+                    "n_bootstrap",
+                    "Nombre d'itérations :",
+                    min = 10,
+                    max = 100,
+                    value = 50,
+                    step = 10
+                  ),
+                  
+                  sliderInput(
+                    "bootstrap_sample_pct",
+                    "Pourcentage d'échantillonnage :",
+                    min = 50,
+                    max = 100,
+                    value = 80,
+                    step = 5
+                  ),
+                  
+                  numericInput(
+                    "bootstrap_seed",
+                    "Seed (reproductibilité) :",
+                    value = 123,
+                    min = 1,
+                    max = 9999
+                  ),
+                  
+                  hr(),
+                  
+                  actionButton(
+                    "run_bootstrap",
+                    "▶ LANCER ANALYSE",
+                    class = "btn-success btn-lg btn-block"
+                  ),
+                  
+                  br(),
+                  
+                  uiOutput("bootstrap_status")
+                )
+              ),
+              
+              column(
+                width = 8,
+                
+                div(
+                  style = "background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                     padding: 15px; border-radius: 8px; margin-bottom: 15px;",
+                  h4(style = "color: white; margin: 0;", " Résultats de Stabilité")
+                ),
+                
+                tabBox(
+                  width = 12,
+                  
+                  tabPanel(
+                    "📊 Scores de Stabilité",
+                    plotlyOutput("plot_stability_scores", height = "400px"),
+                    br(),
+                    DTOutput("table_stability_by_cluster")
+                  ),
+                  
+                  tabPanel(
+                    "Heatmap de Co-clustering",
+                    p("Cette heatmap montre à quelle fréquence les paires de variables 
+                sont clustérisées ensemble. Plus la couleur est chaude, plus la 
+                co-occurrence est fréquente."),
+                    plotlyOutput("plot_coclustering_heatmap", height = "600px")
+                  ),
+                  
+                  tabPanel(
+                    " Distribution ARI",
+                    p("L'Adjusted Rand Index (ARI) mesure la similarité entre deux partitions. 
+                Un ARI proche de 1 indique une grande stabilité."),
+                    plotlyOutput("plot_ari_distribution", height = "400px"),
+                    br(),
+                    wellPanel(
+                      h5(" Statistiques ARI"),
+                      verbatimTextOutput("ari_stats")
+                    )
+                  )
+                )
+              )
+            )
+          )
+        ),
+        
+        fluidRow(
+          box(
+            title = "Interprétation de la Stabilité",
+            width = 12,
+            status = "info",
+            solidHeader = TRUE,
+            collapsible = TRUE,
+            collapsed = TRUE,
+            
+            h4("Comment interpréter ces résultats ?"),
+            
+            tags$ul(
+              tags$li(
+                strong("Score de stabilité > 0.8 :"),
+                " Excellent. Le clustering est très robuste."
+              ),
+              tags$li(
+                strong("Score de stabilité entre 0.6 et 0.8 :"),
+                " Bon. Le clustering est raisonnablement stable."
+              ),
+              tags$li(
+                strong("Score de stabilité < 0.6 :"),
+                " Faible. Le clustering est sensible aux variations. 
+          Considérez d'autres valeurs de k ou un autre algorithme."
+              )
+            ),
+            
+            hr(),
+            
+            h4("Que faire si la stabilité est faible ?"),
+            
+            tags$ol(
+              tags$li("Essayer un nombre différent de clusters (k)"),
+              tags$li("Utiliser un algorithme différent"),
+              tags$li("Retirer les variables bruitées"),
+              tags$li("Augmenter la taille de l'échantillon si possible")
+            )
+          )
+        )
+      ),
+      
+      # ============================================================================
+      # ONGLET PROJECTION 3D INTERACTIVE - À AJOUTER DANS ui.R
+      # Ajouter après l'onglet "Projection 2D"
+      # ============================================================================
+      
+      tabPanel(
+        "Projection 3D",
+        
+        fluidRow(
+          # ═══════════════════════════════════════════════════════════
+          # COLONNE GAUCHE : Contrôles
+          # ═══════════════════════════════════════════════════════════
+          column(
+            width = 3,
+            
+            wellPanel(
+              h4(" Paramètres 3D"),
+              
+              selectInput(
+                "projection_3d_method",
+                "Méthode de projection :",
+                choices = c(
+                  "ACP (3 axes)" = "pca",
+                  "MDS 3D" = "mds",
+                  "t-SNE 3D" = "tsne",
+                  "UMAP 3D" = "umap"
+                ),
+                selected = "pca"
+              ),
+              
+              hr(),
+              
+              h5(" Apparence"),
+              
+              sliderInput(
+                "point_size_3d",
+                "Taille des points :",
+                min = 3,
+                max = 15,
+                value = 8,
+                step = 1
+              ),
+              
+              checkboxInput(
+                "show_labels_3d",
+                "Afficher noms variables",
+                value = TRUE
+              ),
+              
+              selectInput(
+                "color_scheme_3d",
+                "Palette de couleurs :",
+                choices = c(
+                  "Viridis" = "Viridis",
+                  "Set2" = "Set2",
+                  "Dark2" = "Dark2",
+                  "Pastel" = "Pastel1",
+                  "Accent" = "Accent"
+                ),
+                selected = "Set2"
+              ),
+              
+              hr(),
+              
+              h5(" Animation"),
+              
+              checkboxInput(
+                "enable_animation_3d",
+                "Activer l'animation Avant/Après",
+                value = TRUE
+              ),
+              
+              conditionalPanel(
+                condition = "input.enable_animation_3d == true",
+                
+                sliderInput(
+                  "animation_speed",
+                  "Vitesse (ms par frame) :",
+                  min = 50,
+                  max = 500,
+                  value = 200,
+                  step = 50
+                ),
+                
+                actionButton(
+                  "play_animation",
+                   " Lancer Animation",
+                  class = "btn-success btn-block"
+                ),
+                
+                br(),
+                
+                div(
+                  class = "alert alert-info",
+                  style = "padding: 8px; font-size: 12px;",
+                  
+                  " L'animation montre la transformation des variables non-clustérisées 
+            vers leur regroupement final."
+                )
+              ),
+              
+              hr(),
+              
+              actionButton(
+                "compute_3d", " Calculer Projection",
+                class = "btn-primary btn-block"
+              )
+            ),
+            
+            # ═══════════════════════════════════════════════════════════
+            # Boîte qualité
+            # ═══════════════════════════════════════════════════════════
+            uiOutput("projection_3d_quality")
+          ),
+          
+          # ═══════════════════════════════════════════════════════════
+          # COLONNE DROITE : Visualisations
+          # ═══════════════════════════════════════════════════════════
+          column(
+            width = 9,
+            
+            tabBox(
+              width = 12,
+              
+              # ─────────────────────────────────────────────────────────
+              # TAB 1 : Projection 3D Principale
+              # ─────────────────────────────────────────────────────────
+              tabPanel(
+                title = tagList(" Projection 3D Interactive"),
+                
+                div(
+                  style = "background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                     padding: 15px; border-radius: 8px; margin-bottom: 15px;",
+                  h4(style = "color: white; margin: 0;",  " Exploration 3D des Variables")
+                ),
+                
+                plotlyOutput("plot_3d_main", height = "650px"),
+                
+                br(),
+                
+                fluidRow(
+                  column(
+                    width = 6,
+                    wellPanel(
+                      style = "background-color: #f8f9fa;",
+                      h5(" Variance Expliquée"),
+                      uiOutput("variance_3d_bars")
+                    )
+                  ),
+                  column(
+                    width = 6,
+                    wellPanel(
+                      style = "background-color: #f8f9fa;",
+                      h5(" Statistiques"),
+                      verbatimTextOutput("stats_3d")
+                    )
+                  )
+                )
+              ),
+              
+              # ─────────────────────────────────────────────────────────
+              # TAB 2 : Animation Avant/Après
+              # ─────────────────────────────────────────────────────────
+              tabPanel(
+                title = tagList(" Animation Avant/Après"),
+                
+                div(
+                  style = "background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
+                     padding: 15px; border-radius: 8px; margin-bottom: 15px;",
+                  h4(style = "color: white; margin: 0;", 
+                      " Transformation Progressive des Variables")
+                ),
+                
+                fluidRow(
+                  column(
+                    width = 6,
+                    div(
+                      style = "border: 3px solid #667eea; border-radius: 8px; 
+                         padding: 10px; background: white;",
+                      h4(style = "text-align: center; color: #667eea;",  " AVANT Clustering"),
+                      plotlyOutput("plot_3d_before", height = "500px")
+                    )
+                  ),
+                  
+                  column(
+                    width = 6,
+                    div(
+                      style = "border: 3px solid #f5576c; border-radius: 8px; 
+                         padding: 10px; background: white;",
+                      h4(style = "text-align: center; color: #f5576c;", 
+                          " APRÈS Clustering"),
+                      plotlyOutput("plot_3d_after", height = "500px")
+                    )
+                  )
+                ),
+                
+                br(),
+                
+                div(
+                  class = "alert alert-success",
+                  style = "font-size: 15px;",
+                  strong(" Interprétation : "),
+                  "Observez comment les variables se regroupent naturellement après le clustering. 
+            Les variables proches dans l'espace 3D partagent des caractéristiques similaires."
+                )
+              ),
+              
+              # ─────────────────────────────────────────────────────────
+              # TAB 3 : Analyse par Cluster
+              # ─────────────────────────────────────────────────────────
+              tabPanel(
+                title = tagList( " Analyse par Cluster"),
+                
+                h4(" Visualisation Cluster par Cluster"),
+                
+                br(),
+                
+                fluidRow(
+                  column(
+                    width = 3,
+                    wellPanel(
+                      h5("Sélectionner un cluster :"),
+                      uiOutput("cluster_selector_3d")
+                    )
+                  ),
+                  
+                  column(
+                    width = 9,
+                    plotlyOutput("plot_3d_cluster_focus", height = "500px"),
+                    
+                    br(),
+                    
+                    wellPanel(
+                      h5(" Variables dans ce cluster :"),
+                      verbatimTextOutput("cluster_vars_list")
+                    )
+                  )
+                )
+              ),
+              
+              # ─────────────────────────────────────────────────────────
+              # TAB 4 : Trajectoires de Variables
+              # ─────────────────────────────────────────────────────────
+              tabPanel(
+                title = tagList(" Trajectoires"),
+                
+                h4(" Trajectoires des Variables dans l'Espace 3D"),
+                
+                p(class = "text-muted", 
+                  "Visualisez comment chaque variable se déplace vers son cluster."),
+                
+                br(),
+                
+                plotlyOutput("plot_3d_trajectories", height = "600px"),
+                
+                br(),
+                
+                wellPanel(
+                  style = "background-color: #fff3cd;",
+                  h5(" Lecture du graphique :"),
+                  tags$ul(
+                    tags$li("Chaque ligne représente la trajectoire d'une variable"),
+                    tags$li("Point de départ : position initiale (avant clustering)"),
+                    tags$li("Point d'arrivée : position finale (après clustering)"),
+                    tags$li("Couleur : cluster d'appartenance final")
+                  )
+                )
+              )
+            )
+          )
+        )
+      ),
+      
+      
       # ========================================================================
       # ONGLET COMPARAISON
       # ========================================================================
@@ -838,10 +1760,10 @@ ui <- dashboardPage(
                   "Sélectionner les algorithmes à comparer :",
                   choices = c(
                     "VAR_CAH" = "var_cah",
-                    "KmodesVarClust" = "kmodes",
-                    "VARCLUS" = "varclus"
+                    "VAR_KMEANS" = "var_kmeans",
+                    "TandemVarClust" = "tandem"
                   ),
-                  selected = c("var_cah", "kmodes")
+                  selected = c("var_cah", "var_kmeans")
                 )
               ),
               
@@ -851,7 +1773,7 @@ ui <- dashboardPage(
                             min = 2, max = 10, value = 3, step = 1),
                 br(),
                 actionButton("run_comparison", "▶ Lancer la Comparaison", 
-                             class = "btn-success btn-lg", icon = icon("balance-scale"))
+                             class = "btn-success btn-lg")
               )
             )
           )

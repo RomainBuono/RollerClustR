@@ -20,11 +20,14 @@ suppressPackageStartupMessages({
   library(umap)
 })
 
+#source("install_packages.R")
 source("user_functions.R")
 source("ClusterAnalysis.R") 
-source("VAR_CAH.R")           # Votre classe VAR_CAH
-source("KmodesVarClust.R")    # Votre classe KmodesVarClust  
-source("VARCLUS.R")           # Votre classe VARCLUS
+source("VAR_CAH.R")           
+source("KmodesVarClust.R")    
+source("VARCLUS.R")      
+source("VAR_KMEANS.R")
+source("TandemVarClust.R")
 
 # -------------------------
 # Adaptateur R6 -> structure attendue par server.R
@@ -48,27 +51,168 @@ source("VARCLUS.R")           # Votre classe VARCLUS
 
 # Calcul rapide des métriques de clustering (fallback si ton package ne les fournit pas)
 .compute_metrics <- function(clusters, data_used) {
-  k <- ifelse(is.null(clusters), 0, length(unique(na.omit(clusters))))
+  
+  # Valeurs par défaut si échec
   res <- list(
     silhouette = NA_real_,
     davies_bouldin = NA_real_,
     dunn = NA_real_,
     calinski_harabasz = NA_real_
   )
-  # silhouette seulement si numeric data and at least 2 clusters
-  if (!is.null(data_used) && ncol(data_used) >= 1 && !is.null(clusters)) {
-    try({
-      # silhouette on variables: on doit transposer pour observations = variables
-      if (all(sapply(data_used, is.numeric)) && k >= 2) {
-        # utiliser dist entre variables (1 - abs(cor))
-        cor_mat <- cor(data_used, use = "pairwise.complete.obs")
-        dmat <- as.dist(1 - abs(cor_mat))
-        # create cluster labels per variable
-        sil <- cluster::silhouette(clusters, dmat)
-        res$silhouette <- mean(sil[, "sil_width"], na.rm = TRUE)
-      }
-    }, silent = TRUE)
+  
+  if (is.null(clusters) || is.null(data_used)) {
+    return(res)
   }
+  
+  k <- length(unique(na.omit(clusters)))
+  
+  # Vérifications
+  if (k < 2 || ncol(data_used) < 2) {
+    return(res)
+  }
+  
+  tryCatch({
+    
+    # ═══════════════════════════════════════════════════════════
+    # SILHOUETTE POUR VARIABLES (VRAI CALCUL)
+    # ═══════════════════════════════════════════════════════════
+    
+    if (all(sapply(data_used, is.numeric))) {
+      
+      # Matrice de corrélation
+      cor_mat <- cor(data_used, use = "pairwise.complete.obs")
+      
+      # Distance = 1 - |corrélation|
+      dist_mat <- as.dist(1 - abs(cor_mat))
+      
+      # Calcul de la silhouette
+      sil <- cluster::silhouette(clusters, dist_mat)
+      
+      # Moyenne
+      res$silhouette <- mean(sil[, "sil_width"], na.rm = TRUE)
+      
+      # ═══════════════════════════════════════════════════════════
+      # DAVIES-BOULDIN INDEX (VRAI CALCUL)
+      # ═══════════════════════════════════════════════════════════
+      
+      # Calcul des centres de clusters (PC1 de chaque cluster)
+      cluster_centers <- matrix(NA, nrow = k, ncol = nrow(data_used))
+      
+      for (i in 1:k) {
+        vars_in_cluster <- which(clusters == i)
+        
+        if (length(vars_in_cluster) > 1) {
+          X_cluster <- data_used[, vars_in_cluster, drop = FALSE]
+          # PC1 comme centre
+          pca <- prcomp(t(X_cluster), center = TRUE, scale. = TRUE)
+          cluster_centers[i, ] <- pca$x[, 1]
+        } else if (length(vars_in_cluster) == 1) {
+          cluster_centers[i, ] <- scale(data_used[, vars_in_cluster])
+        }
+      }
+      
+      # Distances intra-cluster moyennes
+      S <- numeric(k)
+      for (i in 1:k) {
+        vars_in_cluster <- which(clusters == i)
+        if (length(vars_in_cluster) > 0) {
+          dists <- as.matrix(dist_mat)[vars_in_cluster, vars_in_cluster]
+          S[i] <- mean(dists[lower.tri(dists)])
+        }
+      }
+      
+      # Distances entre centres
+      center_dists <- dist(cluster_centers, method = "euclidean")
+      center_dists_mat <- as.matrix(center_dists)
+      
+      # Davies-Bouldin
+      db <- 0
+      for (i in 1:k) {
+        max_ratio <- 0
+        for (j in 1:k) {
+          if (i != j && center_dists_mat[i, j] > 0) {
+            ratio <- (S[i] + S[j]) / center_dists_mat[i, j]
+            if (ratio > max_ratio) max_ratio <- ratio
+          }
+        }
+        db <- db + max_ratio
+      }
+      res$davies_bouldin <- db / k
+      
+      # ═══════════════════════════════════════════════════════════
+      # DUNN INDEX (VRAI CALCUL)
+      # ═══════════════════════════════════════════════════════════
+      
+      # Distance minimale inter-cluster
+      min_inter <- Inf
+      for (i in 1:(k-1)) {
+        for (j in (i+1):k) {
+          vars_i <- which(clusters == i)
+          vars_j <- which(clusters == j)
+          
+          if (length(vars_i) > 0 && length(vars_j) > 0) {
+            dists_ij <- as.matrix(dist_mat)[vars_i, vars_j]
+            min_dist <- min(dists_ij)
+            if (min_dist < min_inter) min_inter <- min_dist
+          }
+        }
+      }
+      
+      # Diamètre maximal intra-cluster
+      max_intra <- 0
+      for (i in 1:k) {
+        vars_i <- which(clusters == i)
+        if (length(vars_i) > 1) {
+          dists_i <- as.matrix(dist_mat)[vars_i, vars_i]
+          max_dist <- max(dists_i)
+          if (max_dist > max_intra) max_intra <- max_dist
+        }
+      }
+      
+      if (max_intra > 0) {
+        res$dunn <- min_inter / max_intra
+      }
+      
+      # ═══════════════════════════════════════════════════════════
+      # CALINSKI-HARABASZ (VRAI CALCUL)
+      # ═══════════════════════════════════════════════════════════
+      
+      # Centroid global
+      global_center <- colMeans(t(data_used), na.rm = TRUE)
+      
+      # Between-cluster sum of squares
+      BCSS <- 0
+      for (i in 1:k) {
+        vars_in_cluster <- which(clusters == i)
+        n_i <- length(vars_in_cluster)
+        
+        if (n_i > 0) {
+          center_i <- cluster_centers[i, ]
+          BCSS <- BCSS + n_i * sum((center_i - global_center)^2)
+        }
+      }
+      
+      # Within-cluster sum of squares
+      WCSS <- 0
+      for (i in 1:k) {
+        vars_in_cluster <- which(clusters == i)
+        
+        if (length(vars_in_cluster) > 1) {
+          dists <- as.matrix(dist_mat)[vars_in_cluster, vars_in_cluster]
+          WCSS <- WCSS + sum(dists^2) / (2 * length(vars_in_cluster))
+        }
+      }
+      
+      n <- length(clusters)
+      if (WCSS > 0) {
+        res$calinski_harabasz <- (BCSS / (k - 1)) / (WCSS / (n - k))
+      }
+    }
+    
+  }, error = function(e) {
+    warning("Erreur calcul métriques: ", e$message)
+  })
+  
   return(res)
 }
 
@@ -91,6 +235,13 @@ model_to_shiny <- function(model_obj, algorithm = NA_character_, data_used = NUL
   # ensure clusters are a named integer vector
   if (!is.null(clusters_val) && is.factor(clusters_val)) {
     clusters_val <- as.integer(as.character(clusters_val))
+  }
+  
+  # tamdem
+  if (algorithm == "TandemVarClust") {
+    clusters_val <- .r6_get(model_obj, c("VariableClusters", "Groupes", "clusters"))
+  } else {
+    clusters_val <- .r6_get(model_obj, c("Groupes", "groupes", "clusters", "get_clusters"))
   }
   
   # compute fallback metrics
@@ -200,4 +351,140 @@ generate_sample_data <- function(type = "economic", n = 100, noise = 0.1, seed =
   }
   
   return(data)
+}
+
+### Fonctions de detections des types
+
+#' Détecter et convertir automatiquement les types de colonnes
+#' @param df Data frame à analyser
+#' @return Liste avec df converti et rapport de détection
+detect_and_convert_types <- function(df) {
+  
+  conversions <- list()
+  
+  for (col_name in names(df)) {
+    col <- df[[col_name]]
+    original_type <- class(col)[1]
+    
+    # Si déjà factor, garder tel quel
+    if (is.factor(col)) {
+      conversions[[col_name]] <- list(
+        original = "factor",
+        converted = "factor",
+        action = "kept"
+      )
+      next
+    }
+    
+    # Si character, tenter conversion
+    if (is.character(col)) {
+      
+      # Supprimer espaces
+      col_clean <- trimws(col)
+      
+      # Tenter conversion numérique
+      col_numeric <- suppressWarnings(as.numeric(col_clean))
+      
+      # Si plus de 80% des valeurs sont numériques valides
+      pct_numeric <- sum(!is.na(col_numeric)) / length(col_numeric)
+      
+      if (pct_numeric >= 0.8) {
+        # Convertir en numérique
+        df[[col_name]] <- col_numeric
+        conversions[[col_name]] <- list(
+          original = "character",
+          converted = "numeric",
+          action = "converted",
+          pct_valid = round(pct_numeric * 100, 1)
+        )
+      } else {
+        # Nombre de valeurs uniques
+        n_unique <- length(unique(col_clean[!is.na(col_clean)]))
+        n_total <- length(col_clean[!is.na(col_clean)])
+        
+        # Si moins de 20% de valeurs uniques ou moins de 50 valeurs uniques
+        if (n_unique / n_total < 0.2 || n_unique < 50) {
+          # Convertir en facteur
+          df[[col_name]] <- as.factor(col_clean)
+          conversions[[col_name]] <- list(
+            original = "character",
+            converted = "factor",
+            action = "converted",
+            n_levels = n_unique
+          )
+        } else {
+          # Garder en character (trop de modalités)
+          conversions[[col_name]] <- list(
+            original = "character",
+            converted = "character",
+            action = "kept (too many unique values)",
+            n_unique = n_unique
+          )
+        }
+      }
+    }
+    
+    # Si numérique, vérifier si devrait être facteur
+    if (is.numeric(col)) {
+      n_unique <- length(unique(col[!is.na(col)]))
+      
+      # Si très peu de valeurs uniques (< 10) et toutes entières
+      if (n_unique < 10 && all(col[!is.na(col)] == floor(col[!is.na(col)]))) {
+        df[[col_name]] <- as.factor(col)
+        conversions[[col_name]] <- list(
+          original = "numeric",
+          converted = "factor",
+          action = "converted (discrete values)",
+          n_levels = n_unique
+        )
+      } else {
+        conversions[[col_name]] <- list(
+          original = "numeric",
+          converted = "numeric",
+          action = "kept"
+        )
+      }
+    }
+  }
+  
+  return(list(
+    data = df,
+    conversions = conversions
+  ))
+}
+
+#' Afficher un rapport de conversion des types
+#' @param conversions Liste des conversions
+print_conversion_report <- function(conversions) {
+  cat("═══════════════════════════════════════════════════════\n")
+  cat("  RAPPORT DE DÉTECTION ET CONVERSION DES TYPES\n")
+  cat("═══════════════════════════════════════════════════════\n\n")
+  
+  converted_count <- 0
+  
+  for (col_name in names(conversions)) {
+    conv <- conversions[[col_name]]
+    
+    if (conv$action != "kept") {
+      converted_count <- converted_count + 1
+      cat("Variable :", col_name, "\n")
+      cat("  ", conv$original, "→", conv$converted, "\n")
+      
+      if (!is.null(conv$pct_valid)) {
+        cat("  ", conv$pct_valid, "% valeurs numériques valides\n")
+      }
+      if (!is.null(conv$n_levels)) {
+        cat("  ", conv$n_levels, "modalités détectées\n")
+      }
+      cat("\n")
+    }
+  }
+  
+  if (converted_count == 0) {
+    cat("✓ Aucune conversion nécessaire\n")
+  } else {
+    cat("Total conversions :", converted_count, "\n")
+  }
+  
+  cat("═══════════════════════════════════════════════════════\n")
 }

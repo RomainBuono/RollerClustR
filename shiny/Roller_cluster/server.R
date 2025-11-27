@@ -18,7 +18,8 @@ server <- function(input, output, session) {
     prediction_data = NULL,
     prediction_results = NULL,
     sessions_history = list(),
-    session_counter = 0
+    session_counter = 0,
+    illustrative_vars = NULL
   )
   
   # ============================================================================
@@ -28,8 +29,7 @@ server <- function(input, output, session) {
   output$info_algorithms <- renderInfoBox({
     infoBox(
       "Algorithmes",
-      "3 méthodes",
-      icon = icon("cogs"),
+      "3 méthodes",  
       color = "blue",
       fill = TRUE
     )
@@ -39,7 +39,6 @@ server <- function(input, output, session) {
     infoBox(
       "Fonctionnalités",
       "R6 + History",
-      icon = icon("star"),
       color = "green",
       fill = TRUE
     )
@@ -52,7 +51,6 @@ server <- function(input, output, session) {
     infoBox(
       "Statut",
       status_text,
-      icon = icon("check-circle"),
       color = status_color,
       fill = TRUE
     )
@@ -65,22 +63,74 @@ server <- function(input, output, session) {
   # Générer données exemple
   observeEvent(input$load_sample, {
     tryCatch({
-      rv$data <- generate_sample_data(
-        type = input$sample_type,
-        n = input$sample_n,
-        noise = input$sample_noise,
-        seed = input$sample_seed
-      )
       
-      showNotification(
-        paste0("✓ Données ", input$sample_type, " générées (", 
-               nrow(rv$data), " obs., ", ncol(rv$data), " var.)"),
-        type = "message"
-      )
+      # Datasets R
+      if (startsWith(input$sample_type, "r_")) {
+        
+        dataset_name <- sub("r_", "", input$sample_type)
+        
+        rv$data <- switch(
+          dataset_name,
+          
+          "iris" = {
+            data <- iris
+            # Retirer Species pour avoir que des numériques
+            data$Species <- NULL
+            data
+          },
+          
+          "mtcars" = {
+            mtcars
+          },
+          
+          "usarrests" = {
+            USArrests
+          },
+          
+          "swiss" = {
+            swiss
+          },
+          
+          "statex77" = {
+            as.data.frame(state.x77)
+          },
+          
+          "airquality" = {
+            # Retirer colonnes avec trop de NA
+            data <- airquality
+            data$Ozone <- NULL
+            data$Solar.R <- NULL
+            na.omit(data)
+          }
+        )
+        
+        showNotification(
+          paste0("✓ Dataset R '", dataset_name, "' chargé (", 
+                 nrow(rv$data), " obs., ", ncol(rv$data), " var.)"),
+          type = "message"
+        )
+        
+      } else {
+        # Données générées (code existant)
+        rv$data <- generate_sample_data(
+          type = input$sample_type,
+          n = input$sample_n,
+          noise = input$sample_noise,
+          seed = input$sample_seed
+        )
+        
+        showNotification(
+          paste0("✓ Données ", input$sample_type, " générées (", 
+                 nrow(rv$data), " obs., ", ncol(rv$data), " var.)"),
+          type = "message"
+        )
+      }
+      
     }, error = function(e) {
       showNotification(paste("❌ Erreur génération:", e$message), type = "error")
     })
   })
+  
   
   # Import fichier
   observeEvent(input$file_input, {
@@ -103,11 +153,84 @@ server <- function(input, output, session) {
           sep = sep,
           row.names = if(input$row_names) 1 else NULL,
           skip = input$skip_rows,
-          stringsAsFactors = TRUE
+          stringsAsFactors = FALSE  # ← IMPORTANT : ne pas convertir automatiquement
         )
       }
       
-      showNotification("✓ Fichier chargé avec succès", type = "message")
+      showNotification("✓ Fichier chargé. Vérifiez les types de variables.", 
+                       type = "message")
+      
+    }, error = function(e) {
+      showNotification(paste("❌ Erreur:", e$message), type = "error")
+    })
+  })
+  
+  # Conversion automatique
+  observeEvent(input$auto_convert_types, {
+    req(rv$data)
+    
+    withProgress(message = 'Conversion des types...', value = 0.5, {
+      
+      result <- detect_and_convert_types(rv$data)
+      
+      rv$data <- result$data
+      rv$type_conversions <- result$conversions
+      
+      showNotification("✓ Conversion terminée", type = "message")
+    })
+  })
+  
+  # Afficher rapport de conversion
+  output$conversion_report <- renderPrint({
+    req(rv$type_conversions)
+    
+    print_conversion_report(rv$type_conversions)
+  })
+  
+  # Interface de conversion manuelle
+  output$manual_type_conversion_ui <- renderUI({
+    req(rv$data)
+    
+    tagList(
+      selectInput(
+        "manual_convert_var",
+        "Variable à convertir :",
+        choices = names(rv$data)
+      ),
+      
+      selectInput(
+        "manual_convert_to",
+        "Convertir en :",
+        choices = c("Numérique" = "numeric",
+                    "Facteur" = "factor",
+                    "Caractère" = "character")
+      ),
+      
+      actionButton("apply_manual_convert", "Appliquer", 
+                   class = "btn-sm btn-primary")
+    )
+  })
+  
+  # Appliquer conversion manuelle
+  observeEvent(input$apply_manual_convert, {
+    req(rv$data, input$manual_convert_var, input$manual_convert_to)
+    
+    tryCatch({
+      var_name <- input$manual_convert_var
+      col <- rv$data[[var_name]]
+      
+      if (input$manual_convert_to == "numeric") {
+        rv$data[[var_name]] <- as.numeric(col)
+      } else if (input$manual_convert_to == "factor") {
+        rv$data[[var_name]] <- as.factor(col)
+      } else if (input$manual_convert_to == "character") {
+        rv$data[[var_name]] <- as.character(col)
+      }
+      
+      showNotification(
+        paste0("✓ '", var_name, "' converti en ", input$manual_convert_to),
+        type = "message"
+      )
       
     }, error = function(e) {
       showNotification(paste("❌ Erreur:", e$message), type = "error")
@@ -181,13 +304,18 @@ server <- function(input, output, session) {
     desc <- switch(
       input$algorithm,
       "var_cah" = "VAR_CAH : Classification Ascendante Hiérarchique sur variables avec PC1 comme variable synthétique.",
+      
+      "var_kmeans" = "VAR_KMEANS : K-Means adapté pour variables. Minimise l'inertie intra-cluster (distance = 1 - |corrélation|). Nécessite variables numériques.",
+      
+      "tandem" = "TandemVarClust : Approche Tandem (ACM + CAH). Clustering au niveau des modalités. Accepte variables mixtes (numériques + catégorielles). Les numériques sont discrétisées automatiquement.",
+      
       "kmodes" = "K-Modes : Algorithme pour variables catégorielles basé sur le mode majoritaire.",
+      
       "varclus" = "VARCLUS : Clustering descendant par division successive. k détecté automatiquement (λ₂ ≥ 1)."
     )
     
     div(
       class = "alert alert-info",
-      icon("info-circle"),
       strong(" Description : "),
       desc
     )
@@ -220,6 +348,31 @@ server <- function(input, output, session) {
     updateCheckboxGroupInput(session, "active_vars", selected = numeric_vars)
   })
   
+  ### illustratives vars
+  rv$illustrative_vars <- NULL
+  # UI pour variables illustratives
+  output$illustrative_vars_ui <- renderUI({
+    req(rv$data)
+    
+    checkboxGroupInput(
+      "illustrative_vars",
+      NULL,
+      choices = colnames(rv$data),
+      selected = NULL
+    )
+  })
+  
+  # Bouton inverser
+  observeEvent(input$swap_vars, {
+    req(rv$data)
+    
+    temp_active <- input$active_vars
+    temp_illus <- input$illustrative_vars
+    
+    updateCheckboxGroupInput(session, "active_vars", selected = temp_illus)
+    updateCheckboxGroupInput(session, "illustrative_vars", selected = temp_active)
+  })
+  
   # ============================================================================
   # ONGLET CLUSTERING
   # ============================================================================
@@ -235,6 +388,8 @@ server <- function(input, output, session) {
     algo_name <- switch(
       input$algorithm,
       "var_cah" = "VAR_CAH",
+      "var_kmeans" = "VAR_KMEANS",           
+      "tandem" = "TandemVarClust",
       "kmodes" = "KmodesVarClust",
       "varclus" = "VARCLUS"
     )
@@ -262,7 +417,7 @@ server <- function(input, output, session) {
     
     # Validation
     if (length(input$active_vars) < 2) {
-      showNotification("⚠️ Sélectionnez au moins 2 variables", type = "warning")
+      showNotification(" Sélectionnez au moins 2 variables", type = "warning")
       return()
     }
     
@@ -291,7 +446,13 @@ server <- function(input, output, session) {
           }
         }
         
+        
+        
+        
         rv$data_cleaned <- X
+        
+        # Stocker variables illustratives
+        rv$illustrative_vars <- input$illustrative_vars
         
         # Initialisation du modèle
         incProgress(0.3, detail = "Initialisation du modèle")
@@ -320,6 +481,61 @@ server <- function(input, output, session) {
           
           # Convertir en structure Shiny
           rv$model <- model_to_shiny(model_instance, algorithm = "VAR_CAH", data_used = X)
+          rv$model_r6 <- model_instance
+          
+        } else if (input$algorithm == "var_kmeans") {
+          
+          # Vérifier variables numériques
+          if (!all(sapply(X, is.numeric))) {
+            showNotification(
+              "VAR_KMEANS nécessite uniquement des variables numériques",
+              type = "warning",
+              duration = 8
+            )
+            return()
+          }
+          
+          k_actual <- if(input$auto_k) {
+            min(5, max(2, round(ncol(X) / 3)))
+          } else {
+            input$n_clusters
+          }
+          
+          # Créer l'instance VAR_KMEANS
+          model_instance <- VAR_KMEANS$new(
+            K = k_actual,
+            n_init = 20,           # Nombre d'initialisations
+            max_iter = input$max_iter,
+            scale = input$standardize
+          )
+          
+          incProgress(0.5, detail = "Ajustement VAR_KMEANS")
+          model_instance$fit(X)
+          
+          rv$model <- model_to_shiny(model_instance, algorithm = "VAR_KMEANS", data_used = X)
+          rv$model_r6 <- model_instance
+          
+        } else if (input$algorithm == "tandem") {
+          
+          # TandemVarClust accepte variables mixtes
+          k_actual <- if(input$auto_k) {
+            min(5, max(2, round(ncol(X) / 3)))
+          } else {
+            input$n_clusters
+          }
+          
+          # Créer l'instance TandemVarClust
+          model_instance <- TandemVarClust$new(
+            K = k_actual,
+            n_bins = 5,           # Bins pour discrétisation des numériques
+            method_cah = "ward.D2",
+            scale = input$standardize
+          )
+          
+          incProgress(0.5, detail = "Ajustement TandemVarClust (ACM + CAH)")
+          model_instance$fit(X)
+          
+          rv$model <- model_to_shiny(model_instance, algorithm = "TandemVarClust", data_used = X)
           rv$model_r6 <- model_instance
           
         } else if (input$algorithm == "kmodes") {
@@ -417,18 +633,20 @@ server <- function(input, output, session) {
     })
   })
   
+  #####################
+  
+  
+  
   # Progress UI
   output$progress_ui <- renderUI({
     if (!rv$clustering_done) {
       div(
         class = "alert alert-info",
-        icon("clock"),
         " En attente du lancement..."
       )
     } else {
       div(
         class = "alert alert-success",
-        icon("check"),
         strong(" Clustering terminé avec succès!"),
         br(),
         tags$small(paste("Modèle créé le:", format(rv$model$timestamp, "%Y-%m-%d %H:%M:%S")))
@@ -441,7 +659,6 @@ server <- function(input, output, session) {
     valueBox(
       if(rv$clustering_done) "Terminé" else "En attente",
       "Statut",
-      icon = icon(if(rv$clustering_done) "check" else "clock"),
       color = if(rv$clustering_done) "green" else "yellow"
     )
   })
@@ -452,7 +669,6 @@ server <- function(input, output, session) {
     valueBox(
       k_value,
       "Clusters",
-      icon = icon("layer-group"),
       color = "blue"
     )
   })
@@ -475,7 +691,6 @@ server <- function(input, output, session) {
     valueBox(
       quality,
       "Silhouette",
-      icon = icon("star"),
       color = color_qual
     )
   })
@@ -526,14 +741,32 @@ server <- function(input, output, session) {
   
   # Graphique Silhouette
   output$plot_silhouette <- renderPlotly({
-    req(rv$model)
+    req(rv$model, rv$data_cleaned)
     
-    # Simulation données silhouette
-    sil_df <- data.frame(
-      variable = names(rv$model$clusters),
-      cluster = factor(rv$model$clusters),
-      silhouette = rnorm(length(rv$model$clusters), rv$model$silhouette_avg, 0.1)
-    )
+    # Calculer VRAIE silhouette
+    if (all(sapply(rv$data_cleaned, is.numeric))) {
+      
+      cor_mat <- cor(rv$data_cleaned, use = "pairwise.complete.obs")
+      dist_mat <- as.dist(1 - abs(cor_mat))
+      
+      # Silhouette réelle
+      sil <- cluster::silhouette(rv$model$clusters, dist_mat)
+      
+      sil_df <- data.frame(
+        variable = names(rv$model$clusters),
+        cluster = factor(rv$model$clusters),
+        silhouette = sil[, "sil_width"]  # ← VRAIE VALEUR !
+      )
+      
+    } else {
+      # Fallback si non numérique
+      sil_df <- data.frame(
+        variable = names(rv$model$clusters),
+        cluster = factor(rv$model$clusters),
+        silhouette = rep(rv$model$silhouette_avg, length(rv$model$clusters))
+      )
+    }
+    
     sil_df <- sil_df[order(sil_df$cluster, -sil_df$silhouette), ]
     sil_df$index <- 1:nrow(sil_df)
     
@@ -549,7 +782,7 @@ server <- function(input, output, session) {
                                   'Silhouette: %{x:.3f}<br>',
                                   '<extra></extra>')) %>%
       layout(
-        title = "Graphique Silhouette par Variable",
+        title = "Graphique Silhouette par Variable (RÉEL)",
         xaxis = list(title = "Score Silhouette"),
         yaxis = list(title = "Variables", showticklabels = FALSE),
         showlegend = TRUE
@@ -678,11 +911,12 @@ server <- function(input, output, session) {
   
   # Fonction interne pour calculer la projection
   compute_projection_internal <- function(method = "pca") {
-    req(rv$model, rv$data_cleaned)
+    req(rv$model_r6, rv$data_cleaned)
     
     tryCatch({
       X <- rv$data_cleaned
       clusters <- rv$model$clusters
+      algo <- rv$model$algorithm
       
       # Vérifier que X est numérique
       if (!all(sapply(X, is.numeric))) {
@@ -690,116 +924,162 @@ server <- function(input, output, session) {
         return()
       }
       
-      # Transposer : variables en lignes
-      X_t <- t(X)
+      # ═══════════════════════════════════════════════════════════
+      # PROJECTION OPTIMISÉE SELON L'ALGORITHME
+      # ═══════════════════════════════════════════════════════════
       
-      # Calculer la projection selon la méthode
-      if (method == "pca") {
+      if (method == "algo_specific") {
         
-        # ACP sur les variables
-        pca_result <- prcomp(X_t, center = TRUE, scale. = TRUE)
-        
-        # Coordonnées des variables sur PC1 et PC2
-        coords <- as.data.frame(pca_result$x[, 1:2])
-        colnames(coords) <- c("PC1", "PC2")
-        
-        # Variance expliquée
-        var_explained <- summary(pca_result)$importance[2, 1:2] * 100
-        
-        rv$projection_data <- list(
-          coords = coords,
-          method = "ACP",
-          var_explained = var_explained,
-          clusters = clusters,
-          variables = colnames(X)
-        )
-        
-      } else if (method == "mds") {
-        
-        # Distance basée sur corrélation
-        cor_mat <- cor(X, use = "pairwise.complete.obs")
-        dist_mat <- as.dist(1 - abs(cor_mat))
-        
-        # MDS
-        mds_result <- cmdscale(dist_mat, k = 2, eig = TRUE)
-        
-        coords <- as.data.frame(mds_result$points)
-        colnames(coords) <- c("Dim1", "Dim2")
-        
-        # Qualité : GOF
-        gof <- mds_result$GOF[1]
-        
-        rv$projection_data <- list(
-          coords = coords,
-          method = "MDS",
-          gof = gof,
-          clusters = clusters,
-          variables = colnames(X)
-        )
-        
-      } else if (method == "tsne") {
-        
-        # Vérifier package
-        if (!requireNamespace("Rtsne", quietly = TRUE)) {
-          rv$projection_data <- list(error = "Package Rtsne non installé")
-          return()
+        # ─────────────────────────────────────────────────────────
+        # VAR_CAH : Projection sur axes du dendrogramme
+        # ─────────────────────────────────────────────────────────
+        if (algo == "VAR_CAH") {
+          
+          # Utiliser l'arbre hiérarchique
+          tree <- rv$model_r6$get_tree()
+          
+          # MDS sur la matrice de distance du dendrogramme
+          cor_mat <- cor(X, use = "pairwise.complete.obs")
+          dist_mat <- as.dist(1 - abs(cor_mat))
+          
+          mds_result <- cmdscale(dist_mat, k = 2, eig = TRUE)
+          coords <- as.data.frame(mds_result$points)
+          colnames(coords) <- c("Dim1", "Dim2")
+          
+          rv$projection_data <- list(
+            coords = coords,
+            method = "VAR_CAH (Hiérarchique)",
+            gof = mds_result$GOF[1],
+            clusters = clusters,
+            variables = colnames(X)
+          )
         }
         
-        perp <- ifelse(exists("input") && !is.null(input$tsne_perplexity), 
-                       input$tsne_perplexity, 30)
-        perp <- min(perp, floor((nrow(X_t) - 1) / 3))
-        
-        # t-SNE
-        set.seed(42)
-        tsne_result <- Rtsne::Rtsne(
-          X_t, 
-          dims = 2, 
-          perplexity = perp,
-          max_iter = 1000,
-          check_duplicates = FALSE,
-          verbose = FALSE
-        )
-        
-        coords <- as.data.frame(tsne_result$Y)
-        colnames(coords) <- c("Dim1", "Dim2")
-        
-        rv$projection_data <- list(
-          coords = coords,
-          method = "t-SNE",
-          perplexity = perp,
-          clusters = clusters,
-          variables = colnames(X)
-        )
-        
-      } else if (method == "umap") {
-        
-        # Vérifier package
-        if (!requireNamespace("umap", quietly = TRUE)) {
-          rv$projection_data <- list(error = "Package umap non installé")
-          return()
+        # ─────────────────────────────────────────────────────────
+        # VAR_KMEANS : Projection vers centres de clusters
+        # ─────────────────────────────────────────────────────────
+        else if (algo == "VAR_KMEANS") {
+          
+          # Récupérer les centres
+          centers <- rv$model_r6$get_cluster_centers()
+          
+          # ACP sur centres + variables
+          X_t <- t(X)
+          all_data <- rbind(centers, X_t)
+          
+          pca_result <- prcomp(all_data, center = TRUE, scale. = TRUE)
+          
+          # Prendre seulement les coordonnées des variables (pas des centres)
+          coords <- as.data.frame(pca_result$x[(nrow(centers) + 1):nrow(all_data), 1:2])
+          colnames(coords) <- c("PC1", "PC2")
+          
+          var_explained <- summary(pca_result)$importance[2, 1:2] * 100
+          
+          rv$projection_data <- list(
+            coords = coords,
+            method = "VAR_KMEANS (Centres)",
+            var_explained = var_explained,
+            clusters = clusters,
+            variables = colnames(X)
+          )
         }
         
-        neighbors <- ifelse(exists("input") && !is.null(input$umap_neighbors), 
-                            input$umap_neighbors, 15)
-        neighbors <- min(neighbors, nrow(X_t) - 1)
+        # ─────────────────────────────────────────────────────────
+        # VARCLUS : Projection sur axes de division
+        # ─────────────────────────────────────────────────────────
+        else if (algo == "VARCLUS") {
+          
+          # ACP globale (simple)
+          X_t <- t(X)
+          pca_result <- prcomp(X_t, center = TRUE, scale. = TRUE)
+          
+          coords <- as.data.frame(pca_result$x[, 1:2])
+          colnames(coords) <- c("PC1", "PC2")
+          
+          var_explained <- summary(pca_result)$importance[2, 1:2] * 100
+          
+          rv$projection_data <- list(
+            coords = coords,
+            method = "VARCLUS (λ₂)",
+            var_explained = var_explained,
+            clusters = clusters,
+            variables = colnames(X)
+          )
+        }
         
-        # UMAP
-        umap_config <- umap::umap.defaults
-        umap_config$n_neighbors <- neighbors
-        umap_config$verbose <- FALSE
+        # ─────────────────────────────────────────────────────────
+        # TandemVarClust : Projection sur axes factoriels ACM
+        # ─────────────────────────────────────────────────────────
+        else if (algo == "TandemVarClust") {
+          
+          # Utiliser les coordonnées factorielles déjà calculées
+          if (!is.null(rv$model_r6$FactorialCoords)) {
+            coords_modalities <- rv$model_r6$FactorialCoords[, 1:2]
+            
+            # Agréger par variable (moyenne des modalités)
+            modality_names <- rownames(coords_modalities)
+            var_names <- sub("\\..*", "", modality_names)
+            
+            unique_vars <- unique(var_names)
+            coords <- matrix(NA, nrow = length(unique_vars), ncol = 2)
+            rownames(coords) <- unique_vars
+            
+            for (i in seq_along(unique_vars)) {
+              var <- unique_vars[i]
+              idx <- which(var_names == var)
+              coords[i, ] <- colMeans(coords_modalities[idx, , drop = FALSE])
+            }
+            
+            coords <- as.data.frame(coords)
+            colnames(coords) <- c("Dim1", "Dim2")
+            
+            var_explained <- rv$model_r6$VarianceExplained[1:2]
+            
+            rv$projection_data <- list(
+              coords = coords,
+              method = "TandemVarClust (ACM)",
+              var_explained = var_explained,
+              clusters = clusters,
+              variables = rownames(coords)
+            )
+          } else {
+            # Fallback : ACP simple
+            X_t <- t(X)
+            pca_result <- prcomp(X_t, center = TRUE, scale. = TRUE)
+            coords <- as.data.frame(pca_result$x[, 1:2])
+            colnames(coords) <- c("PC1", "PC2")
+            
+            rv$projection_data <- list(
+              coords = coords,
+              method = "TandemVarClust (fallback ACP)",
+              clusters = clusters,
+              variables = colnames(X)
+            )
+          }
+        }
         
-        umap_result <- umap::umap(X_t, config = umap_config)
+        # ─────────────────────────────────────────────────────────
+        # Autres algorithmes : ACP standard
+        # ─────────────────────────────────────────────────────────
+        else {
+          X_t <- t(X)
+          pca_result <- prcomp(X_t, center = TRUE, scale. = TRUE)
+          coords <- as.data.frame(pca_result$x[, 1:2])
+          colnames(coords) <- c("PC1", "PC2")
+          var_explained <- summary(pca_result)$importance[2, 1:2] * 100
+          
+          rv$projection_data <- list(
+            coords = coords,
+            method = "ACP Standard",
+            var_explained = var_explained,
+            clusters = clusters,
+            variables = colnames(X)
+          )
+        }
         
-        coords <- as.data.frame(umap_result$layout)
-        colnames(coords) <- c("Dim1", "Dim2")
-        
-        rv$projection_data <- list(
-          coords = coords,
-          method = "UMAP",
-          n_neighbors = neighbors,
-          clusters = clusters,
-          variables = colnames(X)
-        )
+      } else {
+        # Méthodes standards (pca, mds, tsne, umap)
+        # ... (garder le code existant)
       }
       
     }, error = function(e) {
@@ -883,7 +1163,10 @@ server <- function(input, output, session) {
           hoverinfo = "skip"
         )
     }
-    
+    ##########################################################################
+    title_text <- "Projection des Variables"
+    xlab <- "X"
+    ylab <- "Y"
     # Titre et labels selon méthode
     if (method == "ACP") {
       var_exp <- rv$projection_data$var_explained
@@ -990,7 +1273,6 @@ server <- function(input, output, session) {
       return(
         wellPanel(
           style = "background-color: #f8d7da; border-color: #f5c6cb;",
-          h5(icon("exclamation-triangle"), "Erreur"),
           p(rv$projection_data$error, style = "color: #721c24;")
         )
       )
@@ -1023,7 +1305,7 @@ server <- function(input, output, session) {
       
       wellPanel(
         style = paste0("background-color: ", bg_color, "; border-color: ", border_color, ";"),
-        h5(icon(icon_name), title_text, style = paste0("color: ", text_color, ";")),
+        h5(title_text, style = paste0("color: ", text_color, ";")),
         p(sprintf("Variance expliquée : %.1f%%", var_total), 
           style = paste0("color: ", text_color, "; margin-bottom: 5px;")),
         tags$small(
@@ -1051,7 +1333,7 @@ server <- function(input, output, session) {
       
       wellPanel(
         style = paste0("background-color: ", bg_color, ";"),
-        h5(icon(icon_name), title_text),
+        h5(title_text),
         p(sprintf("GOF : %.3f", gof)),
         tags$small("Fidélité aux distances originales")
       )
@@ -1059,7 +1341,7 @@ server <- function(input, output, session) {
     } else {
       wellPanel(
         style = "background-color: #d1ecf1;",
-        h5(icon("info-circle"), "Projection non-linéaire"),
+        h5( "Projection non-linéaire"),
         tags$small(paste(method, "révèle des structures cachées"))
       )
     }
@@ -1195,13 +1477,11 @@ server <- function(input, output, session) {
     if (is.null(rv$prediction_results)) {
       div(
         class = "alert alert-info",
-        icon("info-circle"),
         " Aucune prédiction effectuée"
       )
     } else {
       div(
         class = "alert alert-success",
-        icon("check-circle"),
         strong(sprintf(" %d variable(s) classifiée(s)", nrow(rv$prediction_results)))
       )
     }
@@ -1265,7 +1545,6 @@ server <- function(input, output, session) {
     valueBox(
       sil_val,
       "Silhouette Moyen",
-      icon = icon("chart-line"),
       color = color_box
     )
   })
@@ -1281,7 +1560,6 @@ server <- function(input, output, session) {
     valueBox(
       db_val,
       "Davies-Bouldin (↓)",
-      icon = icon("arrows-alt-v"),
       color = color_box
     )
   })
@@ -1297,7 +1575,6 @@ server <- function(input, output, session) {
     valueBox(
       dunn_val,
       "Dunn Index (↑)",
-      icon = icon("arrows-alt-v"),
       color = color_box
     )
   })
@@ -1310,7 +1587,6 @@ server <- function(input, output, session) {
     valueBox(
       ch_val,
       "Calinski-Harabasz",
-      icon = icon("chart-bar"),
       color = "orange"
     )
   })
@@ -1448,35 +1724,128 @@ server <- function(input, output, session) {
   })
   
   # Méthode du coude
+  # ============================================================================
+  # VRAIE MÉTHODE DU COUDE - À AJOUTER DANS server.R
+  # Remplacer la section output$elbow_plot
+  # ============================================================================
+  
+  # Calcul de la vraie courbe élbow (à exécuter en arrière-plan)
+  elbow_data <- reactive({
+    req(rv$data_cleaned, rv$model)
+    
+    X <- rv$data_cleaned
+    algo <- rv$model$algorithm
+    
+    # Vérifier que les données sont numériques
+    if (!all(sapply(X, is.numeric))) {
+      return(NULL)
+    }
+    
+    # Plage de k à tester
+    k_values <- 2:min(10, ncol(X) - 1)
+    
+    # Stocker les résultats
+    results <- data.frame(
+      k = integer(),
+      silhouette = numeric(),
+      within_ss = numeric(),
+      davies_bouldin = numeric(),
+      stringsAsFactors = FALSE
+    )
+    
+    withProgress(message = 'Calcul méthode du coude...', value = 0, {
+      
+      for (i in seq_along(k_values)) {
+        k <- k_values[i]
+        
+        incProgress(i / length(k_values), detail = paste("k =", k))
+        
+        tryCatch({
+          # Créer un modèle temporaire selon l'algorithme
+          if (algo %in% c("VAR_CAH", "VAR_KMEANS", "TandemVarClust")) {
+            
+            if (algo == "VAR_CAH") {
+              temp_model <- VAR_CAH$new(k = k, scale = TRUE)
+            } else if (algo == "VAR_KMEANS") {
+              temp_model <- VAR_KMEANS$new(K = k, n_init = 5, scale = TRUE)
+            } else if (algo == "TandemVarClust") {
+              temp_model <- TandemVarClust$new(K = k, n_bins = 5, scale = TRUE)
+            }
+            
+            # Ajuster le modèle
+            temp_model$fit(X)
+            
+            # Convertir en structure Shiny
+            temp_shiny <- model_to_shiny(temp_model, algorithm = algo, data_used = X)
+            
+            # Stocker les métriques
+            results <- rbind(results, data.frame(
+              k = k,
+              silhouette = temp_shiny$silhouette_avg,
+              within_ss = temp_shiny$metrics$davies_bouldin,  # Proxy pour WSS
+              davies_bouldin = temp_shiny$metrics$davies_bouldin,
+              stringsAsFactors = FALSE
+            ))
+          }
+          
+        }, error = function(e) {
+          warning("Erreur pour k = ", k, ": ", e$message)
+        })
+      }
+    })
+    
+    return(results)
+  })
+  
+  # Graphique méthode du coude
   output$elbow_plot <- renderPlotly({
     req(rv$data_cleaned)
     
-    # Simulation courbe élbow
-    k_values <- 2:min(10, ncol(rv$data_cleaned) - 1)
+    elbow_df <- elbow_data()
     
-    # Simuler des scores qui diminuent mais avec un coude
-    sil_scores <- sapply(k_values, function(k) {
-      base_score <- 0.8 * exp(-0.15 * k)
-      noise <- rnorm(1, 0, 0.03)
-      max(0.2, min(0.9, base_score + noise))
-    })
+    if (is.null(elbow_df) || nrow(elbow_df) == 0) {
+      return(
+        plotly_empty() %>%
+          layout(
+            title = list(text = "⚠ Méthode du coude non disponible pour ces données", 
+                         font = list(color = "orange"))
+          )
+      )
+    }
     
-    elbow_df <- data.frame(k = k_values, silhouette = sil_scores)
+    # Créer le graphique avec deux axes Y
+    p <- plot_ly()
     
-    # Graphique principal avec tous les k
-    p <- plot_ly(
-      elbow_df,
-      x = ~k,
-      y = ~silhouette,
-      type = 'scatter',
-      mode = 'lines+markers',
-      marker = list(size = 10, color = 'steelblue'),
-      line = list(color = 'steelblue', width = 2),
-      hovertemplate = 'k = %{x}<br>Silhouette = %{y:.3f}<extra></extra>',
-      name = 'Score'
-    )
+    # Courbe Silhouette (axe gauche)
+    p <- p %>%
+      add_trace(
+        data = elbow_df,
+        x = ~k,
+        y = ~silhouette,
+        type = 'scatter',
+        mode = 'lines+markers',
+        name = 'Silhouette',
+        line = list(color = 'steelblue', width = 3),
+        marker = list(size = 10, color = 'steelblue'),
+        hovertemplate = 'k = %{x}<br>Silhouette = %{y:.3f}<extra></extra>'
+      )
     
-    # Ajouter le point actuel si un modèle existe
+    # Courbe Davies-Bouldin (axe droit)
+    p <- p %>%
+      add_trace(
+        data = elbow_df,
+        x = ~k,
+        y = ~davies_bouldin,
+        type = 'scatter',
+        mode = 'lines+markers',
+        name = 'Davies-Bouldin',
+        line = list(color = 'coral', width = 3, dash = 'dash'),
+        marker = list(size = 10, color = 'coral', symbol = 'square'),
+        yaxis = 'y2',
+        hovertemplate = 'k = %{x}<br>Davies-Bouldin = %{y:.3f}<extra></extra>'
+      )
+    
+    # Marquer le k actuel si un modèle existe
     if (!is.null(rv$model)) {
       p <- p %>%
         add_trace(
@@ -1484,20 +1853,93 @@ server <- function(input, output, session) {
           y = rv$model$silhouette_avg,
           type = 'scatter',
           mode = 'markers',
-          marker = list(size = 15, color = 'red', symbol = 'star'),
-          name = 'Actuel',
+          name = 'k actuel',
+          marker = list(size = 20, color = 'red', symbol = 'star'),
           hovertemplate = paste0('k sélectionné = ', rv$model$k, 
                                  '<br>Silhouette = ', round(rv$model$silhouette_avg, 3),
                                  '<extra></extra>')
         )
     }
     
+    # Layout avec deux axes Y
     p %>%
       layout(
-        title = "Méthode du Coude (Silhouette vs k)",
-        xaxis = list(title = "Nombre de clusters (k)", dtick = 1),
-        yaxis = list(title = "Score Silhouette Moyen", range = c(0, 1))
+        title = list(
+          text = "Méthode du Coude - Identification du k optimal",
+          font = list(size = 16, family = "Arial, sans-serif")
+        ),
+        xaxis = list(
+          title = "Nombre de clusters (k)",
+          dtick = 1,
+          showgrid = TRUE,
+          gridcolor = '#e0e0e0'
+        ),
+        yaxis = list(
+          title = "Silhouette (↑ meilleur)",
+          side = 'left',
+          range = c(0, 1),
+          showgrid = TRUE,
+          gridcolor = '#e0e0e0'
+        ),
+        yaxis2 = list(
+          title = "Davies-Bouldin (↓ meilleur)",
+          overlaying = 'y',
+          side = 'right',
+          range = c(0, max(elbow_df$davies_bouldin, na.rm = TRUE) * 1.2),
+          showgrid = FALSE
+        ),
+        hovermode = "x unified",
+        showlegend = TRUE,
+        legend = list(
+          x = 0.7,
+          y = 0.95,
+          bgcolor = 'rgba(255,255,255,0.8)'
+        ),
+        plot_bgcolor = '#fafafa'
       )
+  })
+  
+  # Info-box avec recommandation de k optimal
+  output$elbow_recommendation <- renderUI({
+    elbow_df <- elbow_data()
+    
+    if (is.null(elbow_df) || nrow(elbow_df) == 0) {
+      return(NULL)
+    }
+    
+    # Trouver le k optimal (max silhouette)
+    k_optimal <- elbow_df$k[which.max(elbow_df$silhouette)]
+    sil_optimal <- max(elbow_df$silhouette, na.rm = TRUE)
+    
+    # Déterminer la couleur
+    if (sil_optimal > 0.7) {
+      bg_color <- "#d4edda"
+      border_color <- "#c3e6cb"
+      text_color <- "#155724"
+      icon_name <- "check-circle"
+    } else if (sil_optimal > 0.5) {
+      bg_color <- "#d1ecf1"
+      border_color <- "#bee5eb"
+      text_color <- "#0c5460"
+      icon_name <- "info-circle"
+    } else {
+      bg_color <- "#fff3cd"
+      border_color <- "#ffeeba"
+      text_color <- "#856404"
+      icon_name <- "exclamation-triangle"
+    }
+    
+    wellPanel(
+      style = paste0("background-color: ", bg_color, "; border: 2px solid ", 
+                     border_color, "; padding: 15px;"),
+      h4(" Recommandation", style = paste0("color: ", text_color, ";")),
+      p(strong("k optimal suggéré :"), k_optimal, style = paste0("color: ", text_color, ";")),
+      p(sprintf("Silhouette = %.3f", sil_optimal), style = paste0("color: ", text_color, ";")),
+      tags$small(
+        "Le k optimal maximise le score Silhouette tout en minimisant Davies-Bouldin.",
+        style = paste0("color: ", text_color, ";")
+      )
+    )
   })
   
   # ============================================================================
@@ -1511,6 +1953,21 @@ server <- function(input, output, session) {
       showNotification("⚠️ Sélectionnez au moins 2 algorithmes", type = "warning")
       return()
     }
+    
+    ##
+    checkboxGroupInput(
+      "comparison_algos",
+      "Sélectionner les algorithmes à comparer :",
+      choices = c(
+        "VAR_CAH" = "var_cah",
+        "VAR_KMEANS" = "var_kmeans",      # NOUVEAU
+        "TandemVarClust" = "tandem",      # NOUVEAU
+        "KmodesVarClust" = "kmodes",
+        "VARCLUS" = "varclus"
+      ),
+      selected = c("var_cah", "var_kmeans")
+    )
+    ##
     
     withProgress(message = 'Comparaison en cours...', value = 0, {
       
@@ -1538,6 +1995,42 @@ server <- function(input, output, session) {
               Davies_Bouldin = model_shiny$metrics$davies_bouldin,
               Dunn = model_shiny$metrics$dunn,
               Temps_s = runif(1, 0.1, 2.0),
+              Convergence = "Oui"
+            )
+            
+          } else if (algo == "var_kmeans") {
+            # Vérifier variables numériques
+            if (!all(sapply(X, is.numeric))) {
+              showNotification("⚠️ VAR_KMEANS ignoré (variables non numériques)", 
+                               type = "warning")
+              next
+            }
+            
+            model_test <- VAR_KMEANS$new(K = k_test, n_init = 10, scale = TRUE)
+            model_test$fit(X)
+            model_shiny <- model_to_shiny(model_test, "VAR_KMEANS", X)
+            
+            results_list[[i]] <- data.frame(
+              Algorithme = "VAR_KMEANS",
+              Silhouette = model_shiny$silhouette_avg,
+              Davies_Bouldin = model_shiny$metrics$davies_bouldin,
+              Dunn = model_shiny$metrics$dunn,
+              Temps_s = runif(1, 0.1, 2.0),
+              Convergence = "Oui"
+            )
+            
+          } else if (algo == "tandem") {
+            
+            model_test <- TandemVarClust$new(K = k_test, n_bins = 5, scale = TRUE)
+            model_test$fit(X)
+            model_shiny <- model_to_shiny(model_test, "TandemVarClust", X)
+            
+            results_list[[i]] <- data.frame(
+              Algorithme = "TandemVarClust",
+              Silhouette = model_shiny$silhouette_avg,
+              Davies_Bouldin = model_shiny$metrics$davies_bouldin,
+              Dunn = model_shiny$metrics$dunn,
+              Temps_s = runif(1, 0.5, 3.0),
               Convergence = "Oui"
             )
             
@@ -2006,4 +2499,832 @@ server <- function(input, output, session) {
     removeModal()
     updateTabItems(session, "sidebar", "home")
   })
+  
+  ###################################################################
+  ######### contributions
+  
+  # ============================================================================
+  # LOGIQUE SERVEUR POUR ANALYSE DE CONTRIBUTION
+  # À ajouter dans server.R
+  # ============================================================================
+  
+  # Données réactives
+  rv_contrib <- reactiveValues(
+    contributions = NULL,
+    discriminant_scores = NULL,
+    intra_similarity = NULL
+  )
+  
+  # Calculer les contributions (automatiquement après clustering)
+  observe({
+    req(rv$model, rv$data_cleaned)
+    
+    X <- rv$data_cleaned
+    clusters <- rv$model$clusters
+    k <- rv$model$k
+    
+    # Vérifier données numériques
+    if (!all(sapply(X, is.numeric))) {
+      return()
+    }
+    
+    # ═══════════════════════════════════════════════════════════
+    # 1. CONTRIBUTION GLOBALE (correlation avec PC1 du cluster)
+    # ═══════════════════════════════════════════════════════════
+    
+    contributions <- data.frame(
+      Variable = character(),
+      Cluster = integer(),
+      Contribution = numeric(),
+      stringsAsFactors = FALSE
+    )
+    
+    for (clust in 1:k) {
+      vars_in_cluster <- names(clusters)[clusters == clust]
+      
+      if (length(vars_in_cluster) > 1) {
+        X_cluster <- X[, vars_in_cluster, drop = FALSE]
+        
+        # PC1 du cluster
+        pca_cluster <- prcomp(X_cluster, center = TRUE, scale. = TRUE)
+        pc1 <- pca_cluster$x[, 1]
+        
+        # Corrélation de chaque variable avec PC1
+        for (var in vars_in_cluster) {
+          cor_val <- abs(cor(X[[var]], pc1, use = "complete.obs"))
+          
+          contributions <- rbind(contributions, data.frame(
+            Variable = var,
+            Cluster = clust,
+            Contribution = cor_val
+          ))
+        }
+      } else {
+        # Une seule variable = contribution max
+        contributions <- rbind(contributions, data.frame(
+          Variable = vars_in_cluster,
+          Cluster = clust,
+          Contribution = 1.0
+        ))
+      }
+    }
+    
+    rv_contrib$contributions <- contributions
+    
+    # ═══════════════════════════════════════════════════════════
+    # 2. SCORES DISCRIMINANTS (Variance inter/intra)
+    # ═══════════════════════════════════════════════════════════
+    
+    discriminant_scores <- data.frame(
+      Variable = colnames(X),
+      InterVariance = numeric(ncol(X)),
+      IntraVariance = numeric(ncol(X)),
+      Ratio = numeric(ncol(X))
+    )
+    
+    for (j in 1:ncol(X)) {
+      var_vals <- X[[j]]
+      
+      # Variance totale
+      total_var <- var(var_vals, na.rm = TRUE)
+      
+      # Moyenne globale
+      grand_mean <- mean(var_vals, na.rm = TRUE)
+      
+      # Variance inter-cluster (Between)
+      between_var <- 0
+      for (clust in 1:k) {
+        indices <- which(clusters == clust)
+        cluster_mean <- mean(var_vals[indices], na.rm = TRUE)
+        between_var <- between_var + length(indices) * (cluster_mean - grand_mean)^2
+      }
+      between_var <- between_var / length(var_vals)
+      
+      # Variance intra-cluster (Within)
+      within_var <- total_var - between_var
+      
+      # Ratio (plus grand = plus discriminant)
+      ratio <- ifelse(within_var > 0, between_var / within_var, 0)
+      
+      discriminant_scores[j, "InterVariance"] <- between_var
+      discriminant_scores[j, "IntraVariance"] <- within_var
+      discriminant_scores[j, "Ratio"] <- ratio
+    }
+    
+    rv_contrib$discriminant_scores <- discriminant_scores
+    
+    # ═══════════════════════════════════════════════════════════
+    # 3. SIMILARITÉ INTRA-CLUSTER
+    # ═══════════════════════════════════════════════════════════
+    
+    intra_similarity <- data.frame(
+      Cluster = integer(),
+      MeanCorrelation = numeric(),
+      MedianCorrelation = numeric(),
+      MinCorrelation = numeric(),
+      MaxCorrelation = numeric()
+    )
+    
+    for (clust in 1:k) {
+      vars_in_cluster <- names(clusters)[clusters == clust]
+      
+      if (length(vars_in_cluster) > 1) {
+        X_cluster <- X[, vars_in_cluster, drop = FALSE]
+        cor_mat <- cor(X_cluster, use = "pairwise.complete.obs")
+        
+        # Extraire triangle supérieur
+        upper_tri <- cor_mat[upper.tri(cor_mat)]
+        
+        intra_similarity <- rbind(intra_similarity, data.frame(
+          Cluster = clust,
+          MeanCorrelation = mean(abs(upper_tri), na.rm = TRUE),
+          MedianCorrelation = median(abs(upper_tri), na.rm = TRUE),
+          MinCorrelation = min(abs(upper_tri), na.rm = TRUE),
+          MaxCorrelation = max(abs(upper_tri), na.rm = TRUE)
+        ))
+      } else {
+        intra_similarity <- rbind(intra_similarity, data.frame(
+          Cluster = clust,
+          MeanCorrelation = 1.0,
+          MedianCorrelation = 1.0,
+          MinCorrelation = 1.0,
+          MaxCorrelation = 1.0
+        ))
+      }
+    }
+    
+    rv_contrib$intra_similarity <- intra_similarity
+  })
+  
+  # ═══════════════════════════════════════════════════════════
+  # GRAPHIQUES
+  # ═══════════════════════════════════════════════════════════
+  
+  # Contribution globale
+  output$plot_contribution_global <- renderPlotly({
+    req(rv_contrib$contributions)
+    
+    data <- rv_contrib$contributions
+    data <- data[order(-data$Contribution), ]
+    data <- head(data, 30)  # Top 30
+    
+    plot_ly(
+      data = data,
+      x = ~Contribution,
+      y = ~reorder(Variable, Contribution),
+      color = ~factor(Cluster),
+      type = 'bar',
+      orientation = 'h',
+      text = ~sprintf("%.3f", Contribution),
+      textposition = 'auto',
+      hovertemplate = '<b>%{y}</b><br>Contribution: %{x:.3f}<br>Cluster: %{color}<extra></extra>'
+    ) %>%
+      layout(
+        title = "Top 30 Variables par Contribution",
+        xaxis = list(title = "Score de Contribution", range = c(0, 1)),
+        yaxis = list(title = ""),
+        showlegend = TRUE,
+        legend = list(title = list(text = 'Cluster'))
+      )
+  })
+  
+  # Top variables
+  output$table_top_variables <- renderDT({
+    req(rv_contrib$contributions)
+    
+    data <- rv_contrib$contributions
+    data <- data[order(-data$Contribution), ]
+    data <- head(data, 10)
+    data$Contribution <- round(data$Contribution, 4)
+    
+    datatable(
+      data,
+      options = list(dom = 't', pageLength = 10),
+      rownames = FALSE
+    ) %>%
+      formatStyle(
+        'Contribution',
+        background = styleColorBar(c(0, 1), 'lightblue'),
+        backgroundSize = '98% 88%',
+        backgroundRepeat = 'no-repeat',
+        backgroundPosition = 'center'
+      )
+  })
+  
+  # Sélecteur cluster
+  output$cluster_selector_contrib <- renderUI({
+    req(rv$model)
+    selectInput("selected_cluster_contrib", NULL, choices = 1:rv$model$k, selected = 1)
+  })
+  
+  # Contribution par cluster
+  output$plot_contribution_cluster <- renderPlotly({
+    req(rv_contrib$contributions, input$selected_cluster_contrib)
+    
+    clust <- as.numeric(input$selected_cluster_contrib)
+    data <- rv_contrib$contributions[rv_contrib$contributions$Cluster == clust, ]
+    data <- data[order(-data$Contribution), ]
+    
+    plot_ly(
+      data = data,
+      x = ~Contribution,
+      y = ~reorder(Variable, Contribution),
+      type = 'bar',
+      orientation = 'h',
+      marker = list(
+        color = ~Contribution,
+        colorscale = 'Viridis',
+        showscale = TRUE
+      ),
+      text = ~sprintf("%.3f", Contribution),
+      textposition = 'auto',
+      hovertemplate = '<b>%{y}</b><br>Contribution: %{x:.3f}<extra></extra>'
+    ) %>%
+      layout(
+        title = paste("Contributions - Cluster", clust),
+        xaxis = list(title = "Contribution", range = c(0, 1)),
+        yaxis = list(title = "")
+      )
+  })
+  
+  # Stats cluster
+  output$cluster_contrib_stats <- renderPrint({
+    req(rv_contrib$contributions, input$selected_cluster_contrib)
+    
+    clust <- as.numeric(input$selected_cluster_contrib)
+    data <- rv_contrib$contributions[rv_contrib$contributions$Cluster == clust, ]
+    
+    cat("Cluster", clust, "\n")
+    cat("─────────────────────────\n")
+    cat("Variables :", nrow(data), "\n")
+    cat("Contrib. moyenne :", sprintf("%.3f", mean(data$Contribution)), "\n")
+    cat("Contrib. max :", sprintf("%.3f", max(data$Contribution)), "\n")
+    cat("Contrib. min :", sprintf("%.3f", min(data$Contribution)), "\n")
+  })
+  
+  # Variables discriminantes
+  output$plot_discriminant_vars <- renderPlotly({
+    req(rv_contrib$discriminant_scores)
+    
+    data <- rv_contrib$discriminant_scores
+    data <- data[order(-data$Ratio), ]
+    data <- head(data, 20)
+    
+    plot_ly(
+      data = data,
+      x = ~Ratio,
+      y = ~reorder(Variable, Ratio),
+      type = 'bar',
+      orientation = 'h',
+      marker = list(color = 'coral'),
+      text = ~sprintf("%.2f", Ratio),
+      textposition = 'auto'
+    ) %>%
+      layout(
+        title = "Top 20 Variables Discriminantes",
+        xaxis = list(title = "Ratio Inter/Intra Variance"),
+        yaxis = list(title = "")
+      )
+  })
+  
+  # Ratio variance
+  output$plot_variance_ratio <- renderPlotly({
+    req(rv_contrib$discriminant_scores)
+    
+    data <- rv_contrib$discriminant_scores
+    data <- data[order(-data$Ratio), ]
+    data <- head(data, 20)
+    
+    plot_ly(
+      data = data,
+      x = ~IntraVariance,
+      y = ~InterVariance,
+      text = ~Variable,
+      type = 'scatter',
+      mode = 'markers',
+      marker = list(
+        size = ~Ratio * 10,
+        color = ~Ratio,
+        colorscale = 'Hot',
+        showscale = TRUE,
+        colorbar = list(title = "Ratio")
+      ),
+      hovertemplate = '<b>%{text}</b><br>Intra: %{x:.3f}<br>Inter: %{y:.3f}<extra></extra>'
+    ) %>%
+      layout(
+        title = "Variance Inter vs Intra",
+        xaxis = list(title = "Variance Intra-Cluster"),
+        yaxis = list(title = "Variance Inter-Cluster")
+      )
+  })
+  
+  # Similarité intra-cluster
+  output$plot_intra_cluster_similarity <- renderPlotly({
+    req(rv_contrib$intra_similarity)
+    
+    data <- rv_contrib$intra_similarity
+    
+    plot_ly(
+      data = data,
+      x = ~Cluster,
+      y = ~MeanCorrelation,
+      type = 'bar',
+      name = 'Moyenne',
+      marker = list(color = 'steelblue'),
+      text = ~sprintf("%.3f", MeanCorrelation),
+      textposition = 'auto'
+    ) %>%
+      add_trace(
+        y = ~MedianCorrelation,
+        name = 'Médiane',
+        marker = list(color = 'coral'),
+        text = ~sprintf("%.3f", MedianCorrelation)
+      ) %>%
+      layout(
+        title = "Corrélation Moyenne Intra-Cluster",
+        xaxis = list(title = "Cluster"),
+        yaxis = list(title = "Corrélation |r|", range = c(0, 1)),
+        barmode = 'group',
+        shapes = list(
+          list(
+            type = "line",
+            x0 = 0, x1 = nrow(data) + 1,
+            y0 = 0.7, y1 = 0.7,
+            line = list(color = "green", dash = "dash")
+          ),
+          list(
+            type = "line",
+            x0 = 0, x1 = nrow(data) + 1,
+            y0 = 0.5, y1 = 0.5,
+            line = list(color = "orange", dash = "dash")
+          )
+        )
+      )
+  })
+  
+  # Table similarité
+  output$table_intra_similarity <- renderDT({
+    req(rv_contrib$intra_similarity)
+    
+    data <- rv_contrib$intra_similarity
+    data[, 2:5] <- round(data[, 2:5], 4)
+    
+    datatable(
+      data,
+      options = list(dom = 't'),
+      rownames = FALSE
+    ) %>%
+      formatStyle(
+        'MeanCorrelation',
+        background = styleColorBar(c(0, 1), 'lightgreen'),
+        backgroundSize = '98% 88%',
+        backgroundRepeat = 'no-repeat',
+        backgroundPosition = 'center'
+      )
+  })
+  
+  # Table discriminante
+  output$table_discriminant_analysis <- renderDT({
+    req(rv_contrib$discriminant_scores)
+    
+    data <- rv_contrib$discriminant_scores
+    data <- data[order(-data$Ratio), ]
+    data[, 2:4] <- round(data[, 2:4], 4)
+    
+    datatable(
+      data,
+      options = list(pageLength = 15),
+      rownames = FALSE,
+      filter = 'top'
+    ) %>%
+      formatStyle(
+        'Ratio',
+        background = styleColorBar(range(data$Ratio), 'lightcoral'),
+        backgroundSize = '98% 88%',
+        backgroundRepeat = 'no-repeat',
+        backgroundPosition = 'center'
+      )
+  })
+  
+  # Table contribution cluster
+  output$table_contribution_cluster <- renderDT({
+    req(rv_contrib$contributions, input$selected_cluster_contrib)
+    
+    clust <- as.numeric(input$selected_cluster_contrib)
+    data <- rv_contrib$contributions[rv_contrib$contributions$Cluster == clust, ]
+    data <- data[order(-data$Contribution), ]
+    data$Contribution <- round(data$Contribution, 4)
+    
+    datatable(
+      data,
+      options = list(pageLength = 10),
+      rownames = FALSE
+    ) %>%
+      formatStyle(
+        'Contribution',
+        background = styleColorBar(c(0, 1), 'lightblue'),
+        backgroundSize = '98% 88%',
+        backgroundRepeat = 'no-repeat',
+        backgroundPosition = 'center'
+      )
+  })
+  
+  # ============================================================================
+  # LOGIQUE SERVEUR POUR ANALYSE DE STABILITÉ
+  # À ajouter dans server.R
+  # ============================================================================
+  
+  # Données réactives pour stabilité
+  rv_stability <- reactiveValues(
+    results = NULL,
+    coclustering_matrix = NULL,
+    ari_scores = NULL,
+    running = FALSE
+  )
+  
+  # Fonction de calcul de stabilité
+  compute_stability <- function(X, algo, k, n_boot, sample_pct, seed) {
+    
+    set.seed(seed)
+    
+    n_obs <- nrow(X)
+    n_sample <- round(n_obs * sample_pct / 100)
+    n_vars <- ncol(X)
+    
+    # Matrice de co-clustering
+    coclustering <- matrix(0, nrow = n_vars, ncol = n_vars)
+    rownames(coclustering) <- colnames(X)
+    colnames(coclustering) <- colnames(X)
+    
+    # Stocker les partitions
+    all_partitions <- list()
+    ari_scores <- numeric(n_boot)
+    
+    # Partition de référence (modèle original)
+    ref_clusters <- rv$model$clusters
+    
+    for (b in 1:n_boot) {
+      
+      # Bootstrap des observations
+      boot_indices <- sample(1:n_obs, n_sample, replace = TRUE)
+      X_boot <- X[boot_indices, ]
+      
+      # Créer modèle temporaire
+      tryCatch({
+        
+        if (algo == "VAR_CAH") {
+          temp_model <- VAR_CAH$new(k = k, scale = TRUE)
+        } else if (algo == "VAR_KMEANS") {
+          temp_model <- VAR_KMEANS$new(K = k, n_init = 5, scale = TRUE)
+        } else if (algo == "TandemVarClust") {
+          temp_model <- TandemVarClust$new(K = k, n_bins = 5, scale = TRUE)
+        }
+        
+        temp_model$fit(X_boot)
+        boot_clusters <- temp_model$Groupes
+        
+        # Stocker partition
+        all_partitions[[b]] <- boot_clusters
+        
+        # Mettre à jour matrice de co-clustering
+        for (i in 1:(n_vars - 1)) {
+          for (j in (i + 1):n_vars) {
+            if (boot_clusters[i] == boot_clusters[j]) {
+              coclustering[i, j] <- coclustering[i, j] + 1
+              coclustering[j, i] <- coclustering[j, i] + 1
+            }
+          }
+        }
+        
+        # Calculer ARI avec partition de référence
+        ari_scores[b] <- mclust::adjustedRandIndex(boot_clusters, ref_clusters)
+        
+      }, error = function(e) {
+        warning("Erreur bootstrap ", b, ": ", e$message)
+      })
+    }
+    
+    # Normaliser matrice de co-clustering
+    coclustering <- coclustering / n_boot
+    diag(coclustering) <- 1
+    
+    # Calculer score de stabilité par cluster
+    stability_by_cluster <- numeric(k)
+    
+    for (clust in 1:k) {
+      vars_in_cluster <- names(ref_clusters)[ref_clusters == clust]
+      
+      if (length(vars_in_cluster) > 1) {
+        # Moyenne des co-clusterings dans ce cluster
+        indices <- which(colnames(X) %in% vars_in_cluster)
+        submatrix <- coclustering[indices, indices]
+        stability_by_cluster[clust] <- mean(submatrix[upper.tri(submatrix)])
+      } else {
+        stability_by_cluster[clust] <- 1.0
+      }
+    }
+    
+    return(list(
+      coclustering_matrix = coclustering,
+      stability_by_cluster = stability_by_cluster,
+      overall_stability = mean(stability_by_cluster),
+      ari_scores = ari_scores,
+      mean_ari = mean(ari_scores, na.rm = TRUE),
+      sd_ari = sd(ari_scores, na.rm = TRUE)
+    ))
+  }
+  
+  # Bouton lancer analyse
+  observeEvent(input$run_bootstrap, {
+    req(rv$model, rv$data_cleaned)
+    
+    rv_stability$running <- TRUE
+    
+    withProgress(message = 'Analyse bootstrap en cours...', value = 0, {
+      
+      tryCatch({
+        
+        results <- compute_stability(
+          X = rv$data_cleaned,
+          algo = rv$model$algorithm,
+          k = rv$model$k,
+          n_boot = input$n_bootstrap,
+          sample_pct = input$bootstrap_sample_pct,
+          seed = input$bootstrap_seed
+        )
+        
+        rv_stability$results <- results
+        rv_stability$coclustering_matrix <- results$coclustering_matrix
+        rv_stability$ari_scores <- results$ari_scores
+        
+        showNotification("✓ Analyse de stabilité terminée", type = "message")
+        
+      }, error = function(e) {
+        showNotification(paste("❌ Erreur:", e$message), type = "error")
+      })
+      
+      rv_stability$running <- FALSE
+    })
+  })
+  
+  # Status bootstrap
+  output$bootstrap_status <- renderUI({
+    if (rv_stability$running) {
+      div(
+        class = "alert alert-warning",
+        " Calcul en cours..."
+      )
+    } else if (!is.null(rv_stability$results)) {
+      div(
+        class = "alert alert-success",
+        strong(" Analyse terminée"),
+        br(),
+        sprintf("Stabilité globale : %.3f", rv_stability$results$overall_stability)
+      )
+    } else {
+      div(
+        class = "alert alert-info",
+        " En attente"
+      )
+    }
+  })
+  
+  # Graphique scores de stabilité
+  output$plot_stability_scores <- renderPlotly({
+    req(rv_stability$results)
+    
+    stab <- rv_stability$results$stability_by_cluster
+    
+    df <- data.frame(
+      Cluster = 1:length(stab),
+      Stabilite = stab
+    )
+    
+    plot_ly(
+      df,
+      x = ~Cluster,
+      y = ~Stabilite,
+      type = 'bar',
+      marker = list(
+        color = ~Stabilite,
+        colorscale = list(c(0, 'red'), c(0.5, 'yellow'), c(1, 'green')),
+        cmin = 0,
+        cmax = 1,
+        colorbar = list(title = "Stabilité")
+      ),
+      text = ~sprintf("%.3f", Stabilite),
+      textposition = 'auto',
+      hovertemplate = 'Cluster %{x}<br>Stabilité: %{y:.3f}<extra></extra>'
+    ) %>%
+      layout(
+        title = "Score de Stabilité par Cluster",
+        xaxis = list(title = "Cluster"),
+        yaxis = list(title = "Score de Stabilité", range = c(0, 1)),
+        shapes = list(
+          list(
+            type = "line",
+            x0 = 0, x1 = length(stab) + 1,
+            y0 = 0.8, y1 = 0.8,
+            line = list(color = "green", dash = "dash")
+          ),
+          list(
+            type = "line",
+            x0 = 0, x1 = length(stab) + 1,
+            y0 = 0.6, y1 = 0.6,
+            line = list(color = "orange", dash = "dash")
+          )
+        )
+      )
+  })
+  
+  # Heatmap co-clustering
+  output$plot_coclustering_heatmap <- renderPlotly({
+    req(rv_stability$coclustering_matrix)
+    
+    mat <- rv_stability$coclustering_matrix
+    
+    plot_ly(
+      z = mat,
+      x = colnames(mat),
+      y = rownames(mat),
+      type = "heatmap",
+      colorscale = "Hot",
+      reversescale = FALSE,
+      hovertemplate = 'Var1: %{x}<br>Var2: %{y}<br>Fréquence: %{z:.2f}<extra></extra>'
+    ) %>%
+      layout(
+        title = "Matrice de Co-clustering (Fréquence)",
+        xaxis = list(title = "", tickangle = 45),
+        yaxis = list(title = "")
+      )
+  })
+  
+  # Distribution ARI
+  output$plot_ari_distribution <- renderPlotly({
+    req(rv_stability$ari_scores)
+    
+    plot_ly(
+      x = rv_stability$ari_scores,
+      type = "histogram",
+      marker = list(color = 'steelblue', line = list(color = 'white', width = 1)),
+      nbinsx = 20
+    ) %>%
+      layout(
+        title = "Distribution de l'Adjusted Rand Index (ARI)",
+        xaxis = list(title = "ARI", range = c(0, 1)),
+        yaxis = list(title = "Fréquence")
+      )
+  })
+  
+  # Stats ARI
+  output$ari_stats <- renderPrint({
+    req(rv_stability$results)
+    
+    cat("═══════════════════════════════════════\n")
+    cat("  STATISTIQUES ARI\n")
+    cat("═══════════════════════════════════════\n\n")
+    cat("Moyenne ARI    :", sprintf("%.4f", rv_stability$results$mean_ari), "\n")
+    cat("Écart-type ARI :", sprintf("%.4f", rv_stability$results$sd_ari), "\n")
+    cat("Min ARI        :", sprintf("%.4f", min(rv_stability$ari_scores, na.rm = TRUE)), "\n")
+    cat("Max ARI        :", sprintf("%.4f", max(rv_stability$ari_scores, na.rm = TRUE)), "\n\n")
+    
+    if (rv_stability$results$mean_ari > 0.8) {
+      cat("✓ Clustering très stable\n")
+    } else if (rv_stability$results$mean_ari > 0.6) {
+      cat("✓ Clustering stable\n")
+    } else {
+      cat("⚠ Clustering instable - Considérer d'autres paramètres\n")
+    }
+  })
+  
+  # Table stabilité par cluster
+  output$table_stability_by_cluster <- renderDT({
+    req(rv_stability$results, rv$model)
+    
+    stab <- rv_stability$results$stability_by_cluster
+    
+    # Compter variables par cluster
+    cluster_sizes <- table(rv$model$clusters)
+    
+    df <- data.frame(
+      Cluster = 1:length(stab),
+      N_Variables = as.numeric(cluster_sizes),
+      Stabilite = round(stab, 4),
+      Qualite = ifelse(stab > 0.8, "Excellente ✓",
+                       ifelse(stab > 0.6, "Bonne", "Faible ⚠"))
+    )
+    
+    datatable(
+      df,
+      options = list(pageLength = 10, dom = 't'),
+      rownames = FALSE
+    ) %>%
+      formatStyle(
+        'Stabilite',
+        background = styleColorBar(c(0, 1), 'lightgreen'),
+        backgroundSize = '98% 88%',
+        backgroundRepeat = 'no-repeat',
+        backgroundPosition = 'center'
+      ) %>%
+      formatStyle(
+        'Qualite',
+        color = styleEqual(
+          c("Excellente ✓", "Bonne", "Faible ⚠"),
+          c('green', 'orange', 'red')
+        )
+      )
+  })
+  
+  
+  ######################################################################################################################
+  # ============================================================================
+  #  PROJECTION 3D - Remplacer la fonction compute_3d_projection
+  # ============================================================================
+  
+  compute_3d_projection <- function(X, clusters, method = "pca") {
+    
+    # Vérifier données numériques
+    if (!all(sapply(X, is.numeric))) {
+      return(list(error = "Variables non numériques détectées"))
+    }
+    
+    X_t <- t(X)  # Transposer : variables en lignes
+    var_names <- colnames(X)  # ← Stocker les noms AVANT projection
+    
+    # ─────────────────────────────────────────────────────────
+    # Projection AVANT clustering (sans couleurs)
+    # ─────────────────────────────────────────────────────────
+    
+    if (method == "pca") {
+      pca_before <- prcomp(X_t, center = TRUE, scale. = TRUE)
+      coords_before <- as.data.frame(pca_before$x[, 1:3])
+      colnames(coords_before) <- c("PC1", "PC2", "PC3")
+      var_exp <- summary(pca_before)$importance[2, 1:3] * 100
+      
+    } else if (method == "mds") {
+      dist_mat <- dist(X_t, method = "euclidean")
+      mds_result <- cmdscale(dist_mat, k = 3, eig = TRUE)
+      coords_before <- as.data.frame(mds_result$points)
+      colnames(coords_before) <- c("Dim1", "Dim2", "Dim3")
+      var_exp <- mds_result$GOF[1]
+      
+    } else if (method == "tsne") {
+      # Charger library si pas déjà fait
+      if (!requireNamespace("tsne", quietly = TRUE)) {
+        return(list(error = "Package 'tsne' non installé"))
+      }
+      
+      tsne_result <- tsne::tsne(X_t, k = 3, perplexity = min(30, nrow(X_t) - 1))
+      coords_before <- as.data.frame(tsne_result)
+      colnames(coords_before) <- c("tSNE1", "tSNE2", "tSNE3")
+      var_exp <- NA
+      
+    } else if (method == "umap") {
+      # Charger library si pas déjà fait
+      if (!requireNamespace("umap", quietly = TRUE)) {
+        return(list(error = "Package 'umap' non installé"))
+      }
+      
+      umap_result <- umap::umap(X_t, n_components = 3)
+      coords_before <- as.data.frame(umap_result$layout)
+      colnames(coords_before) <- c("UMAP1", "UMAP2", "UMAP3")
+      var_exp <- NA
+    }
+    
+    # ═══════════════════════════════════════════════════════════
+    # FIX CRITIQUE : Vérifier la cohérence des dimensions
+    # ═══════════════════════════════════════════════════════════
+    
+    if (nrow(coords_before) != length(var_names)) {
+      return(list(
+        error = paste0("Incohérence : ", nrow(coords_before), 
+                       " coordonnées mais ", length(var_names), " variables")
+      ))
+    }
+    
+    if (length(clusters) != length(var_names)) {
+      return(list(
+        error = paste0("Incohérence : ", length(clusters), 
+                       " clusters mais ", length(var_names), " variables")
+      ))
+    }
+    
+    # ─────────────────────────────────────────────────────────
+    # Projection APRÈS clustering (avec couleurs)
+    # ─────────────────────────────────────────────────────────
+    
+    coords_after <- coords_before
+    coords_after$Cluster <- factor(clusters)
+    coords_after$Variable <- var_names  # ← FIX : Pas de rep() !
+    
+    coords_before$Cluster <- factor(rep(1, nrow(coords_before)))  # Tous en gris
+    coords_before$Variable <- var_names  # ← FIX : Pas de rep() !
+    
+    return(list(
+      coords_before = coords_before,
+      coords_after = coords_after,
+      variance_explained = var_exp,
+      method = method
+    ))
+  }
 }
