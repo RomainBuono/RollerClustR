@@ -2,10 +2,24 @@
 % Please edit documentation in R/VAR_KMEANS.R
 \name{VAR_KMEANS}
 \alias{VAR_KMEANS}
-\title{VAR_KMEANS: K-Means Variable Clustering}
+\title{VAR_KMEANS: K-Means Variable Clustering with Principal Components}
 \description{
-Implementation of K-means algorithm adapted for variable clustering.
-Minimizes within-cluster inertia through iterative reallocation.
+Implementation of the Vigneau & Qannari algorithm for variable clustering.
+Uses iterative reallocation with cluster centers represented by the first
+principal component. Maximizes the sum of squared correlations (r²) between
+variables and their cluster centers.
+}
+\details{
+The algorithm follows the method described by Vigneau & Qannari:
+\enumerate{
+\item \strong{Initialization}: K variables randomly selected as initial centers
+\item \strong{Allocation}: Each variable assigned to cluster with maximum r²
+\item \strong{Representation}: Cluster center = 1st principal component via PCA
+\item \strong{Convergence}: Iterate until convergence or max iterations
+}
+
+The optimization criterion is: maximize Σ_k λ_k where λ_k = Σ r²(X_j, U_k)
+and U_k is the first principal component of cluster k.
 }
 \examples{
 # Basic usage
@@ -18,6 +32,11 @@ model$summary()
 new_var <- data.frame(NewVar = iris$Sepal.Length + iris$Petal.Length)
 prediction <- model$predict(new_var)
 
+}
+\references{
+Chavent, M., Kuentz-Simonet, V., Liquet, B., & Saracco, J. (2012).
+ClustOfVar: An R Package for the Clustering of Variables.
+Journal of Statistical Software, 50(13), 1-16.
 }
 \seealso{
 \link{VAR_CAH}, \link{TandemVarClust}, \code{\link[=roller_clust]{roller_clust()}}
@@ -48,15 +67,16 @@ Single run of K-means algorithm
 
 Initialize centers with empty cluster protection ===
 
-Assign variables to nearest cluster
+Assign variables to nearest cluster (maximum r²)
 
 Update cluster centers
 
 Compute cluster center (first principal component)
 
-Compute within-cluster inertia
+Compute within-cluster criterion (sum of r²)
+Higher values indicate better clustering (we MAXIMIZE this)
 
-Compute overall homogeneity
+Compute overall homogeneity (mean r²)
 
 Refit model with new number of clusters
 

@@ -21,13 +21,20 @@ setwd("C:/Users/Romain_admin/Documents/GitHub/RollerClustR")
 library(RollerClustR)
 library(stats)
 
-# Installer les packages de comparaison si nécessaires
-packages_needed <- c("cluster", "FactoMineR")
-for (pkg in packages_needed) {
+# Check and load required packages
+required_packages <- c("cluster", "FactoMineR", "ClustOfVar")
+
+for (pkg in required_packages) {
   if (!require(pkg, character.only = TRUE, quietly = TRUE)) {
-    install.packages(pkg)
-    library(pkg, character.only = TRUE)
+    skip(paste("Package", pkg, "not available"))
   }
+  
+  # FIX: Add error handling for package loading
+  tryCatch({
+    library(pkg, character.only = TRUE)
+  }, error = function(e) {
+    skip(paste("Cannot load package", pkg, ":", conditionMessage(e)))
+  })
 }
 
 # Essayer d'installer ClustOfVar (package spécialisé)

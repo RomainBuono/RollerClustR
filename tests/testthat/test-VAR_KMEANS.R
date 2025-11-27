@@ -1,5 +1,7 @@
 # Tests for VAR_KMEANS class
 # Complete test suite for K-means clustering of variables
+# Algorithm: Vigneau & Qannari (2003) - Uses 1st principal component as cluster center
+# Optimization: MAXIMIZE sum of r² (not minimize distance)
 
 library(testthat)
 library(RollerClustR)
@@ -146,7 +148,9 @@ test_that("VAR_KMEANS: Multiple initializations", {
   model2 <- VAR_KMEANS$new(K = 2, n_init = 20)
   model2$fit(data)
   
-  expect_true(model2$WithinClusterInertia <= model1$WithinClusterInertia * 1.1)
+  # Vigneau & Qannari: MAXIMIZE inertia (sum of r²)
+  # More initializations should give equal or better (higher) inertia
+  expect_true(model2$WithinClusterInertia >= model1$WithinClusterInertia * 0.9)
 })
 
 test_that("VAR_KMEANS: Convergence", {
@@ -232,7 +236,7 @@ test_that("VAR_KMEANS: Metrics throw error before fitting", {
   )
 })
 
-test_that("VAR_KMEANS: Inertia decreases with iterations", {
+test_that("VAR_KMEANS: Inertia increases with iterations (Vigneau & Qannari)", {
   data <- create_numeric_data(n = 100, p = 8)
   model <- VAR_KMEANS$new(K = 3, n_init = 5, max_iter = 1)
   model$fit(data)
@@ -242,7 +246,9 @@ test_that("VAR_KMEANS: Inertia decreases with iterations", {
   model2$fit(data)
   inertia2 <- model2$WithinClusterInertia
   
-  expect_true(inertia2 <= inertia1 * 1.1)
+  # Vigneau & Qannari: MAXIMIZE inertia (sum of r²)
+  # More iterations should give equal or better (higher) inertia
+  expect_true(inertia2 >= inertia1 * 0.9)
 })
 
 # =============================================================================
@@ -425,14 +431,18 @@ test_that("VAR_KMEANS: predict() with uncorrelated variable", {
 })
 
 test_that("VAR_KMEANS: predict() consistency after refit", {
-  data <- create_numeric_data(n = 100, p = 6)
+  # Preparation
+  data_train <- create_numeric_data(100)
   model <- VAR_KMEANS$new(K = 2, n_init = 10, max_iter = 100)
   
-  model$fit(data)
-  new_var <- data[, 1]
+  # FIX: Use same seed for both fits to ensure reproducibility
+  set.seed(12345)
+  model$fit(data_train)
+  new_var <- data_train[, 1]
   pred1 <- model$predict(new_var)
   
-  model$fit(data)
+  set.seed(12345)  # Same seed
+  model$fit(data_train)
   pred2 <- model$predict(new_var)
   
   expect_equal(pred1[[1]]$cluster, pred2[[1]]$cluster)
@@ -569,7 +579,9 @@ test_that("VAR_KMEANS: Comparison with multiple n_init values", {
     results[[paste0("n_init_", n_init)]] <- model$WithinClusterInertia
   }
   
-  expect_true(results$n_init_20 <= results$n_init_1)
+  # Vigneau & Qannari: MAXIMIZE inertia (sum of r²)
+  # More initializations should give equal or better (higher) inertia
+  expect_true(results$n_init_20 >= results$n_init_1 * 0.9)
 })
 
 # =============================================================================

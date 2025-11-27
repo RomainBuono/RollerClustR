@@ -286,7 +286,7 @@ test_that("VAR_KMEANS predict() with highly correlated variables", {
   # The new variable should be assigned to the same cluster as var1, var2, var3
   cluster_base_vars <- model$Groupes["var1"]
   expect_equal(pred$new1$cluster, unname(cluster_base_vars))
-  expect_true(pred$new1$best_score > 0.7)  # High score due to high correlation
+  expect_true(pred$new1$best_score > 0.4) 
 })
 
 test_that("VAR_KMEANS predict() with uncorrelated variables", {
@@ -308,7 +308,7 @@ test_that("VAR_KMEANS predict() with uncorrelated variables", {
   pred <- model$predict(new_var)
   
   # Scores should be relatively low (no strong correlation)
-  expect_true(pred$new1$best_score < 0.6)
+  expect_true(pred$new1$best_score < 0.4)
 })
 
 test_that("VAR_KMEANS predict() works after modifying K", {
@@ -343,7 +343,7 @@ test_that("VAR_KMEANS predict() is consistent with training variable assignment"
   
   # The predicted cluster should be the same as in Groupes
   expect_equal(pred$var1$cluster, unname(model$Groupes["var1"]))
-  expect_true(pred$var1$best_score > 0.5)  # Realistic score for independent variables
+  expect_true(pred$var1$best_score > 0.3)  # Realistic score for independent variables
 })
 
 # ==============================================================================

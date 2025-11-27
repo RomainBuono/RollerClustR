@@ -1,8 +1,26 @@
-#' VAR_KMEANS: K-Means Variable Clustering
+#' VAR_KMEANS: K-Means Variable Clustering with Principal Components
 #'
 #' @description
-#' Implementation of K-means algorithm adapted for variable clustering.
-#' Minimizes within-cluster inertia through iterative reallocation.
+#' Implementation of the Vigneau & Qannari algorithm for variable clustering.
+#' Uses iterative reallocation with cluster centers represented by the first
+#' principal component. Maximizes the sum of squared correlations (r²) between
+#' variables and their cluster centers.
+#'
+#' @details
+#' The algorithm follows the method described by Vigneau & Qannari:
+#' 
+#' 1. **Initialization**: K variables randomly selected as initial centers
+#' 2. **Allocation**: Each variable assigned to cluster with maximum r²
+#' 3. **Representation**: Cluster center = 1st principal component via PCA
+#' 4. **Convergence**: Iterate until convergence or max iterations
+#' 
+#' The optimization criterion is: maximize Σ_k λ_k where λ_k = Σ r²(X_j, U_k)
+#' and U_k is the first principal component of cluster k.
+#'
+#' @references
+#' Chavent, M., Kuentz-Simonet, V., Liquet, B., & Saracco, J. (2012).
+#' ClustOfVar: An R Package for the Clustering of Variables.
+#' Journal of Statistical Software, 50(13), 1-16.
 #'
 #' @examples
 #' # Basic usage
@@ -341,14 +359,14 @@ VAR_KMEANS <- R6::R6Class(
     #' Run K-means with multiple random initializations
     kmeans_multiple_runs = function() {
       
-      best_inertia <- Inf
+      best_criterion <- -Inf  # We MAXIMIZE the criterion (sum of r²)
       best_result <- NULL
       
       for (i in 1:private$Fn_init) {
         result <- private$kmeans_single_run()
         
-        if (result$inertia < best_inertia) {
-          best_inertia <- result$inertia
+        if (result$inertia > best_criterion) {  # Changed from < to >
+          best_criterion <- result$inertia
           best_result <- result
         }
       }
@@ -468,7 +486,7 @@ VAR_KMEANS <- R6::R6Class(
     # ===========================================================
     
     #'
-    #' Assign variables to nearest cluster
+    #' Assign variables to nearest cluster (maximum r²)
     assign_to_clusters = function(centers) {
       
       n_vars <- nrow(private$FX_scaled)  # Number of rows = variables
@@ -477,16 +495,16 @@ VAR_KMEANS <- R6::R6Class(
       for (j in 1:n_vars) {
         var_j <- private$FX_scaled[j, ]  # Select j-th row (variable)
         
-        # Compute distance to each center
-        distances <- numeric(private$FNbGroupes)
+        # Compute r² to each center
+        r_squareds <- numeric(private$FNbGroupes)
         for (k in 1:private$FNbGroupes) {
-          # Distance = 1 - |correlation|
+          # r² (squared correlation) - always positive
           cor_val <- cor(var_j, centers[k, ], use = "complete.obs")
-          distances[k] <- 1 - abs(cor_val)
+          r_squareds[k] <- cor_val^2
         }
         
-        # Assign to closest center
-        clusters[j] <- which.min(distances)
+        # Assign to cluster with maximum r²
+        clusters[j] <- which.max(r_squareds)
       }
       
       return(clusters)
@@ -526,24 +544,49 @@ VAR_KMEANS <- R6::R6Class(
       }
       
       if (length(var_indices) == 1) {
-        # Single variable: return it as is
-        return(private$FX_scaled[var_indices, ])
-      } else {
-        # Multiple variables: first principal component
-        # FX_scaled is (variables, observations), so select rows
-        cluster_data <- private$FX_scaled[var_indices, , drop = FALSE]
-        
-        # Compute mean correlation vector (simpler and more stable)
-        # Average of all variables in the cluster
-        center <- colMeans(cluster_data, na.rm = TRUE)
-        
-        # Normalize to unit length
+        # Single variable: return it as is (normalized)
+        center <- private$FX_scaled[var_indices, ]
         center_norm <- sqrt(sum(center^2, na.rm = TRUE))
         if (center_norm > 0) {
           center <- center / center_norm
         }
-        
         return(center)
+      } else {
+        # Multiple variables: compute 1st principal component via PCA
+        # FX_scaled is (variables, observations), so select rows
+        cluster_data <- private$FX_scaled[var_indices, , drop = FALSE]
+        
+        # Center the data (by observation)
+        cluster_centered <- t(scale(t(cluster_data), center = TRUE, scale = FALSE))
+        
+        # Correlation matrix between variables
+        R <- cor(t(cluster_centered), use = "pairwise.complete.obs")
+        
+        # Eigendecomposition
+        eigen_result <- eigen(R, symmetric = TRUE)
+        
+        # 1st eigenvalue and eigenvector
+        lambda1 <- eigen_result$values[1]
+        v1 <- eigen_result$vectors[, 1, drop = TRUE]
+        
+        # 1st principal component: U_k = cluster_centered^T %*% v1
+        # cluster_centered is (n_vars, n_obs), v1 is (n_vars,)
+        # Result should be (n_obs,) vector
+        pc1 <- as.vector(t(cluster_centered) %*% v1)
+        
+        # Normalize to unit variance (standard normalization for PC)
+        pc1_sd <- sd(pc1, na.rm = TRUE)
+        if (pc1_sd > 0) {
+          pc1 <- pc1 / pc1_sd
+        }
+        
+        # Final normalization to unit length
+        pc1_norm <- sqrt(sum(pc1^2, na.rm = TRUE))
+        if (pc1_norm > 0) {
+          pc1 <- pc1 / pc1_norm
+        }
+        
+        return(pc1)
       }
     },
     
@@ -552,10 +595,11 @@ VAR_KMEANS <- R6::R6Class(
     # ===========================================================
     
     #'
-    #' Compute within-cluster inertia
+    #' Compute within-cluster criterion (sum of r²)
+    #' Higher values indicate better clustering (we MAXIMIZE this)
     compute_inertia = function(clusters, centers) {
       
-      total_inertia <- 0
+      total_criterion <- 0
       
       for (k in 1:private$FNbGroupes) {
         vars_in_cluster <- which(clusters == k)
@@ -564,17 +608,17 @@ VAR_KMEANS <- R6::R6Class(
           for (j in vars_in_cluster) {
             var_j <- private$FX_scaled[j, ]  # Select j-th row (variable)
             cor_val <- cor(var_j, centers[k, ], use = "complete.obs")
-            distance <- 1 - abs(cor_val)
-            total_inertia <- total_inertia + distance
+            r_squared <- cor_val^2  # r² (always positive)
+            total_criterion <- total_criterion + r_squared
           }
         }
       }
       
-      return(total_inertia)
+      return(total_criterion)
     },
     
     #'
-    #' Compute overall homogeneity
+    #' Compute overall homogeneity (mean r²)
     compute_homogeneity = function() {
       
       homogeneities <- numeric(private$FNbGroupes)
@@ -590,16 +634,17 @@ VAR_KMEANS <- R6::R6Class(
         } else if (n_vars_k == 1) {
           homogeneities[k] <- 1
         } else {
-          # Correlation with cluster center
+          # r² with cluster center (1st PC)
           cluster_data <- private$FX_scaled[vars_in_cluster, , drop = FALSE]
           center_k <- private$FClusterCenters[k, ]
           
-          # Compute correlation for each variable with center
-          cors <- numeric(n_vars_k)
+          # Compute r² for each variable with center
+          r_squareds <- numeric(n_vars_k)
           for (i in 1:n_vars_k) {
-            cors[i] <- abs(cor(cluster_data[i, ], center_k, use = "complete.obs"))
+            cor_val <- cor(cluster_data[i, ], center_k, use = "complete.obs")
+            r_squareds[i] <- cor_val^2
           }
-          homogeneities[k] <- mean(cors, na.rm = TRUE)
+          homogeneities[k] <- mean(r_squareds, na.rm = TRUE)
         }
       }
       
@@ -679,14 +724,14 @@ VAR_KMEANS <- R6::R6Class(
         
         var_j <- newdata_scaled[j, ]  # Select j-th row (variable)
         
-        # Compute correlation with each center
+        # Compute r² with each center (squared correlation)
         scores <- numeric(private$FNbGroupes)
         for (k in 1:private$FNbGroupes) {
           cor_val <- cor(var_j, private$FClusterCenters[k, ], use = "complete.obs")
-          scores[k] <- abs(cor_val)
+          scores[k] <- cor_val^2  # r² (always positive)
         }
         
-        # Assign to cluster with highest correlation
+        # Assign to cluster with highest r²
         best_cluster <- which.max(scores)
         
         results[[var_name]] <- list(
@@ -704,7 +749,7 @@ VAR_KMEANS <- R6::R6Class(
     # ===========================================================
     
     #'
-    #' === CORRECTION 6: Display summary with fitted verification ===
+    #' Display summary with fitted verification ===
     do_summary = function() {
       
       # Verify model is fitted
@@ -715,12 +760,14 @@ VAR_KMEANS <- R6::R6Class(
       # Display banner
       cat("\n")
       cat("===========================================================\n")
-      cat("   VAR_KMEANS - K-Means Variable Clustering Summary\n")
+      cat("   VAR_KMEANS - K-Means with Principal Components\n")
+      cat("            (Vigneau & Qannari Algorithm)\n")
       cat("===========================================================\n\n")
       
       # Algorithm parameters
-      cat("Algorithm: K-Means for Variable Clustering\n")
-      cat("Optimization criterion: Minimization of within-cluster inertia\n")
+      cat("Algorithm: K-Means with 1st Principal Components (PCA)\n")
+      cat("Optimization criterion: Maximize sum of squared correlations (r²)\n")
+      cat("Cluster centers: 1st principal component of each cluster\n")
       cat("Number of initializations (n_init):", private$Fn_init, "\n")
       cat("Maximum iterations:", private$Fmax_iter, "\n")
       cat("Convergence tolerance:", private$Ftolerance, "\n")
@@ -730,8 +777,10 @@ VAR_KMEANS <- R6::R6Class(
       
       # Quality metrics
       cat("=== Clustering Quality Metrics ===\n\n")
-      cat("Within-cluster inertia (W):", round(private$FWithinClusterInertia, 4), "\n")
-      cat("Overall homogeneity:", round(private$FHomogeneite, 4), "\n")
+      cat("Sum of r² (criterion):", round(private$FWithinClusterInertia, 4), "\n")
+      cat("Mean homogeneity (r²):", round(private$FHomogeneite, 4), "\n")
+      cat(sprintf("Proportion of variance explained: %.2f%%\n", 
+                  100 * private$FHomogeneite))
       cat("Convergence status:", private$FConverged, "\n")
       cat("Number of iterations:", private$FNIterations, "\n\n")
       
@@ -748,20 +797,21 @@ VAR_KMEANS <- R6::R6Class(
           var_names_k <- names(private$FGroupes)[vars_in_k]
           cat("  Variables:", paste(var_names_k, collapse = ", "), "\n")
           
-          # Cluster homogeneity
+          # Cluster homogeneity (mean r²)
           if (n_vars_k > 1) {
             cluster_data <- private$FX_scaled[vars_in_k, , drop = FALSE]
             center_k <- private$FClusterCenters[k, ]
             
-            # Compute correlation for each variable with center
-            cors <- numeric(n_vars_k)
+            # Compute r² for each variable with center
+            r_squareds <- numeric(n_vars_k)
             for (i in 1:n_vars_k) {
-              cors[i] <- abs(cor(cluster_data[i, ], center_k, use = "complete.obs"))
+              cor_val <- cor(cluster_data[i, ], center_k, use = "complete.obs")
+              r_squareds[i] <- cor_val^2
             }
-            mean_cor <- mean(cors, na.rm = TRUE)
-            cat("  Homogeneity (mean |cor|):", round(mean_cor, 4), "\n")
+            mean_r2 <- mean(r_squareds, na.rm = TRUE)
+            cat(sprintf("  Homogeneity (mean r²): %.4f\n", mean_r2))
           } else {
-            cat("  Homogeneity: 1.0000 (single variable)\n")
+            cat("  Homogeneity (r²): 1.0000 (single variable)\n")
           }
         }
         cat("\n")
