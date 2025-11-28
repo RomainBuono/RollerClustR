@@ -1,12 +1,20 @@
+<div align="center">
+
+<img src="img/Logo_RollerClusteR.jpg" width="400px" alt="RollerClustR Logo"/>
+
 # RollerClustR
 
 [![R](https://img.shields.io/badge/R-%3E%3D%204.0-blue.svg)](https://www.r-project.org/)
 [![License: GPL-3](https://img.shields.io/badge/License-GPL%203-yellow.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
+### Variable Clustering for R
+
+</div>
+
 **RollerClustR** is an R package for clustering **variables** (not observations). It implements three complementary approaches for analyzing relationships between variables:
 
 - **VAR_CAH**: Hierarchical Agglomerative Clustering
-- **VARCLUS**: Divisive clustering with PCA
+- **VAR_KMEANS**: K-means with Principal Components (Vigneau & Qannari algorithm)
 - **TandemVarClust**: Tandem analysis (MCA + HAC) for mixed data
 
 ---
@@ -45,7 +53,25 @@ print(model$Groupes)
 #            1           2            1           1
 ```
 
-### Example 2: Illustrative Variables with `predict()`
+### Example 2: K-means Variable Clustering (VAR_KMEANS)
+
+```r
+# K-means clustering with 1st principal components
+model_km <- roller_clust(
+  X = iris[, 1:4],
+  method = "var_kmeans",
+  K = 2,
+  n_init = 20  # Multiple random initializations
+)
+
+model_km$summary()
+
+# Access homogeneity (mean r²)
+print(model_km$Homogeneite)
+# [1] 0.7845
+```
+
+### Example 3: Illustrative Variables with `predict()`
 
 ```r
 # Create new variables for prediction
@@ -58,23 +84,20 @@ new_vars <- data.frame(
 predictions <- model$predict(new_vars)
 
 # View results
-print(predictions$cluster)
-# SumPetals RatioPetals 
-#         1           1
+print(predictions$SumPetals$cluster)
+# [1] 1
 
-print(predictions$scores)
-#             Cluster_1 Cluster_2
-# SumPetals      0.9845    0.3512
-# RatioPetals    0.8923    0.2134
+print(predictions$SumPetals$best_score)
+# [1] 0.9682  # r² with cluster center
 ```
 
 **Understanding predict() output:**
 - `$cluster`: Assigned cluster for each new variable
-- `$scores`: Correlation with each cluster's synthetic variable
-- `$best_score`: Highest correlation score
-- `$second_best_score`: Second-best correlation (for ambiguity assessment)
+- `$scores`: r² (squared correlation) with each cluster's center
+- `$best_score`: Highest r² score
+- `$second_best_score`: Second-best r² (for ambiguity assessment)
 
-### Example 3: Categorical Data (TandemVarClust)
+### Example 4: Categorical Data (TandemVarClust)
 
 ```r
 # Create mixed data
@@ -102,10 +125,10 @@ The `roller_clust()` function provides a single entry point:
 
 ```r
 model <- roller_clust(
-  X = data,           # Data (data.frame or matrix)
-  method = "var_cah", # Method: "var_cah", "varclus", "tandem"
-  K = 2,              # Number of clusters
-  scale = TRUE        # Standardization
+  X = data,              # Data (data.frame or matrix)
+  method = "var_cah",    # Method: "var_cah", "var_kmeans", "tandem"
+  K = 2,                 # Number of clusters
+  scale = TRUE           # Standardization
 )
 ```
 
@@ -134,6 +157,10 @@ model$K <- 4              # Write (refits model)
 
 # Variable groups
 groups <- model$Groupes  # Named vector of assignments
+
+# Quality metrics
+model$Homogeneite         # Mean homogeneity (r² for VAR_KMEANS)
+model$WithinClusterInertia  # Sum of r² (VAR_KMEANS) or inertia (VAR_CAH)
 ```
 
 ---
@@ -143,15 +170,23 @@ groups <- model$Groupes  # Named vector of assignments
 | Method | Data Type | Approach | Best For |
 |--------|-----------|----------|----------|
 | **VAR_CAH** | Numeric | Agglomerative | Initial exploration, dendrograms |
-| **VARCLUS** | Numeric | Divisive | Complex hierarchical structures |
+| **VAR_KMEANS** | Numeric | Iterative K-means | Optimized partitioning, maximizing r² |
 | **TandemVarClust** | Mixed | MCA + HAC | Categorical or mixed variables |
+
+### Algorithm Details
+
+**VAR_CAH**: Hierarchical agglomerative clustering based on variable correlations. Builds a dendrogram bottom-up.
+
+**VAR_KMEANS**: Implements Vigneau & Qannari algorithm using K-means with cluster centers represented by first principal components. Maximizes sum of squared correlations (r²).
+
+**TandemVarClust**: Combines Multiple Correspondence Analysis (MCA) with Hierarchical Agglomerative Clustering (HAC) for categorical and mixed data.
 
 ---
 
 ## Complete Documentation
 
 - **Full User Guide**: See `USERGUIDE.md`
-- **Function Documentation**: `?roller_clust`, `?VAR_CAH`, `?VARCLUS`, `?TandemVarClust`
+- **Function Documentation**: `?roller_clust`, `?VAR_CAH`, `?VAR_KMEANS`, `?TandemVarClust`
 - **Vignettes**: `browseVignettes("RollerClustR")`
 
 ---
@@ -164,6 +199,10 @@ If you use **RollerClustR** in your research, please cite:
 Romain Buono. (2025). RollerClustR: Variable Clustering in R.
 R package version 1.0.0. https://github.com/RomainBuono/RollerClustR
 ```
+
+**Key References**:
+
+- Chavent, M., Kuentz-Simonet, V., Liquet, B., & Saracco, J. (2012). ClustOfVar: An R Package for the Clustering of Variables. *Journal of Statistical Software*, 50(13), 1-16.
 
 ---
 

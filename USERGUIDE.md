@@ -43,7 +43,7 @@
 | Algorithm | Data Type | Principle | Recommended Use |
 |-----------|-----------|-----------|-----------------|
 | **VAR_CAH** | Numeric | Hierarchical agglomerative | Exploration, visual dendrograms |
-| **VARCLUS** | Numeric | Divisive with PCA | Complex structures, optimized splitting |
+| **VAR_KMEANS** | Numeric | K-means with 1st PCs (Vigneau & Qannari) | Optimized partitioning, maximizing r² |
 | **TandemVarClust** | Mixed | MCA + HAC on modalities | Categorical or mixed data |
 
 ---
@@ -91,7 +91,7 @@ model <- roller_clust(
 ```
 
 **What does `roller_clust()` do?**
-1. Creates an object of the appropriate class (VAR_CAH, VARCLUS, or TandemVarClust)
+1. Creates an object of the appropriate class (VAR_CAH, VAR_KMEANS, or TandemVarClust)
 2. Automatically calls `$fit(X)` to fit the model
 3. Returns a fitted, ready-to-use model
 
@@ -121,29 +121,31 @@ model_cah <- roller_clust(
 - Provides homogeneity metrics
 - Allows tree visualization with `model_cah$get_tree()`
 
-#### Method 2: VARCLUS (Divisive Clustering with PCA)
+#### Method 2: VAR_KMEANS (K-means with Principal Components)
 
-**Principle**: Top-down approach starting with all variables and recursively splitting.
+**Principle**: Iterative reallocation algorithm where cluster centers are represented by first principal components (Vigneau & Qannari algorithm). Maximizes sum of squared correlations (r²).
 
 ```r
-model_vc <- roller_clust(
+model_km <- roller_clust(
   X = iris[, 1:4],
-  method = "varclus",
-  K = 3,                    # K is often ignored - algorithm determines optimal K
-  stop_eigenvalue = 1.0     # Stopping criterion (λ₂ threshold)
+  method = "var_kmeans",
+  K = 3,
+  n_init = 20,          # Number of random initializations
+  max_iter = 100        # Maximum iterations per run
 )
 ```
 
 **When to use**:
-- Complex hierarchical structures
-- Need for automatic cluster determination
-- PCA-based interpretability
+- Optimized variable partitioning
+- When K is known in advance
+- Need for reproducible results (with set.seed)
 - Medium to large datasets
 
 **Key features**:
-- Uses Varimax rotation
-- Automatic stopping based on eigenvalue threshold
-- Recursive splitting process
+- Cluster centers are 1st principal components
+- Maximizes sum of r² (squared correlations)
+- Multiple random initializations to avoid local optima
+- Provides homogeneity as mean r²
 
 #### Method 3: TandemVarClust (MCA + HAC for Mixed Data)
 
@@ -179,269 +181,275 @@ model_tandem <- roller_clust(
 
 #### Step 1: Fit the Model
 
-With `roller_clust()`, fitting is automatic:
-
-```r
-model <- roller_clust(X = iris[, 1:4], method = "var_cah", K = 2)
-# Model is already fitted!
-```
-
-For advanced users using R6 classes directly:
+`roller_clust()` automatically fits for you, but you can also do it manually:
 
 ```r
 model <- VAR_CAH$new(K = 2)
-model$fit(iris[, 1:4])  # Explicit fit
+model$fit(iris[, 1:4])
 ```
 
-**What happens during fit()**:
-- Data validation and cleaning
-- Missing value handling (based on `na.action` parameter)
-- Scaling/standardization (if `scale = TRUE`)
-- Algorithm execution
-- Cluster evaluation and quality metrics computation
-
-#### Step 2: Examine Results with summary()
+#### Step 2: Display Summary
 
 ```r
 model$summary()
 ```
 
-**Example output for VAR_CAH**:
-
+**Example output (VAR_CAH)**:
 ```
-===============================================================
+===================================================================
    VAR_CAH - Hierarchical Variable Clustering Summary
-===============================================================
+===================================================================
 
-Number of clusters      : 2
-Number of variables     : 4
-Overall homogeneity     : 0.8523
+Number of clusters (K): 2
+Number of variables: 4
+Scaling applied: TRUE
+Clustering method: Complete linkage (on correlations)
 
-Details by Cluster:
-  Cluster Nb_Vars Mean_Homogeneity
-1       1       3           0.8912
-2       2       1           0.7134
+Within-cluster inertia (W): 0.453
+Between-cluster inertia (B): 3.547
+Total inertia (T): 4.000
+Variance explained by clustering: 88.68%
 
-Cluster 1: 3 variables
+Global homogeneity: 0.774
+
+-------------------------------------------------------------------
+Cluster Composition and Homogeneity:
+-------------------------------------------------------------------
+
+Cluster 1 (3 variables):
   Sepal.Length, Petal.Length, Petal.Width
-  Mean intra-cluster correlation: 0.8912
+  Homogeneity (mean |cor|): 0.863
 
-Cluster 2: 1 variable
+Cluster 2 (1 variable):
   Sepal.Width
+  Homogeneity (mean |cor|): 1.000
+===================================================================
 ```
 
-**Understanding summary() output**:
-- **Number of clusters**: Your specified K
-- **Number of variables**: Total variables in dataset
-- **Overall homogeneity**: Average intra-cluster correlation (higher is better)
-- **Per-cluster details**: 
-  - Number of variables in each cluster
-  - Mean correlation within cluster
-  - Variable names
+**Example output (VAR_KMEANS)**:
+```
+===================================================================
+   VAR_KMEANS - K-Means with Principal Components
+            (Vigneau & Qannari Algorithm)
+===================================================================
+
+Number of clusters (K): 2
+Number of variables: 4
+Scaling applied: TRUE
+
+Optimization criterion: Maximize sum of squared correlations (r²)
+Cluster centers: 1st principal component of each cluster
+
+Sum of r² (criterion): 3.124
+Global homogeneity (mean r²): 0.781
+
+Convergence status: Converged
+Number of iterations: 12
+Number of random initializations: 20
+
+-------------------------------------------------------------------
+Cluster Composition and Homogeneity:
+-------------------------------------------------------------------
+
+Cluster 1 (3 variables):
+  Sepal.Length, Petal.Length, Petal.Width
+  Homogeneity (mean r²): 0.849
+
+Cluster 2 (1 variable):
+  Sepal.Width
+  Homogeneity (mean r²): 1.000
+===================================================================
+```
 
 ### Illustrative Variables: predict()
 
-The `predict()` method assigns **new variables** to existing clusters without refitting the entire model. This is useful for:
-- Testing if a derived variable belongs to an existing cluster
-- Analyzing illustrative variables
-- Validating cluster stability
+The `predict()` method assigns **new variables** (not observations) to existing clusters.
 
-#### predict() for VAR_CAH and VARCLUS
-
-**Example**:
+#### predict() for VAR_CAH and VAR_KMEANS
 
 ```r
-# Fit model on original variables
-model <- roller_clust(iris[, 1:4], method = "var_cah", K = 2)
+# Fit a model
+model <- roller_clust(iris[, 1:4], method = "var_kmeans", K = 2)
 
-# Create new derived variables
+# Create new variables
 new_vars <- data.frame(
   SumPetals = iris$Petal.Length + iris$Petal.Width,
   RatioPetals = iris$Petal.Length / iris$Petal.Width,
-  SumSepals = iris$Sepal.Length + iris$Sepal.Width
+  MeanSepals = (iris$Sepal.Length + iris$Sepal.Width) / 2
 )
 
 # Predict cluster membership
 predictions <- model$predict(new_vars)
 ```
 
-**Output Structure**:
-
+**Output structure**:
 ```r
 str(predictions)
-# List of 4
-#  $ cluster          : Named int [1:3] 1 1 1
-#  $ scores           : num [1:3, 1:2] 0.985 0.892 0.654 0.351 0.213 ...
-#  $ best_score       : num [1:3] 0.985 0.892 0.654
-#  $ second_best_score: num [1:3] 0.351 0.213 0.478
+# List of 3
+#  $ SumPetals   :List of 4
+#   ..$ cluster        : int 1
+#   ..$ scores         : num [1:2] 0.968 0.124
+#   ..$ best_score     : num 0.968
+#   ..$ second_best_score: num 0.124
+#  $ RatioPetals :List of 4
+#   ..$ cluster        : int 1
+#   ..$ scores         : num [1:2] 0.753 0.089
+#   ..$ best_score     : num 0.753
+#   ..$ second_best_score: num 0.089
+#  $ MeanSepals  :List of 4
+#   ..$ cluster        : int 2
+#   ..$ scores         : num [1:2] 0.234 0.812
+#   ..$ best_score     : num 0.812
+#   ..$ second_best_score: num 0.234
 ```
 
-**Interpreting predict() output**:
+**Interpretation**:
+- **For VAR_KMEANS**: `scores` are **r²** (squared correlations) with each cluster's center (1st PC)
+- `cluster`: Assigned cluster (highest r²)
+- `best_score`: Maximum r² value
+- `second_best_score`: Second-best r² (helps assess ambiguity)
 
-1. **`$cluster`**: Assigned cluster for each new variable
-   ```r
-   predictions$cluster
-   # SumPetals RatioPetals SumSepals 
-   #         1           1         1
-   ```
-
-2. **`$scores`**: Correlation matrix with cluster synthetic variables
-   ```r
-   predictions$scores
-   #             Cluster_1 Cluster_2
-   # SumPetals      0.9845    0.3512
-   # RatioPetals    0.8923    0.2134
-   # SumSepals      0.6541    0.4782
-   ```
-   - **Interpretation**: Higher score = stronger association
-   - **Range**: [0, 1] (absolute correlations)
-   - **Assignment rule**: Highest score determines cluster
-
-3. **`$best_score`**: Confidence metric
-   ```r
-   predictions$best_score
-   # SumPetals RatioPetals SumSepals 
-   #    0.9845      0.8923    0.6541
-   ```
-   - Values close to 1 indicate strong assignment
-   - Values < 0.6 suggest weak cluster affiliation
-
-4. **`$second_best_score`**: Ambiguity assessment
-   ```r
-   predictions$second_best_score
-   # SumPetals RatioPetals SumSepals 
-   #    0.3512      0.2134    0.4782
-   ```
-   - **Gap analysis**: `best_score - second_best_score`
-   - Large gap (> 0.3) indicates clear assignment
-   - Small gap (< 0.1) suggests ambiguous assignment
-
-**Example interpretation**:
-
+**Example**: 
 ```r
-# SumPetals analysis
-# best_score = 0.9845, second_best = 0.3512
-# Gap = 0.6333 → Strong, unambiguous assignment to Cluster 1
+predictions$SumPetals$best_score
+# [1] 0.968
 
-# SumSepals analysis
-# best_score = 0.6541, second_best = 0.4782
-# Gap = 0.1759 → Weaker, more ambiguous assignment
+# Interpretation: SumPetals has r² = 0.968 with Cluster 1's center
+# This means 96.8% of SumPetals' variance is explained by the 1st PC of Cluster 1
+# → Very strong association with Cluster 1
+```
+
+**Ambiguity detection**:
+```r
+# High ambiguity example
+if (predictions$SumPetals$best_score - predictions$SumPetals$second_best_score < 0.1) {
+  message("SumPetals is ambiguous between clusters")
+}
+# Low difference → Variable could belong to multiple clusters
 ```
 
 #### predict() for TandemVarClust
 
-For categorical illustrative variables, `predict()` performs association analysis:
+TandemVarClust's `predict()` is different: it analyzes **illustrative categorical variables** using contingency tables.
 
 ```r
-# Fit tandem model
-model_tandem <- roller_clust(iris_mixed[, c(1:4, 6)], method = "tandem", K = 3)
+model_tandem <- roller_clust(iris_mixed, method = "tandem", K = 3)
 
-# Create illustrative categorical variable
-new_cat <- data.frame(
-  ColorGroup = sample(c("Red", "Blue", "Green"), 150, replace = TRUE)
+# New categorical variable
+new_illus <- data.frame(
+  Color = sample(c("Red", "Blue", "Green"), nrow(iris), replace = TRUE)
 )
 
-# Predict association
-predictions_tandem <- model_tandem$predict(new_cat)
+predictions_tandem <- model_tandem$predict(new_illus)
 ```
 
-**Output Structure** (different from VAR_CAH/VARCLUS):
+**Output Structure** (different from VAR_CAH/VAR_KMEANS):
 
 ```r
-str(predictions_tandem)
-# List of 1
-#  $ ColorGroup:List of 7
-#   ..$ contingency            : table [1:3, 1:3]
-#   ..$ percentages_by_modality: num [1:3, 1:3]
-#   ..$ percentages_by_cluster : num [1:3, 1:3]
-#   ..$ chi2_test              : 'htest' object
-#   ..$ cramers_v              : num 0.234
-#   ..$ significant            : logi TRUE
-#   ..$ dice_scores            : num [1:150, 1:3]
+str(predictions_tandem$Color)
+# List of 8
+#  $ contingency              : table [3, 3] 
+#  $ percentages_by_modality  : num [3, 3]
+#  $ percentages_by_cluster   : num [3, 3]
+#  $ chi2_test                :List of 3
+#   ..$ statistic: num 5.23
+#   ..$ p.value  : num 0.265
+#   ..$ df       : int 4
+#  $ cramers_v                : num 0.132
+#  $ significant              : logi FALSE
+#  $ interpretation           : chr "No significant association"
+#  $ dice_scores              : num [150, 3]
 ```
 
-**Interpreting TandemVarClust predict() output**:
+**Interpretation**:
+- `contingency`: Cross-table modalities × clusters
+- `cramers_v`: Association strength (0 = none, 1 = perfect)
+- `significant`: Chi-square test result (α = 0.05)
+- `dice_scores`: Dice similarity between each observation and each cluster
 
-1. **Contingency table**: Cross-tabulation of modalities vs clusters
-   ```r
-   predictions_tandem$ColorGroup$contingency
-   #       Cluster_1 Cluster_2 Cluster_3
-   # Red          15        12        23
-   # Blue         18        20        12
-   # Green        17        18        15
-   ```
+**Example**:
+```r
+predictions_tandem$Color$cramers_v
+# [1] 0.132
 
-2. **Chi-square test**: Tests independence between variable and clusters
-   ```r
-   predictions_tandem$ColorGroup$chi2_test
-   # X-squared = 5.234, df = 4, p-value = 0.264
-   ```
-   - p < 0.05: Significant association (variable discriminates clusters)
-   - p ≥ 0.05: No significant association
+# Interpretation: Weak association between Color and the modality clustering
+# Color doesn't strongly discriminate between the 3 clusters
 
-3. **Cramer's V**: Effect size measure [0, 1]
-   ```r
-   predictions_tandem$ColorGroup$cramers_v
-   # [1] 0.234
-   ```
-   - < 0.1: Weak association
-   - 0.1-0.3: Moderate association
-   - > 0.3: Strong association
+predictions_tandem$Color$chi2_test$p.value
+# [1] 0.265
 
-4. **Percentages by cluster**: How each cluster distributes across modalities
-   ```r
-   predictions_tandem$ColorGroup$percentages_by_cluster
-   #       Cluster_1 Cluster_2 Cluster_3
-   # Red       30.0      24.0      46.0
-   # Blue      36.0      40.0      24.0
-   # Green     34.0      36.0      30.0
-   ```
+# p > 0.05 → No significant association
+```
 
 ### Modifying the Number of Clusters
 
-You can dynamically change K after fitting, which automatically refits the model:
+The `K` property is **active**: setting it automatically refits the model.
 
 ```r
-model <- roller_clust(iris[, 1:4], method = "var_cah", K = 2)
-model$summary()  # 2 clusters
+# Initial fit with K = 2
+model <- roller_clust(iris[, 1:4], method = "var_kmeans", K = 2, n_init = 20)
 
-# Change to 3 clusters
+# Change to K = 3 (automatic refit)
 model$K <- 3
-model$summary()  # 3 clusters - model refitted automatically!
+
+# Verify
+print(model$K)
+# [1] 3
+
+model$summary()
+# Now shows 3 clusters
 ```
 
-**What happens**:
-- Model stores original data
-- Refits clustering with new K
-- Updates all metrics and assignments
-- Previous predictions become invalid (rerun if needed)
+**Important notes**:
+- Modifying K calls `fit()` again internally
+- For VAR_KMEANS: uses existing data (stored internally)
+- All previously computed metrics are updated
+
+**Example workflow**:
+```r
+# Compare multiple K values
+for (k in 2:5) {
+  model$K <- k
+  cat("K =", k, "| Homogeneity =", model$Homogeneite, "\n")
+}
+
+# Output:
+# K = 2 | Homogeneity = 0.781
+# K = 3 | Homogeneity = 0.823
+# K = 4 | Homogeneity = 0.856
+# K = 5 | Homogeneity = 0.891
+
+# Choose K based on elbow or interpretability
+```
 
 ---
 
 ## Advanced User Guide
 
-This section is for users who need fine-grained control and want to use R6 class methods directly.
+This section is for users who want direct control via R6 classes.
 
 ### Direct R6 Class Usage
 
-Instead of `roller_clust()`, you can instantiate classes directly:
-
 ```r
-# Create object without fitting
+# Instead of roller_clust(), instantiate directly
 model <- VAR_CAH$new(K = 3, scale = TRUE)
 
-# Fit explicitly
+# Fit manually
 model$fit(iris[, 1:4])
 
-# Access advanced methods
-tree <- model$get_tree()
-rep_var <- model$get_representative_variable(cluster_id = 1)
+# Access all methods
+model$summary()
+groups <- model$Groupes
 ```
 
 **Advantages**:
+- Access to all methods (not just public ones)
 - More control over initialization
-- Access to class-specific methods
-- Better for programming/automation
+- Allows method chaining
+
+**Disadvantages**:
+- More verbose
+- Must remember to call `$fit()` explicitly
 
 ### Advanced Methods by Algorithm
 
@@ -451,43 +459,60 @@ rep_var <- model$get_representative_variable(cluster_id = 1)
 model_cah <- VAR_CAH$new(K = 3)
 model_cah$fit(iris[, 1:4])
 
-# Get hierarchical tree (hclust object)
+# Get hierarchical tree
 tree <- model_cah$get_tree()
-plot(tree)
+# hclust object → can be used with plot(), cutree(), etc.
 
-# Get variables in a specific cluster
-vars_cluster1 <- model_cah$get_cluster_variables(cluster_id = 1)
-# [1] "Sepal.Length" "Petal.Length" "Petal.Width"
+# Plot dendrogram
+plot(tree, main = "Variable Dendrogram")
+rect.hclust(tree, k = 3, border = "red")
 
-# Get most representative variable of a cluster
-# (highest correlation with cluster's synthetic variable)
-rep_var <- model_cah$get_representative_variable(cluster_id = 1)
-# [1] "Petal.Length"
+# Get variables in specific cluster
+vars_cluster_1 <- model_cah$get_cluster_variables(cluster_id = 1)
+# Character vector: c("Sepal.Length", "Petal.Length", "Petal.Width")
 
-# Compute inertia decomposition
-inertia <- model_cah$inertie()
-# $totale      : Total variance
+# Get synthetic variable (1st PC) for a cluster
+centers <- model_cah$get_cluster_centers()
+# Matrix with 1 column per cluster
+
+# Get quality metrics
+quality <- model_cah$get_quality_metrics()
+# List with:
 # $intra       : Within-cluster inertia
 # $inter       : Between-cluster inertia
 # $pct_expliquee: % variance explained by clustering
 ```
 
-#### VARCLUS Advanced Methods
+#### VAR_KMEANS Advanced Methods
 
 ```r
-model_vc <- VARCLUS$new(stop_eigenvalue = 1.0)
-model_vc$fit(iris[, 1:4])
+model_km <- VAR_KMEANS$new(K = 3, n_init = 20, max_iter = 100)
+model_km$fit(iris[, 1:4])
 
-# Access division tree structure
-tree <- model_vc$get_tree()
+# Get cluster centers (1st PCs)
+centers <- model_km$get_cluster_centers()
+# Matrix: observations × K clusters
+# Each column is the 1st PC of a cluster
 
-# Get iteration history
-iterations <- model_vc$get_iterations()
-# Data frame with splitting history
+# Access convergence information
+converged <- model_km$Converged
+# Logical: TRUE if algorithm converged
 
-# Examine specific cluster's PCA
-cluster_vars <- names(model_vc$Groupes)[model_vc$Groupes == 1]
-# Perform custom analysis on these variables
+n_iterations <- model_km$NIterations
+# Integer: number of iterations until convergence
+
+# Get variables in specific cluster
+vars_cluster_2 <- model_km$get_cluster_variables(cluster_id = 2)
+
+# Manual prediction on specific variable
+new_var <- iris$Sepal.Length + iris$Petal.Length
+pred_result <- model_km$predict(data.frame(Combined = new_var))
+print(pred_result$Combined$cluster)
+# Assigned cluster
+
+# Access homogeneity by cluster
+summary_output <- capture.output(model_km$summary())
+# Parse to extract per-cluster homogeneity
 ```
 
 #### TandemVarClust Advanced Methods
@@ -538,208 +563,341 @@ model <- VAR_CAH$new(
 )
 ```
 
-#### VARCLUS Parameters
+#### VAR_KMEANS Parameters
 
 ```r
-model <- VARCLUS$new(
-  stop_eigenvalue = 1.0  # Stop splitting when λ₂ < threshold
-                         # Lower value → more clusters
-                         # Higher value → fewer clusters
+model <- VAR_KMEANS$new(
+  K = 3,
+  n_init = 20,           # Number of random initializations (recommended: 10-50)
+                         # More → better solution, slower
+  max_iter = 100,        # Maximum iterations per run
+                         # Usually converges in < 50 iterations
+  tolerance = 1e-6,      # Convergence tolerance (change in criterion)
+  scale = TRUE           # Standardize variables (recommended)
 )
 
-# Example: More aggressive splitting
-model_fine <- VARCLUS$new(stop_eigenvalue = 0.7)
-model_fine$fit(iris[, 1:4])
-# Likely produces more clusters
+# Example: More thorough search
+model_thorough <- VAR_KMEANS$new(K = 4, n_init = 50, max_iter = 200)
+model_thorough$fit(iris[, 1:4])
+# More likely to find global optimum (but slower)
+
+# Example: Quick exploration
+model_quick <- VAR_KMEANS$new(K = 4, n_init = 5, max_iter = 50)
+model_quick$fit(iris[, 1:4])
+# Faster, but may miss best solution
 ```
 
-**Choosing stop_eigenvalue**:
-- **1.0 (default)**: Standard Kaiser criterion
-- **0.7-0.9**: More clusters, finer granularity
-- **> 1.0**: Fewer clusters, broader groupings
+**Choosing n_init**:
+- **5-10**: Quick exploration
+- **20 (default)**: Good balance
+- **50+**: Thorough search for important analyses
+
+**Note**: VAR_KMEANS maximizes sum of r², so higher criterion = better
 
 #### TandemVarClust Parameters
 
 ```r
 model <- TandemVarClust$new(
   K = 3,
-  n_bins = 5,           # Discretization bins for numeric variables
-  method_cah = "ward.D2", # Linkage method: "ward.D2", "complete", "average", etc.
-  n_factors = NULL,     # Factorial axes to retain (NULL = all axes with λ > 1/p)
-  scale = TRUE,         # Standardize before discretization
-  na_action = "omit"    # "omit" or "fail"
+  n_bins = 5,            # Number of bins for discretization
+                         # 3-5: Recommended
+                         # 7-10: Fine granularity (more modalities)
+  n_factors = NULL,      # Number of MCA factors to retain
+                         # NULL: Automatic (based on Kaiser criterion)
+                         # 2-5: Typical range
+  scale = TRUE           # Scale numeric variables before discretization
 )
+
+# Example: More modalities
+model_fine <- TandemVarClust$new(K = 4, n_bins = 7)
+model_fine$fit(iris[, 1:4])
+# More nuanced clustering but higher complexity
+
+# Example: Fewer modalities
+model_simple <- TandemVarClust$new(K = 3, n_bins = 3)
+model_simple$fit(iris[, 1:4])
+# Simpler, more interpretable
 ```
 
-**Parameter guidance**:
-- **n_bins**: 
-  - 3-5: Coarse discretization, more robust to outliers
-  - 5-7: Standard choice
-  - 7-10: Fine discretization, captures more nuance
-  
-- **method_cah**:
-  - "ward.D2": Minimizes within-cluster variance (default, usually best)
-  - "complete": Max distance between clusters
-  - "average": Average linkage (UPGMA)
-
-- **n_factors**:
-  - NULL: Automatic (keeps axes with eigenvalue > 1/p)
-  - Integer: Manual selection (e.g., 3 for first 3 axes)
+**Choosing n_bins**:
+- **3**: Very coarse (low/medium/high)
+- **5 (default)**: Good balance
+- **7-10**: Fine granularity (use if many observations)
 
 ### In-Depth Results Analysis
 
-#### Analyzing Cluster Quality
+#### Accessing Results Programmatically
 
 ```r
-model <- roller_clust(iris[, 1:4], method = "var_cah", K = 3)
+model <- roller_clust(iris[, 1:4], method = "var_kmeans", K = 3, n_init = 20)
 
-# Overall homogeneity
-# Higher = variables within clusters are more similar
-overall_homog <- mean(sapply(1:3, function(k) {
-  vars <- model$get_cluster_variables(k)
-  if (length(vars) > 1) {
-    cor_matrix <- cor(iris[, vars])
-    mean(cor_matrix[upper.tri(cor_matrix)])
-  } else {
-    NA
-  }
-}), na.rm = TRUE)
+# Variable assignments
+groups <- model$Groupes
+# Named integer vector
+# Example: c(Sepal.Length = 1, Sepal.Width = 2, Petal.Length = 1, Petal.Width = 1)
 
-# Silhouette-like analysis for variables
-# Compare within-cluster vs between-cluster similarities
+# Identify which variables are in cluster k
+vars_in_cluster_1 <- names(groups)[groups == 1]
+# Character vector: c("Sepal.Length", "Petal.Length", "Petal.Width")
+
+# Count variables per cluster
+table(groups)
+# groups
+# 1 2 
+# 3 1
+
+# Global metrics
+homogeneity <- model$Homogeneite
+# Numeric: mean r² across all variables
+
+criterion <- model$WithinClusterInertia
+# Numeric: sum of r² (VAR_KMEANS maximizes this)
+
+# Convergence (VAR_KMEANS only)
+converged <- model$Converged
+n_iter <- model$NIterations
 ```
 
-#### Comparing Methods
+#### Creating Custom Summaries
 
 ```r
-# Fit all three methods
+# Function to summarize each cluster
+summarize_cluster <- function(model, cluster_id) {
+  vars <- model$get_cluster_variables(cluster_id)
+  
+  cat("Cluster", cluster_id, ":\n")
+  cat("  Variables (", length(vars), "):", paste(vars, collapse = ", "), "\n")
+  
+  # For VAR_KMEANS, homogeneity is r²
+  # Extract from summary (not directly exposed)
+  cat("\n")
+}
+
+# Apply to all clusters
+for (k in 1:model$K) {
+  summarize_cluster(model, k)
+}
+```
+
+#### Comparing Models
+
+```r
+# Compare VAR_CAH vs VAR_KMEANS
 model_cah <- roller_clust(iris[, 1:4], "var_cah", K = 3)
-model_vc <- roller_clust(iris[, 1:4], "varclus", K = 3)
+model_km <- roller_clust(iris[, 1:4], "var_kmeans", K = 3, n_init = 20)
+
+cat("VAR_CAH Homogeneity:", model_cah$Homogeneite, "\n")
+cat("VAR_KMEANS Homogeneity:", model_km$Homogeneite, "\n")
 
 # Compare groupings
-table(model_cah$Groupes, model_vc$Groupes)
+table(model_cah$Groupes, model_km$Groupes)
+#     1 2 3
+# 1   3 0 0
+# 2   0 1 0
 
-# Compare predictions on same new variables
-new_vars <- data.frame(Sum = iris[,1] + iris[,3])
-pred_cah <- model_cah$predict(new_vars)
-pred_vc <- model_vc$predict(new_vars)
-
-# Agreement?
-pred_cah$cluster == pred_vc$cluster
+# Interpretation: Both methods agree on variable assignments
 ```
 
 ---
 
 ## Detailed Use Cases
 
-### Use Case 1: Feature Selection for Regression
+### Use Case 1: Multicollinearity Detection in Regression
+
+**Problem**: You have 15 predictors with suspected multicollinearity.
 
 ```r
-# Problem: Too many predictors, multicollinearity issues
-data(mtcars)
+# Your dataset
+data <- read.csv("regression_data.csv")
+predictors <- data[, 1:15]
 
-# Step 1: Cluster variables
-model <- roller_clust(mtcars[, -1], method = "var_cah", K = 4)
+# Cluster variables
+model <- roller_clust(predictors, method = "var_kmeans", K = 5, n_init = 20)
+
+# Identify highly correlated groups
 model$summary()
 
-# Step 2: Select one representative per cluster
-representatives <- sapply(1:4, function(k) {
-  model$get_representative_variable(k)
+# For each cluster, keep only one representative
+representatives <- sapply(1:5, function(k) {
+  vars <- model$get_cluster_variables(k)
+  vars[1]  # Take first variable from each cluster
 })
 
-# Step 3: Build regression with selected variables
-selected_vars <- representatives
-formula_str <- paste("mpg ~", paste(selected_vars, collapse = " + "))
-lm_model <- lm(as.formula(formula_str), data = mtcars)
-summary(lm_model)
+# Build regression with representatives
+reduced_data <- data[, c(representatives, "Response")]
+lm_model <- lm(Response ~ ., data = reduced_data)
 ```
 
-### Use Case 2: Survey Data Reduction
+**Benefit**: Reduced from 15 to 5 predictors while preserving information.
+
+### Use Case 2: Survey Data Dimensionality Reduction
+
+**Problem**: Customer survey with 40 Likert-scale questions.
 
 ```r
-# Problem: 50 survey questions, need to reduce to key themes
+survey_data <- read.csv("survey.csv")
 
 # Cluster questions
-model <- roller_clust(survey_data, method = "varclus", stop_eigenvalue = 1.0)
+model <- roller_clust(survey_data, method = "var_kmeans", K = 6, n_init = 20)
 
-# Examine cluster composition
-for (k in unique(model$Groupes)) {
-  cat("\n\nTheme", k, ":\n")
-  vars <- names(model$Groupes)[model$Groupes == k]
-  cat(paste(vars, collapse = "\n"))
+# Examine clusters to identify themes
+for (k in 1:6) {
+  cat("\n=== Theme", k, "===\n")
+  vars <- model$get_cluster_variables(k)
+  cat("Questions:", paste(vars, collapse = "\n  "), "\n")
 }
 
-# Create theme scores (average of variables in cluster)
-theme_scores <- sapply(unique(model$Groupes), function(k) {
-  vars <- names(model$Groupes)[model$Groupes == k]
+# Create composite scores
+composite_scores <- sapply(1:6, function(k) {
+  vars <- model$get_cluster_variables(k)
   rowMeans(survey_data[, vars], na.rm = TRUE)
 })
-colnames(theme_scores) <- paste0("Theme_", unique(model$Groupes))
+colnames(composite_scores) <- paste0("Theme_", 1:6)
+
+# Use composite scores for subsequent analysis
 ```
 
-### Use Case 3: Mixed Data Market Segmentation
+**Benefit**: 40 questions → 6 themes, easier interpretation.
+
+### Use Case 3: Feature Selection for Machine Learning
+
+**Problem**: 100 features, need to reduce before training ML model.
 
 ```r
-# Problem: Customer data with demographics (categorical) and behavior (numeric)
+features <- training_data[, 1:100]
 
-model <- roller_clust(
-  customer_data,
-  method = "tandem",
-  K = 4,
-  n_bins = 5
-)
+# Hierarchical clustering to explore
+model_cah <- roller_clust(features, "var_cah", K = 10)
+plot(model_cah$get_tree())
 
-# Examine modality clusters
-for (k in 1:4) {
-  cat("\n\nSegment", k, ":\n")
-  mods <- model$get_modalities_of_cluster(k)
-  cat(paste(mods, collapse = "\n"))
+# K-means for optimal partitioning
+model_km <- roller_clust(features, "var_kmeans", K = 10, n_init = 50)
+
+# Select one variable per cluster (highest correlation with cluster center)
+selected_features <- character(10)
+
+for (k in 1:10) {
+  vars <- model_km$get_cluster_variables(k)
+  
+  # Predict each variable's association with its cluster
+  preds <- model_km$predict(features[, vars, drop = FALSE])
+  
+  # Select variable with highest r²
+  scores <- sapply(preds, function(p) p$best_score)
+  selected_features[k] <- vars[which.max(scores)]
 }
 
-# Profile new customers
-new_customers <- data.frame(
-  PurchaseFrequency = factor(c("High", "Low", "Medium")),
-  Region = factor(c("North", "South", "East"))
-)
-
-profile <- model$predict(new_customers)
-# Examine chi-square tests and Cramer's V for association strength
+# Train ML model with selected features
+train_reduced <- training_data[, c(selected_features, "Target")]
+rf_model <- randomForest(Target ~ ., data = train_reduced)
 ```
+
+**Benefit**: Systematic feature reduction with interpretability.
+
+### Use Case 4: Mixed Data Customer Segmentation
+
+**Problem**: Customer database with demographics (categorical) and behavior (numeric).
+
+```r
+customers <- read.csv("customers.csv")
+
+# Prepare mixed data
+mixed_data <- customers[, c("Age", "Income", "Education", "Region", "Membership")]
+
+# TandemVarClust for mixed data
+model <- roller_clust(mixed_data, method = "tandem", K = 4, n_bins = 5)
+
+# Examine modality clusters
+model$summary()
+
+# Illustrative analysis: Does "Churn" status relate to clusters?
+churn_analysis <- model$predict(data.frame(Churn = customers$Churn))
+
+if (churn_analysis$Churn$significant) {
+  cat("Churn is significantly associated with the clustering!\n")
+  print(churn_analysis$Churn$contingency)
+}
+```
+
+**Benefit**: Understand how categorical/numeric variables group in customer base.
 
 ---
 
 ## Interpreting Outputs
 
-### Summary Output Interpretation
+### Understanding Homogeneity
 
-#### VAR_CAH Summary
+**For VAR_CAH**: Homogeneity is mean absolute correlation within clusters.
 
 ```
-Number of clusters: 3
-Number of variables: 10
-Overall homogeneity: 0.78
+Cluster 1 (3 variables): Homogeneity = 0.85
+  → Variables in Cluster 1 have average |correlation| of 0.85
+  → High internal coherence
 
-Cluster 1: 4 variables
-  Mean homogeneity: 0.85
+Cluster 2 (2 variables): Homogeneity = 0.62
+  → Moderate coherence
+```
+
+**For VAR_KMEANS**: Homogeneity is mean r² (squared correlation) within clusters.
+
+```
+Cluster 1 (3 variables): Homogeneity (mean r²) = 0.85
+  → Variables in Cluster 1 have average r² of 0.85 with cluster center (1st PC)
+  → Very high internal coherence (85% variance explained on average)
+
+Cluster 2 (2 variables): Homogeneity (mean r²) = 0.62
+  → Moderate coherence (62% variance explained)
+```
+
+**Interpreting Global Homogeneity**:
+
+```
+Global homogeneity: 0.75 (VAR_KMEANS)
+  → On average, variables have r² = 0.75 with their cluster center
+  → Good clustering quality
+```
+
+**Comparing clusters**:
+
+```
+Cluster 1: 5 variables
+  Mean homogeneity: 0.82
   → Strong internal coherence
 
-Cluster 2: 3 variables
-  Mean homogeneity: 0.72
-  → Moderate internal coherence
+Cluster 2: 4 variables
+  Mean homogeneity: 0.71
+  → Good coherence
 
 Cluster 3: 3 variables
   Mean homogeneity: 0.68
   → Weaker internal coherence (consider splitting if needed)
 ```
 
-**Quality benchmarks**:
+**Quality benchmarks** (for r² in VAR_KMEANS):
 - Homogeneity > 0.7: Good cluster
 - Homogeneity 0.5-0.7: Acceptable cluster
 - Homogeneity < 0.5: Weak cluster (reconsider K)
 
-#### VARCLUS Summary
+#### VAR_KMEANS Summary
 
-VARCLUS determines K automatically based on eigenvalue criterion. The summary shows the recursive splitting process and final cluster composition.
+VAR_KMEANS uses iterative reallocation to maximize sum of r². The summary shows optimization criterion, convergence status, and final cluster composition.
+
+**Example interpretation**:
+```
+Sum of r² (criterion): 3.124
+  → Total squared correlation across all 4 variables
+  → Maximum possible is 4.0 (perfect clustering)
+  → Achieved 78.1% of maximum
+
+Convergence status: Converged
+Number of iterations: 12
+  → Algorithm converged in 12 iterations (out of max 100)
+  → Quick convergence indicates stable solution
+
+Number of random initializations: 20
+  → Tried 20 different starting points
+  → Final solution is best among these 20 runs
+```
 
 #### TandemVarClust Summary
 
@@ -757,7 +915,7 @@ Modalities per cluster:
 ### Predict Output Interpretation
 
 See detailed sections above for:
-- [VAR_CAH/VARCLUS predict() interpretation](#predict-for-var_cah-and-varclus)
+- [VAR_CAH/VAR_KMEANS predict() interpretation](#predict-for-var_cah-and-var_kmeans)
 - [TandemVarClust predict() interpretation](#predict-for-tandemvarclust)
 
 **Key principle**: High scores/strong associations indicate that the illustrative variable "belongs" to that cluster conceptually.
@@ -770,7 +928,7 @@ See detailed sections above for:
 
 **A**:
 - **All numeric variables + want dendrogram visualization** → VAR_CAH
-- **All numeric variables + complex structure** → VARCLUS
+- **All numeric variables + optimized partitioning** → VAR_KMEANS
 - **Categorical or mixed data** → TandemVarClust
 - **Not sure** → Try VAR_CAH first (most straightforward)
 
@@ -778,7 +936,7 @@ See detailed sections above for:
 
 **A**:
 - **VAR_CAH**: Plot dendrogram (`plot(model$get_tree())`), look for natural cuts
-- **VARCLUS**: Let algorithm decide (it uses eigenvalue criterion)
+- **VAR_KMEANS**: Try multiple K values, compare homogeneity (higher = better)
 - **TandemVarClust**: Examine scree plot of MCA eigenvalues, use elbow method
 - **General**: Try multiple K values, compare homogeneity/interpretability
 
@@ -823,6 +981,10 @@ pca <- prcomp(X_cluster)
 synthetic_var <- pca$x[, 1]  # First PC
 ```
 
+### Q: How is VAR_KMEANS different from standard K-means?
+
+**A**: VAR_KMEANS clusters **variables** (not observations) using the Vigneau & Qannari algorithm. Cluster centers are represented by 1st principal components, and the algorithm maximizes sum of squared correlations (r²) instead of minimizing distances.
+
 ### Q: How is TandemVarClust different from standard MCA + HAC?
 
 **A**: TandemVarClust operates at the **modality level**, not observation level. Observations are then assigned to modality clusters using the Dice similarity index, providing a mathematically sound assignment method.
@@ -854,12 +1016,21 @@ model <- roller_clust(iris[, c(1, 3, 4)], method = "var_cah", K = 2)
 # Clusters only Sepal.Length, Petal.Length, Petal.Width
 ```
 
+### Q: Why does VAR_KMEANS give different results each time?
+
+**A**: VAR_KMEANS uses random initialization. Use `set.seed()` for reproducibility:
+```r
+set.seed(123)
+model <- roller_clust(iris[, 1:4], method = "var_kmeans", K = 3, n_init = 20)
+# Results will be identical on each run with same seed
+```
+
 ---
 
 ## Additional Resources
 
 - **Package documentation**: `help(package = "RollerClustR")`
-- **Function help**: `?roller_clust`, `?VAR_CAH`, `?VARCLUS`, `?TandemVarClust`
+- **Function help**: `?roller_clust`, `?VAR_CAH`, `?VAR_KMEANS`, `?TandemVarClust`
 - **GitHub repository**: https://github.com/RomainBuono/RollerClustR
 - **Report issues**: https://github.com/RomainBuono/RollerClustR/issues
 

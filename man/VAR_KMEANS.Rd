@@ -82,7 +82,7 @@ Refit model with new number of clusters
 
 Predict cluster for new variables
 
-=== CORRECTION 6: Display summary with fitted verification ===}
+Display summary with fitted verification ===}
 }
 \if{html}{\out{</div>}}
 }
