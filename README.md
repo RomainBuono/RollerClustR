@@ -13,9 +13,9 @@
 
 **RollerClustR** is an R package for clustering **variables** (not observations). It implements three complementary approaches for analyzing relationships between variables:
 
-- **VAR_CAH**: Hierarchical Agglomerative Clustering
+- **VAR_CAH**: Hierarchical Agglomerative Clustering (HAC)
 - **VAR_KMEANS**: K-means with Principal Components (Vigneau & Qannari algorithm)
-- **TandemVarClust**: Tandem analysis (MCA + HAC) for mixed data
+- **TandemVarClust**: Tandem analysis (AFDM + HAC) for mixed data
 
 ---
 
