@@ -104,6 +104,11 @@ La boucle s'arrête lorsque l'affectation des variables aux clusters ne change p
 
 L'algorithme maximise le critère d'inertie intra-classe défini par :
 $$T = \sum_{k=1}^K \sum_{j \in C_k} r^2(x_j, u_k)$$
+Où :
+$\|m_i - m_j\|^2$ (Distance entre Centres) : C'est le carré de la distance euclidienne entre le centroïde $m_i$ du cluster $C_i$ et le centroïde $m_j$ du cluster $C_j$. C'est la source principale de l'augmentation d'inertie.
+
+$\frac{n_i n_j}{n_i + n_j}$ (Facteur de Pondération) : Ce terme pondère la distance entre les centres par la taille relative des clusters ($n_i$ et $n_j$ sont les effectifs, c'est-à-dire le nombre de variables dans chaque cluster).
+
 
 ## 3\. Prédiction de Nouvelles Variables
 

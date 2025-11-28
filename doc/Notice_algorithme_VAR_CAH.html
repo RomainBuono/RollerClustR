@@ -156,7 +156,11 @@ window.Quarto = {
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>groupes_vars <span class="ot">&lt;-</span> <span class="fu">cutree</span>(private<span class="sc">$</span>FArbre, <span class="at">k =</span> private<span class="sc">$</span>FNbGroupes)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>La classification ascendante hiérarchique est réalisée selon le critère de Ward, qui minimise l’inertie intra-classe à chaque étape de fusion. Plus formellement, à chaque itération, on agrège les clusters <span class="math inline">\(C_i\)</span> et <span class="math inline">\(C_j\)</span> qui minimisent l’augmentation de variance :</p>
 <p><span class="math display">\[\Delta(C_i, C_j) = \frac{n_i n_j}{n_i + n_j} \|m_i - m_j\|^2\]</span></p>
-<p>où <span class="math inline">\(n_i\)</span> et <span class="math inline">\(n_j\)</span> représentent les effectifs des clusters, et <span class="math inline">\(m_i\)</span> et <span class="math inline">\(m_j\)</span> leurs centroïdes respectifs.</p>
+<p>Où :</p>
+<ul>
+<li><p><span class="math inline">\(\|m_i - m_j\|^2\)</span> (Distance entre Centres) : représente le carré de la distance euclidienne entre le centroïde <span class="math inline">\(m_i\)</span> du cluster <span class="math inline">\(C_i\)</span> et le centroïde <span class="math inline">\(m_j\)</span> du cluster <span class="math inline">\(C_j\)</span>. C’est la source principale de l’augmentation d’inertie.</p></li>
+<li><p><span class="math inline">\(\frac{n_i n_j}{n_i + n_j}\)</span> (Facteur de Pondération) : Ce terme pondère la distance entre les centres par la taille relative des clusters (<span class="math inline">\(n_i\)</span> et <span class="math inline">\(n_j\)</span> sont les effectifs, c’est-à-dire le nombre de variables dans chaque cluster).</p></li>
+</ul>
 <p>La partition finale est obtenue par coupure de l’arbre hiérarchique au niveau <span class="math inline">\(k\)</span> spécifié, produisant <span class="math inline">\(k\)</span> groupes de variables disjoints.</p>
 </section>
 </section>

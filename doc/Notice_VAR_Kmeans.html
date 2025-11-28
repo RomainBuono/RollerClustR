@@ -199,7 +199,8 @@ window.Quarto = {
 <section id="critère-de-convergence" class="level3">
 <h3 class="anchored" data-anchor-id="critère-de-convergence">2.3 Critère de Convergence</h3>
 <p>La boucle s’arrête lorsque l’affectation des variables aux clusters ne change plus entre deux itérations consécutives (<code>all(clusters == old_clusters)</code>).</p>
-<p>L’algorithme maximise le critère d’inertie intra-classe défini par : <span class="math display">\[T = \sum_{k=1}^K \sum_{j \in C_k} r^2(x_j, u_k)\]</span></p>
+<p>L’algorithme maximise le critère d’inertie intra-classe défini par : <span class="math display">\[T = \sum_{k=1}^K \sum_{j \in C_k} r^2(x_j, u_k)\]</span> Où : <span class="math inline">\(\|m_i - m_j\|^2\)</span> (Distance entre Centres) : C’est le carré de la distance euclidienne entre le centroïde <span class="math inline">\(m_i\)</span> du cluster <span class="math inline">\(C_i\)</span> et le centroïde <span class="math inline">\(m_j\)</span> du cluster <span class="math inline">\(C_j\)</span>. C’est la source principale de l’augmentation d’inertie.</p>
+<p><span class="math inline">\(\frac{n_i n_j}{n_i + n_j}\)</span> (Facteur de Pondération) : Ce terme pondère la distance entre les centres par la taille relative des clusters (<span class="math inline">\(n_i\)</span> et <span class="math inline">\(n_j\)</span> sont les effectifs, c’est-à-dire le nombre de variables dans chaque cluster).</p>
 </section>
 </section>
 <section id="prédiction-de-nouvelles-variables" class="level2">
