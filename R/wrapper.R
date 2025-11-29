@@ -121,8 +121,6 @@ ClusteringFactory <- R6Class("ClusteringFactory",
       return(obj)
     }
     
-    # NOTE: VARCLUS n'est pas encore implémenté
-    # La méthode create_varclus sera ajoutée dans une future version
   )
 )
 
@@ -562,9 +560,7 @@ ClusteringHelper <- R6Class("ClusteringHelper",
       cat("   - Tandem MCA + HAC pour variables mixtes\n")
       cat("   - Type de donnees : Mixtes (quantitatives + qualitatives)\n")
       cat("   - Utilisation : factory$create_tandem_varclust(X, k = 3)\n\n")
-      
-      cat("Note: VARCLUS (clustering descendant) sera disponible dans une future version\n\n")
-      
+            
       cat("===============================================================\n")
       invisible(self)
     },
