@@ -31,7 +31,8 @@ Depends:
 Imports:
     R6 (>= 2.5.0),
     stats,
-    utils
+    utils,
+    graphics
 Suggests:
     testthat (>= 3.0.0),
     knitr,

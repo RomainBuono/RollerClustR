@@ -12,7 +12,7 @@ En participant à ce projet, vous acceptez de respecter notre Code de Conduite. 
 
 Si vous trouvez un bug :
 
-1. **Vérifiez** que le bug n'a pas déjà été rapporté dans les [Issues](https://github.com/yourusername/RollerClustR/issues)
+1. **Vérifiez** que le bug n'a pas déjà été rapporté dans les [Issues](https://github.com/RomainBuono/RollerClustR/issues)
 2. **Créez** une nouvelle issue en incluant :
    - Une description claire du problème
    - Un exemple minimal reproductible
@@ -146,20 +146,38 @@ Les Pull Requests seront reviewées selon :
 
 ```
 RollerClustR/
-├── R/                      # Code source
-│   ├── ClusterAnalysis.R   # Classe parente
-│   ├── VAR_CAH.R          # Classe VAR_CAH
-│   ├── VARCLUS.R          # Classe VARCLUS
-│   ├── KmodesVarClust.R   # Classe KmodesVarClust
-│   ├── roller_clust.R     # Fonction wrapper
-│   └── utils.R            # Fonctions utilitaires
-├── tests/                  # Tests unitaires
-│   └── testthat/
-├── vignettes/             # Vignettes
-├── man/                   # Documentation générée
-├── DESCRIPTION            # Métadonnées du package
-├── NAMESPACE              # Exports (généré par roxygen2)
-└── README.md
+├── R/                                     # Code source R
+│   ├── ClusterAnalysis.R
+│   ├── RollerClustR-package.R
+│   ├── TandemVarClust.R
+│   ├── VAR_CAH.R
+│   ├── VARCLUS.R
+│   ├── roller_clust.R
+│   ├── utils.R
+│   ├── wrapper.R
+│   └── zzz.R
+├── man/                                   # Documentation (fichiers .Rd générés par roxygen2)
+├── tests/                                 # Tests unitaires
+│   ├── testthat/
+│   │   ├── helper.R
+│   │   ├── test_benchmark_detailed.R
+│   │   ├── test_predict.R
+│   │   ├── test_roller_clust.R
+│   │   ├── test_tandemVarClust.R
+│   │   ├── test_validation_again_packages.R
+│   │   ├── test_VAR_CAH.R
+│   │   └── test_VARCLUS.R
+├── vignettes/                             # Vignettes (guides d'utilisation détaillés)
+├── .Rbuildignore                          # Fichiers à ignorer lors de la construction du package
+├── CONTRIBUTING.md                        # Guide pour les contributeurs
+├── DESCRIPTION                            # Métadonnées du package
+├── LICENSE                                # Licence d'utilisation
+├── NAMESPACE                              # Exports/Imports (généré par roxygen2)
+├── NEWS.md                                # Journal des modifications et nouveautés
+├── README.md                              # Page d'accueil/description du package
+├── RollerClustR_0.1.0.tar.gz              # Archive du package (source tarball)
+├── Sujet Projet SISE - Prog R - 2025.2026.pdf # Fichier de projet (extérieur au package)
+└── USERGUIDE.md                           # Guide utilisateur
 ```
 
 ## Workflow de Développement
@@ -218,8 +236,8 @@ devtools::document()
 
 Si vous avez des questions :
 
-1. Consultez la [documentation](https://github.com/yourusername/RollerClustR)
-2. Cherchez dans les [Issues existantes](https://github.com/yourusername/RollerClustR/issues)
+1. Consultez la [documentation](https://github.com/RomainBuono/RollerClustR)
+2. Cherchez dans les [Issues existantes](https://github.com/RomainBuono/RollerClustR/issues)
 3. Ouvrez une nouvelle issue avec le label "question"
 
 ## Remerciements

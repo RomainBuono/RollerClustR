@@ -3,9 +3,9 @@
 ## Première version
 
 * Implémentation de trois algorithmes de clustering de variables :
-  - VAR_CAH : Clustering Ascendant Hiérarchique
+  - VAR_CAH : Clustering combinant ACP et CAH
   - VARCLUS : Clustering Descendant avec ACP
-  - KmodesVarClust : K-modes pour variables catégorielles
+  - tandemVarClust : Clustering combinant AFDM et CAH
 
 * Architecture R6 orientée objet avec :
   - Classe parente ClusterAnalysis

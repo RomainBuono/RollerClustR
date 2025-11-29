@@ -2,11 +2,11 @@
 % Please edit documentation in R/roller_clust.R
 \name{roller_clust}
 \alias{roller_clust}
-\title{Interface Unifiée pour le Clustering de Variables}
+\title{Unified Interface for Variable Clustering}
 \usage{
 roller_clust(
   X,
-  method = c("var_cah", "varclus", "kmodes"),
+  method = c("var_cah", "var_kmeans", "tandem"),
   K = 2,
   scale = TRUE,
   na.action = c("warn", "omit", "fail"),
@@ -14,68 +14,101 @@ roller_clust(
 )
 }
 \arguments{
-\item{X}{Data frame ou matrice contenant les données. Les colonnes représentent
-les variables à clustériser.}
+\item{X}{Data frame or matrix containing the data. Columns represent
+the variables to be clustered.}
 
-\item{method}{Méthode de clustering à utiliser :
+\item{method}{Clustering method to use:
 \itemize{
-\item \code{"var_cah"} : Clustering Ascendant Hiérarchique (défaut)
-\item \code{"varclus"} : Clustering Descendant avec ACP
-\item \code{"kmodes"} : K-modes pour variables catégorielles
+\item \code{"var_cah"}: Hierarchical Agglomerative Clustering (default)
+\item \code{"var_kmeans"}: K-means clustering with iterative reallocation
+\item \code{"tandem"}: Tandem clustering (MCA + HAC) for mixed data
 }}
 
-\item{K}{Nombre de clusters souhaités (défaut : 2). Doit être >= 2.}
+\item{K}{Number of desired clusters (default: 2). Must be >= 2.}
 
-\item{scale}{Booléen indiquant si les variables numériques doivent être
-centrées-réduites (défaut : TRUE). Ignoré pour "kmodes".}
+\item{scale}{Boolean indicating whether numeric variables should be
+centered and scaled (default: TRUE).}
 
-\item{na.action}{Action en cas de valeurs manquantes :
+\item{na.action}{Action for missing values:
 \itemize{
-\item \code{"warn"} : Émet un avertissement (défaut)
-\item \code{"omit"} : Supprime les observations avec NA
-\item \code{"fail"} : Arrête l'exécution
+\item \code{"warn"}: Issue a warning (default)
+\item \code{"omit"}: Remove observations with NA
+\item \code{"fail"}: Stop execution
 }}
 
-\item{...}{Arguments supplémentaires spécifiques à chaque méthode :
+\item{...}{Additional method-specific arguments:
 \itemize{
-\item Pour VAR_CAH : \code{max.iter}, \code{tolerance}
-\item Pour VARCLUS : \code{stop_eigenvalue}
-\item Pour KmodesVarClust : \code{n_bins}, \code{discretization_method}
+\item For VAR_CAH: No additional arguments required
+\item For VAR_KMEANS: \code{n_init} (number of initializations, default: 10),
+\code{max_iter} (maximum iterations, default: 100),
+\code{tolerance} (convergence threshold, default: 1e-6)
+\item For TandemVarClust: \code{n_bins} (number of bins for discretization, default: 3),
+\code{assignment_method} (assignment method: "dice", "voting", or "barycenter")
 }}
 }
 \value{
-Un objet R6 de la classe correspondante (VAR_CAH, VARCLUS ou
-KmodesVarClust) déjà ajusté sur les données.
+An R6 object of the corresponding class (VAR_CAH, VAR_KMEANS, or
+TandemVarClust) already fitted to the data.
 }
 \description{
-\code{roller_clust()} est la fonction principale du package RollerClustR. Elle
-fournit une interface simple et unifiée pour accéder aux trois algorithmes
-de clustering de variables : VAR_CAH, VARCLUS et KmodesVarClust.
+\code{roller_clust()} is the main function of the RollerClustR package. It
+provides a simple and unified interface to access the three variable
+clustering algorithms: VAR_CAH, VAR_KMEANS, and TandemVarClust.
 }
 \details{
-\subsection{Choix de la méthode}{
+\subsection{Choosing the Method}{
 \itemize{
-\item \strong{VAR_CAH} : Approche ascendante, fusion progressive. Recommandé pour une
-première exploration ou quand les variables sont numériques continues.
-\item \strong{VARCLUS} : Approche descendante, division récursive. Meilleur pour
-identifier des structures hiérarchiques complexes.
-\item \strong{KmodesVarClust} : Spécialisé pour variables catégorielles. Utilise une
-discrétisation automatique pour les variables continues.
+\item \strong{VAR_CAH}: Agglomerative hierarchical approach with progressive merging.
+Recommended for initial exploration and visualization (dendrograms).
+Provides a complete hierarchy that can be cut at any level.
+\item \strong{VAR_KMEANS}: Iterative reallocation approach that explicitly minimizes
+within-cluster inertia. Recommended when K is known in advance and when
+optimality of the partition is important. Uses multiple initializations
+for robustness. Faster convergence than hierarchical methods for large datasets.
+\item \strong{TandemVarClust}: Specialized for mixed data (quantitative and categorical).
+Uses Multiple Correspondence Analysis (MCA) followed by Hierarchical
+Agglomerative Clustering (HAC) on modalities. Automatically handles
+discretization of quantitative variables.
 }
 }
 
-\subsection{Valeurs de retour}{
+\subsection{Return Value}{
 
-L'objet retourné dispose des méthodes et propriétés suivantes :
+The returned object has the following methods and properties:
 \itemize{
-\item \verb{$summary()} : Affiche un résumé détaillé du clustering
-\item \verb{$Groupes} : Accède au vecteur des affectations
-\item \verb{$K} : Lit ou modifie le nombre de clusters
+\item \verb{$summary()}: Displays a detailed clustering summary
+\item \verb{$Groupes}: Accesses the cluster assignment vector
+\item \verb{$K}: Reads or modifies the number of clusters (triggers refitting)
+\item \verb{$predict(new_data)}: Assigns new variables to existing clusters
+}
+}
+
+\subsection{Algorithm-Specific Properties}{
+
+\strong{VAR_CAH:}
+\itemize{
+\item \verb{$Tree}: Access to the hierarchical tree (hclust object)
+\item \verb{$get_cluster_variables(k)}: Get variables in cluster k
+}
+
+\strong{VAR_KMEANS:}
+\itemize{
+\item \verb{$WithinClusterInertia}: Within-cluster inertia (lower is better)
+\item \verb{$Converged}: Boolean indicating if algorithm converged
+\item \verb{$NIterations}: Number of iterations until convergence
+\item \verb{$get_cluster_centers()}: Get cluster centers (PC1 of each cluster)
+}
+
+\strong{TandemVarClust:}
+\itemize{
+\item \verb{$VarianceExplained}: Variance explained by MCA dimensions
+\item \verb{$CategoricalVars}: Names of categorical variables
+\item \verb{$DisjunctiveTable}: Complete disjunctive table used for MCA
 }
 }
 }
 \examples{
-# Exemple 1 : Clustering hiérarchique ascendant
+# Example 1: Hierarchical agglomerative clustering
 library(RollerClustR)
 data(iris)
 
@@ -86,30 +119,69 @@ model_cah <- roller_clust(
   scale = TRUE
 )
 model_cah$summary()
+print(model_cah$Groupes)
 
-# Exemple 2 : Clustering descendant VARCLUS
-model_vc <- roller_clust(
+# Example 2: K-means clustering with multiple initializations
+model_kmeans <- roller_clust(
   X = iris[, 1:4],
-  method = "varclus",
-  K = 3
+  method = "var_kmeans",
+  K = 3,
+  n_init = 20,        # 20 random initializations
+  max_iter = 100,
+  scale = TRUE
 )
-print(model_vc$Groupes)
+model_kmeans$summary()
+print(model_kmeans$WithinClusterInertia)
+print(model_kmeans$Converged)
 
-# Exemple 3 : K-modes pour données catégorielles
-data(Titanic)
-titanic_df <- as.data.frame(Titanic)
+# Example 3: Tandem clustering for mixed data
+# Create mixed data (quantitative + categorical)
+iris_mixed <- iris
+iris_mixed$Size <- cut(iris$Sepal.Length, 
+                       breaks = 3, 
+                       labels = c("Small", "Medium", "Large"))
 
-model_km <- roller_clust(
-  X = titanic_df[, c("Class", "Sex", "Age", "Survived")],
-  method = "kmodes",
-  K = 2
+model_tandem <- roller_clust(
+  X = iris_mixed[, c(1:4, 6)],
+  method = "tandem",
+  K = 3,
+  n_bins = 3,
+  assignment_method = "dice"
 )
-model_km$summary()
+model_tandem$summary()
 
-# Exemple 4 : Modifier K après ajustement
-model_cah$K <- 3  # Ré-ajuste automatiquement avec K=3
+# Example 4: Modify K after fitting (automatic refitting)
+model_cah$K <- 3  # Automatically refits with K=3
+model_cah$summary()
+
+# Example 5: Compare methods on same data
+\dontrun{
+# Fit all three methods
+cah <- roller_clust(iris[, 1:4], method = "var_cah", K = 3)
+kmeans <- roller_clust(iris[, 1:4], method = "var_kmeans", K = 3, n_init = 10)
+
+# Compare cluster assignments
+table(cah$Groupes, kmeans$Groupes)
+
+# VAR_KMEANS typically has lower within-cluster inertia
+print(kmeans$WithinClusterInertia)
+}
+
+# Example 6: Predict cluster for new variables
+\dontrun{
+model <- roller_clust(iris[, 1:4], method = "var_kmeans", K = 2)
+
+# Create a new variable (linear combination)
+new_var <- data.frame(
+  NewVar = iris$Sepal.Length + iris$Sepal.Width
+)
+
+# Predict cluster assignment
+prediction <- model$predict(new_var)
+print(prediction)
+}
 
 }
 \seealso{
-\link{VAR_CAH}, \link{VARCLUS}, \link{KmodesVarClust}
+\link{VAR_CAH}, \link{VAR_KMEANS}, \link{TandemVarClust}
 }

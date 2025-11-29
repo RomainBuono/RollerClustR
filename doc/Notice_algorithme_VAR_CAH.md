@@ -52,7 +52,11 @@ La classification ascendante hiérarchique est réalisée selon le critère de W
 
 $$\Delta(C_i, C_j) = \frac{n_i n_j}{n_i + n_j} \|m_i - m_j\|^2$$
 
-où $n_i$ et $n_j$ représentent les effectifs des clusters, et $m_i$ et $m_j$ leurs centroïdes respectifs.
+Où :
+
+- $\|m_i - m_j\|^2$ (Distance entre centres) : représente le carré de la distance euclidienne entre le centroïde $m_i$ du cluster $C_i$ et le centroïde $m_j$ du cluster $C_j$. C'est la source principale de l'augmentation d'inertie.
+
+- $\frac{n_i n_j}{n_i + n_j}$ (Facteur de pondération) : Ce terme pondère la distance entre les centres par la taille relative des clusters ($n_i$ et $n_j$ sont les effectifs, c'est-à-dire le nombre de variables dans chaque cluster).
 
 La partition finale est obtenue par coupure de l'arbre hiérarchique au niveau $k$ spécifié, produisant $k$ groupes de variables disjoints.
 

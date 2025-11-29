@@ -76,6 +76,15 @@ VAR_CAH <- R6Class("VAR_CAH",
         stop("VAR_CAH n'accepte que des données de type 'numeric'.")
       }
       
+      # AJOUT: Validation k <= nombre de variables
+      if (private$FNbGroupes > ncol(X)) {
+        stop(paste0(
+          "Le nombre de clusters (k=", private$FNbGroupes, 
+          ") ne peut pas être supérieur au nombre de variables (", 
+          ncol(X), ")"
+        ))
+      }
+      
       private$FX <- X
       private$FVarNames <- colnames(X)
       private$FNumVarNames <- private$FVarNames
@@ -108,6 +117,15 @@ VAR_CAH <- R6Class("VAR_CAH",
       if (!private$FFitted) {
         private$FNbGroupes <- new_k
         return(invisible(self))
+      }
+      
+      # Validation k <= nombre de variables
+      if (new_k > ncol(private$FX)) {
+        stop(paste0(
+          "Le nombre de clusters (k=", new_k, 
+          ") ne peut pas être supérieur au nombre de variables (", 
+          ncol(private$FX), ")"
+        ))
       }
       
       private$FNbGroupes <- new_k
@@ -245,6 +263,57 @@ VAR_CAH <- R6Class("VAR_CAH",
     get_tree = function() {
       if (!private$FFitted) stop("Le modèle doit être ajusté avec $fit() d'abord.")
       return(private$FArbre)
+    },
+    
+    # ==============================
+    # MÉTHODE: inertie() 
+    # ==============================
+    
+    #' @description Calculer les inerties du clustering
+    #' @details Cette méthode calcule l'inertie totale, intra-cluster et inter-cluster
+    #' basée sur les corrélations des variables avec leur composante principale.
+    #' @return Liste avec les éléments suivants:
+    #' \itemize{
+    #'   \item totale: Variance totale des corrélations
+    #'   \item intra: Inertie intra-cluster (variance moyenne dans les clusters)
+    #'   \item inter: Inertie inter-cluster (totale - intra)
+    #'   \item pct_expliquee: Pourcentage de variance expliquée par le clustering
+    #' }
+    inertie = function() {
+      if (!private$FFitted) {
+        stop("Le modèle doit être ajusté avec $fit() d'abord.")
+      }
+      
+      # L'homogénéité moyenne est déjà calculée dans private$FCorrelations
+      # On utilise la variance des corrélations comme mesure d'inertie
+      
+      # Inertie totale = variance totale des corrélations
+      total_var <- var(private$FCorrelations, na.rm = TRUE)
+      
+      # Inertie intra = variance moyenne dans les clusters
+      intra_vars <- sapply(1:private$FNbGroupes, function(k) {
+        vars_in_cluster <- names(private$FGroupes)[private$FGroupes == k]
+        cors <- private$FCorrelations[match(vars_in_cluster, private$FVarNames)]
+        var(cors, na.rm = TRUE)
+      })
+      inertie_intra <- mean(intra_vars, na.rm = TRUE)
+      
+      # Inertie inter = totale - intra
+      inertie_inter <- total_var - inertie_intra
+      
+      # Pourcentage expliqué = inter / totale
+      pct_expliquee <- if (total_var > 0) {
+        (inertie_inter / total_var) * 100
+      } else {
+        0
+      }
+      
+      return(list(
+        totale = total_var,
+        intra = inertie_intra,
+        inter = inertie_inter,
+        pct_expliquee = pct_expliquee
+      ))
     }
   ),
   

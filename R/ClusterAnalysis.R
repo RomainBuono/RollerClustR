@@ -1,108 +1,108 @@
-#' Classe Parente pour l'Analyse de Clustering
+#' Parent Class for Cluster Analysis
 #'
 #' @description
-#' `ClusterAnalysis` est une classe parente R6 qui définit l'architecture de base
-#' pour tous les algorithmes de clustering du package RollerClustR. Elle implémente
-#' le pattern Template Method pour assurer une interface cohérente entre les
-#' différentes méthodes de clustering.
+#' `ClusterAnalysis` is an R6 parent class that defines the base architecture
+#' for all clustering algorithms in the RollerClustR package. It implements
+#' the Template Method pattern to ensure a consistent interface across
+#' different clustering methods.
 #'
 #' @details
-#' Cette classe ne doit pas être instanciée directement. Elle sert de base pour
-#' les classes filles : [VAR_CAH], [KmodesVarClust], et [VARCLUS].
+#' This class should not be instantiated directly. It serves as a base for
+#' child classes: [VAR_CAH], [VAR_KMEANS] and [TandemVarClust].
 #'
-#' ## Méthodes Publiques
+#' ## Public Methods
 #'
-#' - `fit(X)` : Ajuste le modèle sur les données
-#' - `summary()` : Affiche un résumé du modèle ajusté
-#' - `predict(newdata)` : Prédit les groupes pour de nouvelles données
+#' - `fit(X)` : Fits the model to the data
+#' - `summary()` : Displays a summary of the fitted model
+#' - `predict(newdata)` : Predicts groups for new data
 #'
 #' ## Active Bindings
 #'
-#' - `K` : Nombre de clusters (lecture/écriture)
-#' - `Groupes` : Vecteur des affectations aux groupes
+#' - `K` : Number of clusters (read/write)
+#' - `Groupes` : Vector of group assignments
 #'
-#' ## Contrats d'Héritage
+#' ## Inheritance Contracts
 #'
-#' Les classes filles doivent implémenter les méthodes privées suivantes :
+#' Child classes must implement the following private methods:
 #'
-#' - `do_fit(X)` : Logique d'ajustement spécifique
-#' - `do_refit_with_k(new_k)` : Ré-ajustement avec un nouveau K
-#' - `do_predict(newdata)` : Prédiction pour nouvelles données
-#' - `do_summary()` : Affichage du résumé spécifique
+#' - `do_fit(X)` : Specific fitting logic
+#' - `do_refit_with_k(new_k)` : Refitting with a new K
+#' - `do_predict(newdata)` : Prediction for new data
+#' - `do_summary()` : Display of specific summary
 #'
 #' @examples
-#' # Cette classe ne doit pas être utilisée directement
-#' # Utilisez plutôt les classes filles :
+#' # This class should not be used directly
+#' # Use child classes instead:
 #' \dontrun{
 #' model <- VAR_CAH$new(K = 3)
 #' model$fit(iris[, 1:4])
 #' model$summary()
 #' }
 #'
-#' @seealso [VAR_CAH], [KmodesVarClust], [VARCLUS], [roller_clust()]
+#' @seealso [VAR_CAH], [VAR_KMEANS], [TandemVarClust], [roller_clust()]
 #'
 #' @importFrom R6 R6Class
 #' @export
 ClusterAnalysis <- R6Class("ClusterAnalysis",
   
   # =================================================================
-  # 1. Champs Privés
+  # 1. Private Fields
   # =================================================================
   private = list(
-    FX = NULL,           # Données originales d'apprentissage
+    FX = NULL,           # Original training data
     FScale = TRUE,       
     FNbGroupes = 2,      
     FGroupes = c(),      
     FDataType = "numeric", 
-    FFitted = FALSE,     # Le modèle est-il ajusté ?
+    FFitted = FALSE,     # Is the model fitted?
     FNAAction = "warn",  
     FHasMissing = FALSE, 
     FNAIndices = NULL,   
     FX_clean = NULL,     
     
     # =================================================================
-    # 2. Contrats d'Héritage (Doivent être implémentés par l'enfant)
-    # Ces méthodes sont PRIVÉES et appelées par les méthodes publiques
+    # 2. Inheritance Contracts (Must be implemented by child class)
+    # These methods are PRIVATE and called by public methods
     # =================================================================
     
-    #' @description Méthode abstraite pour l'ajustement
-    #' @param X Data frame ou matrice de données
+    #' @description Abstract method for fitting
+    #' @param X Data frame or data matrix
     do_fit = function(X) {
-      stop("La méthode 'do_fit(X)' doit être implémentée par la classe enfant.")
+      stop("Method 'do_fit(X)' must be implemented by child class.")
     },
     
-    #' @description Méthode abstraite pour le ré-ajustement avec nouveau K
-    #' @param new_k Nouveau nombre de clusters
+    #' @description Abstract method for refitting with new K
+    #' @param new_k New number of clusters
     do_refit_with_k = function(new_k) {
-      stop("La méthode 'do_refit_with_k(new_k)' doit être implémentée par la classe enfant.")
+      stop("Method 'do_refit_with_k(new_k)' must be implemented by child class.")
     },
     
-    #' @description Méthode abstraite pour la prédiction
-    #' @param newdata Nouvelles données
+    #' @description Abstract method for prediction
+    #' @param newdata New data
     do_predict = function(newdata) {
-      stop("La méthode 'do_predict(newdata)' doit être implémentée par la classe enfant.")
+      stop("Method 'do_predict(newdata)' must be implemented by child class.")
     },
     
-    #' @description Méthode abstraite pour le résumé
+    #' @description Abstract method for summary
     do_summary = function() {
-      stop("La méthode 'do_summary()' doit être implémentée par la classe enfant.")
+      stop("Method 'do_summary()' must be implemented by child class.")
     }
   ),
   
   # =================================================================
-  # 3. Méthodes Publiques
+  # 3. Public Methods
   # =================================================================
   public = list(
     
-    #' @description Constructeur de la classe parente
-    #' @param ... Arguments passés aux classes filles
+    #' @description Constructor of parent class
+    #' @param ... Arguments passed to child classes
     initialize = function(...) {
       NULL
     },
     
-    #' @description Ajuste le modèle sur les données
-    #' @param X Data frame ou matrice de données d'apprentissage
-    #' @return L'objet lui-même (invisiblement) pour permettre le chaînage
+    #' @description Fits the model to the data
+    #' @param X Data frame or matrix of training data
+    #' @return The object itself (invisibly) to allow chaining
     #' @examples
     #' \dontrun{
     #' model <- VAR_CAH$new(K = 3)
@@ -113,8 +113,8 @@ ClusterAnalysis <- R6Class("ClusterAnalysis",
       invisible(self)
     },
     
-    #' @description Affiche un résumé du modèle ajusté
-    #' @return L'objet lui-même (invisiblement)
+    #' @description Displays a summary of the fitted model
+    #' @return The object itself (invisibly)
     #' @examples
     #' \dontrun{
     #' model <- VAR_CAH$new(K = 3)
@@ -126,9 +126,9 @@ ClusterAnalysis <- R6Class("ClusterAnalysis",
       invisible(self)
     },
     
-    #' @description Prédit les groupes pour de nouvelles données
-    #' @param newdata Nouvelles données (même structure que X d'apprentissage)
-    #' @return Vecteur des prédictions de groupes
+    #' @description Predicts groups for new data
+    #' @param newdata New data (same structure as training X)
+    #' @return Vector of group predictions
     #' @examples
     #' \dontrun{
     #' model <- VAR_CAH$new(K = 3)
@@ -141,53 +141,53 @@ ClusterAnalysis <- R6Class("ClusterAnalysis",
   ),
   
   # =================================================================
-  # 4. Active Bindings (Champs Actifs)
+  # 4. Active Bindings (Active Fields)
   # =================================================================
   active = list(
     
-    #' @field K Nombre de clusters (lecture/écriture). 
-    #'   L'écriture déclenche un ré-ajustement du modèle.
+    #' @field K Number of clusters (read/write). 
+    #'   Writing triggers a model refitting.
     K = function(value) {
       if (missing(value)) {
-        # LECTURE
+        # READ
         return(private$FNbGroupes)
       } else {
-        # ÉCRITURE
+        # WRITE
         if (!is.numeric(value) || value < 2) {
-          stop("K doit être un nombre entier >= 2.")
+          stop("K must be an integer >= 2.")
         }
         value <- as.integer(value)
         
-        private$do_refit_with_k(value) # Appel du contrat d'héritage
+        private$do_refit_with_k(value) # Call inheritance contract
         
         return(private$FNbGroupes)
       }
     },
     
-    #' @field Groupes Vecteur des affectations aux groupes pour chaque
-    #'   observation ou variable (selon la méthode de clustering).
+    #' @field Groupes Vector of group assignments for each
+    #'   observation or variable (depending on clustering method).
     Groupes = function() {
       if (!private$FFitted) {
-        stop("Le modèle doit être ajusté avec $fit() d'abord")
+        stop("The model must be fitted with $fit() first")
       }
       
-      # Réaffectation des groupes aux observations initiales si NA ont été omis
+      # Reassign groups to initial observations if NAs were omitted
       if (private$FNAAction == "omit" && private$FHasMissing) {
         result <- rep(NA_integer_, nrow(private$FX))
         
-        # Index des observations SANS NA
+        # Index of observations WITHOUT NA
         idx_clean <- setdiff(1:nrow(private$FX), private$FNAIndices)
         
         if (length(idx_clean) != length(private$FGroupes)) {
-          stop("Erreur interne critique: Incohérence de taille des groupes. Vérifiez la logique NA/fit().") 
+          stop("Critical internal error: Group size inconsistency. Check NA/fit() logic.") 
         }
         
         result[idx_clean] <- private$FGroupes
         names(result) <- rownames(private$FX)
         return(result)
       } else {
-        # Retourne simplement les groupes
-        # Les noms sont assignés par la classe enfant si nécessaire
+        # Simply return groups
+        # Names are assigned by child class if needed
         return(private$FGroupes)
       }
     }

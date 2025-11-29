@@ -2,14 +2,12 @@
 % Please edit documentation in R/RollerClustR-package.R
 \docType{package}
 \name{RollerClustR-package}
-\alias{RollerClustR-package}
 \alias{RollerClustR}
+\alias{RollerClustR-package}
 \title{RollerClustR: Advanced Clustering Algorithms for Variables}
 \description{
-Implements sophisticated clustering algorithms for variables using an object-oriented R6 architecture. The package provides three specialized clustering methods: hierarchical clustering (VAR_CAH), categorical data clustering (KmodesVarClust), and descendant clustering with PCA-based recursive division (VARCLUS). Features include flexible discretization parameters, comprehensive validation, and robust handling of various data types.
-
 RollerClustR provides a comprehensive suite of clustering algorithms
-specifically designed for grouping variables (not observations). The package
+specifically designed for grouping variables. The package
 implements three complementary approaches with a unified R6 architecture.
 }
 \section{Main Features}{
@@ -18,8 +16,8 @@ implements three complementary approaches with a unified R6 architecture.
 \strong{Three Clustering Methods:}
 \itemize{
 \item \strong{VAR_CAH}: Hierarchical Ascendant Clustering using correlation-based distances
-\item \strong{VARCLUS}: Divisive clustering with PCA-based recursive splitting
-\item \strong{KmodesVarClust}: K-modes algorithm adapted for categorical variables
+\item \strong{VARKMEANS}: K-means algorithm with iterative reallocation
+\item \strong{TandemVarClust}: Tandem clustering  adapted for categorical variables
 }
 
 \strong{Unified Interface:}
@@ -63,7 +61,7 @@ model$K <- 4  # Re-fit with different K
 The package uses an object-oriented architecture with:
 \itemize{
 \item \strong{ClusterAnalysis}: Parent class defining the common interface
-\item \strong{VAR_CAH, VARCLUS, KmodesVarClust}: Specialized implementations
+\item \strong{VAR_CAH, VARKMEANS, TandemVarClust}: Specialized implementations
 \item Template Method pattern for consistent behavior
 \item Active bindings for clean API (e.g., \verb{$K}, \verb{$Groupes})
 }
@@ -71,38 +69,32 @@ The package uses an object-oriented architecture with:
 
 \section{Key Functions}{
 
+
+\strong{Main Interface:}
 \itemize{
-\item \code{\link[=roller_clust]{roller_clust()}}: Main wrapper function
-\item \link{VAR_CAH}: Hierarchical clustering class
-\item \link{VARCLUS}: Divisive clustering class
-\item \link{KmodesVarClust}: K-modes clustering class
-\item \code{\link[=validate_data_type]{validate_data_type()}}: Data validation utilities
+\item \code{roller_clust()} - Main wrapper function for all clustering methods
+}
+
+\strong{Clustering Classes:}
+\itemize{
+\item \code{VAR_CAH} - Hierarchical clustering of variables
+\item \code{VARKMEANS} - Divisive clustering with PCA
+\item \code{TandemVarClust} - Tandem clustering (MCA + HAC) for mixed data
+}
+
+\strong{Utilities:}
+\itemize{
+\item \code{validate_data_type()} - Data validation utilities
 }
 }
 
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://github.com/RomainBuono/RollerClustR}
-  \item Report bugs at \url{https://github.com/RomainBuono/RollerClustR/issues}
-}
-
-
-Useful links:
-\itemize{
 \item Report bugs at \url{https://github.com/RomainBuono/RollerClustR/issues}
 }
 }
 \author{
-\strong{Maintainer}: Romain BUONO \email{r.buono@univ-lyon2.fr} (\href{https://orcid.org/0000-0001-7190-120X}{ORCID})
-
-Authors:
-\itemize{
-  \item Nico DENA \email{nico.dena@univ-lyon2.fr} [contributor]
-  \item Mohamed Habib BAH \email{mohamed.bah@univ-lyon2.fr} [contributor]
-}
-
-
 Romain BUONO \href{mailto:r.buono@univ-lyon2.fr}{r.buono@univ-lyon2.fr}
 }
 \keyword{internal}

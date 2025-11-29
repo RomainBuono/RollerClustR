@@ -65,7 +65,7 @@ KmodesVarClust <- R6Class("KmodesVarClust",
           "Des variables numériques ont été détectées et seront discrétisées en ",
           private$FNBins, 
           " intervalles.\n",
-          "Attention : Le choix du nombre d'intervalles (n_bins) peut influencer les résultats du clustering.\n",
+          "Attention : Le choix du nombre d'intervalles (n_bins) peut influencer significativement les résultats du clustering.\n",
           "Il est recommandé de tester différentes valeurs de n_bins pour évaluer la stabilité des résultats."
         ), call. = FALSE)
       }
@@ -153,7 +153,12 @@ KmodesVarClust <- R6Class("KmodesVarClust",
       
       # Stockage des résultats
       private$FGroupes <- current_groups
-      names(private$FGroupes) <- private$FVarNames
+      # Check right name assignment in private$FVarNames
+      if (!is.null(private$FVarNames) && length(private$FVarNames) == length(private$FGroupes)) {
+        names(private$FGroupes) <- private$FVarNames
+      } else {
+        warning("Incohérence entre le nombre de variables et le nombre de groupes")
+      }
       private$FModes <- current_modes
       
       # Calcul d'une inertie de simulation (basée sur le désaccord total intra-cluster)

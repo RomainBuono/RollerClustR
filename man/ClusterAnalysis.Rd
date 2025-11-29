@@ -2,45 +2,45 @@
 % Please edit documentation in R/ClusterAnalysis.R
 \name{ClusterAnalysis}
 \alias{ClusterAnalysis}
-\title{Classe Parente pour l'Analyse de Clustering}
+\title{Parent Class for Cluster Analysis}
 \description{
-\code{ClusterAnalysis} est une classe parente R6 qui définit l'architecture de base
-pour tous les algorithmes de clustering du package RollerClustR. Elle implémente
-le pattern Template Method pour assurer une interface cohérente entre les
-différentes méthodes de clustering.
+\code{ClusterAnalysis} is an R6 parent class that defines the base architecture
+for all clustering algorithms in the RollerClustR package. It implements
+the Template Method pattern to ensure a consistent interface across
+different clustering methods.
 }
 \details{
-Cette classe ne doit pas être instanciée directement. Elle sert de base pour
-les classes filles : \link{VAR_CAH}, \link{KmodesVarClust}, et \link{VARCLUS}.
-\subsection{Méthodes Publiques}{
+This class should not be instantiated directly. It serves as a base for
+child classes: \link{VAR_CAH}, \link{VAR_KMEANS} and \link{TandemVarClust}.
+\subsection{Public Methods}{
 \itemize{
-\item \code{fit(X)} : Ajuste le modèle sur les données
-\item \code{summary()} : Affiche un résumé du modèle ajusté
-\item \code{predict(newdata)} : Prédit les groupes pour de nouvelles données
+\item \code{fit(X)} : Fits the model to the data
+\item \code{summary()} : Displays a summary of the fitted model
+\item \code{predict(newdata)} : Predicts groups for new data
 }
 }
 
 \subsection{Active Bindings}{
 \itemize{
-\item \code{K} : Nombre de clusters (lecture/écriture)
-\item \code{Groupes} : Vecteur des affectations aux groupes
+\item \code{K} : Number of clusters (read/write)
+\item \code{Groupes} : Vector of group assignments
 }
 }
 
-\subsection{Contrats d'Héritage}{
+\subsection{Inheritance Contracts}{
 
-Les classes filles doivent implémenter les méthodes privées suivantes :
+Child classes must implement the following private methods:
 \itemize{
-\item \code{do_fit(X)} : Logique d'ajustement spécifique
-\item \code{do_refit_with_k(new_k)} : Ré-ajustement avec un nouveau K
-\item \code{do_predict(newdata)} : Prédiction pour nouvelles données
-\item \code{do_summary()} : Affichage du résumé spécifique
+\item \code{do_fit(X)} : Specific fitting logic
+\item \code{do_refit_with_k(new_k)} : Refitting with a new K
+\item \code{do_predict(newdata)} : Prediction for new data
+\item \code{do_summary()} : Display of specific summary
 }
 }
 }
 \examples{
-# Cette classe ne doit pas être utilisée directement
-# Utilisez plutôt les classes filles :
+# This class should not be used directly
+# Use child classes instead:
 \dontrun{
 model <- VAR_CAH$new(K = 3)
 model$fit(iris[, 1:4])
@@ -78,16 +78,16 @@ predictions <- model$predict(iris[101:150, 1:4])
 }
 }
 \seealso{
-\link{VAR_CAH}, \link{KmodesVarClust}, \link{VARCLUS}, \code{\link[=roller_clust]{roller_clust()}}
+\link{VAR_CAH}, \link{VAR_KMEANS}, \link{TandemVarClust}, \code{\link[=roller_clust]{roller_clust()}}
 }
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{K}}{Nombre de clusters (lecture/écriture).
-L'écriture déclenche un ré-ajustement du modèle.}
+\item{\code{K}}{Number of clusters (read/write).
+Writing triggers a model refitting.}
 
-\item{\code{Groupes}}{Vecteur des affectations aux groupes pour chaque
-observation ou variable (selon la méthode de clustering).}
+\item{\code{Groupes}}{Vector of group assignments for each
+observation or variable (depending on clustering method).}
 }
 \if{html}{\out{</div>}}
 }
@@ -105,19 +105,19 @@ observation ou variable (selon la méthode de clustering).}
 \if{html}{\out{<a id="method-ClusterAnalysis-new"></a>}}
 \if{latex}{\out{\hypertarget{method-ClusterAnalysis-new}{}}}
 \subsection{Method \code{new()}}{
-Méthode abstraite pour l'ajustement
+Abstract method for fitting
 
 
-Méthode abstraite pour le ré-ajustement avec nouveau K
+Abstract method for refitting with new K
 
 
-Méthode abstraite pour la prédiction
+Abstract method for prediction
 
 
-Méthode abstraite pour le résumé
+Abstract method for summary
 
 
-Constructeur de la classe parente
+Constructor of parent class
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ClusterAnalysis$new(...)}\if{html}{\out{</div>}}
 }
@@ -125,13 +125,13 @@ Constructeur de la classe parente
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{...}}{Arguments passés aux classes filles}
+\item{\code{...}}{Arguments passed to child classes}
 
-\item{\code{X}}{Data frame ou matrice de données}
+\item{\code{X}}{Data frame or data matrix}
 
-\item{\code{new_k}}{Nouveau nombre de clusters}
+\item{\code{new_k}}{New number of clusters}
 
-\item{\code{newdata}}{Nouvelles données}
+\item{\code{newdata}}{New data}
 }
 \if{html}{\out{</div>}}
 }
@@ -140,7 +140,7 @@ Constructeur de la classe parente
 \if{html}{\out{<a id="method-ClusterAnalysis-fit"></a>}}
 \if{latex}{\out{\hypertarget{method-ClusterAnalysis-fit}{}}}
 \subsection{Method \code{fit()}}{
-Ajuste le modèle sur les données
+Fits the model to the data
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ClusterAnalysis$fit(X)}\if{html}{\out{</div>}}
 }
@@ -148,12 +148,12 @@ Ajuste le modèle sur les données
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{X}}{Data frame ou matrice de données d'apprentissage}
+\item{\code{X}}{Data frame or matrix of training data}
 }
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-L'objet lui-même (invisiblement) pour permettre le chaînage
+The object itself (invisibly) to allow chaining
 }
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}
@@ -171,13 +171,13 @@ model$fit(iris[, 1:4])
 \if{html}{\out{<a id="method-ClusterAnalysis-summary"></a>}}
 \if{latex}{\out{\hypertarget{method-ClusterAnalysis-summary}{}}}
 \subsection{Method \code{summary()}}{
-Affiche un résumé du modèle ajusté
+Displays a summary of the fitted model
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ClusterAnalysis$summary()}\if{html}{\out{</div>}}
 }
 
 \subsection{Returns}{
-L'objet lui-même (invisiblement)
+The object itself (invisibly)
 }
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}
@@ -196,7 +196,7 @@ model$summary()
 \if{html}{\out{<a id="method-ClusterAnalysis-predict"></a>}}
 \if{latex}{\out{\hypertarget{method-ClusterAnalysis-predict}{}}}
 \subsection{Method \code{predict()}}{
-Prédit les groupes pour de nouvelles données
+Predicts groups for new data
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{ClusterAnalysis$predict(newdata)}\if{html}{\out{</div>}}
 }
@@ -204,12 +204,12 @@ Prédit les groupes pour de nouvelles données
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{newdata}}{Nouvelles données (même structure que X d'apprentissage)}
+\item{\code{newdata}}{New data (same structure as training X)}
 }
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-Vecteur des prédictions de groupes
+Vector of group predictions
 }
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}
