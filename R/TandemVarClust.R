@@ -381,8 +381,8 @@ TandemVarClust <- R6::R6Class(
       # STEP 5: Get observation clusters and compute contingency
       # ========================================================================
       obs_results <- private$assign_observations_to_clusters()
-      obs_clusters <- obs_results$obs_clusters
-      dice_scores <- obs_results$dice_scores
+      obs_clusters <- obs_results$clusters
+      dice_scores <- obs_results$scores
       
       # Contingency table
       obs_clusters_factor <- factor(obs_clusters, levels = 1:private$FNbGroupes)
