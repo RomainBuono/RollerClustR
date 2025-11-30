@@ -147,7 +147,7 @@ model_km <- roller_clust(
 - Multiple random initializations to avoid local optima
 - Provides homogeneity as mean r²
 
-#### Method 3: TandemVarClust (MCA + HAC for Mixed Data)
+#### Method 3: TandemVarClust (FADM + HAC for Mixed Data)
 
 **Principle**: Combines Multiple Correspondence Analysis with Hierarchical Clustering on modalities.
 
