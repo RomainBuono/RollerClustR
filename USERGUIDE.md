@@ -390,42 +390,27 @@ print(pred)
 
 **Output structure** (TandemVarClust):
 ```
-$cluster
-[1] 2
+================================================================
+   TandemVarClust - Variable Cluster Prediction                
+================================================================
 
-$n_modalities
-[1] 3
+Variable: Transmission
+  Predicted Cluster: 1
+  Number of modalities: 2
+  Modality assignments: Auto = 1, Manual = 1
 
-$modality_clusters
- Red Blue Green 
-   2    1     2
+  Distances to cluster centers:
+Cluster1 Cluster2 Cluster3 
+   0.537    2.160    2.540 
 
-$distances
- Cluster1  Cluster2  Cluster3
-2.3456    1.2345    3.4567
+  Contingency table:
+        obs_clusters_factor
+new_var   1  2  3
+  Auto   20  1  0
+  Manual 11  0  0
+  Significant association: FALSE
 
-$contingency
-        Cluster1 Cluster2 Cluster3
-Red          15       25       10
-Blue         20       15       15
-Green        10       30       10
-
-$chi2_test
-	Pearson's Chi-squared test
-
-data:  contingency
-X-squared = 12.345, df = 4, p-value = 0.0123
-
-$cramers_v
-[1] 0.2456
-
-$significant
-[1] TRUE
-
-$dice_scores
-     Cluster1  Cluster2  Cluster3
-[1,]  0.234    0.567     0.199
-[2,]  0.456    0.234     0.310
+================================================================
 ...
 ```
 
