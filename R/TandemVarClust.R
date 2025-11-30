@@ -979,8 +979,12 @@ print.TandemVarClust_predict <- function(x, ...) {
     cat("  Number of modalities: ", result$n_modalities, "\n", sep = "")
     cat("  Modality assignments: ", paste(result$modality_clusters, collapse = ", "), "\n", sep = "")
     
-    cat("\n  Distances to cluster centers:\n")
-    print(round(result$distances, 3))
+    if (!is.null(result$distances) && is.numeric(result$distances)) {
+      cat("\n  Distances to cluster centers:\n")
+      print(round(result$distances, 3))
+    } else {
+      cat("\n  Distances to cluster centers: Not calculated\n")
+    }
     cat("\n")
   }
   
