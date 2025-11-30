@@ -157,18 +157,19 @@ model_km <- roller_clust(
 
 ```r
 # Create mixed data (numeric + categorical)
-set.seed(789)  # For reproducibility
 iris_mixed <- iris[, 1:4]
-iris_mixed$Size <- cut(iris$Sepal.Length, 3, labels = c("S", "M", "L"))
+iris_mixed$Size <- cut(iris$Sepal.Length, breaks = 3, 
+                       labels = c("Small", "Medium", "Large"))
 iris_mixed$Species <- iris$Species
 
+# Tandem clustering
 model_tandem <- roller_clust(
   X = iris_mixed,
   method = "tandem",
   K = 3,
-  n_bins = 5,              # Number of bins for numeric discretization
-  n_factors = 3            # Number of factorial axes to retain
-)
+  n_bins = 5
+
+model_tandem$summary()
 ```
 
 **When to use**:
