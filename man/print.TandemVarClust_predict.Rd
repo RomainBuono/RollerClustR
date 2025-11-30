@@ -2,7 +2,7 @@
 % Please edit documentation in R/TandemVarClust.R
 \name{print.TandemVarClust_predict}
 \alias{print.TandemVarClust_predict}
-\title{Print method for TandemVarClust prediction results}
+\title{Print method for TandemVarClust predict results}
 \usage{
 \method{print}{TandemVarClust_predict}(x, ...)
 }
@@ -11,9 +11,6 @@
 
 \item{...}{Additional arguments (not used)}
 }
-\value{
-Invisibly returns x
-}
 \description{
-Print method for TandemVarClust prediction results
+Print method for TandemVarClust predict results
 }

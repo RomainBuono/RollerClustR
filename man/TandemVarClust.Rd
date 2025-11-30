@@ -3,9 +3,6 @@
 \name{TandemVarClust}
 \alias{TandemVarClust}
 \title{TandemVarClust: Tandem Clustering (MCA + HAC) for Mixed Variables}
-\value{
-A TandemVarClust R6 object
-}
 \description{
 This class implements a Tandem approach combining Multiple Correspondence Analysis
 (MCA) with Hierarchical Agglomerative Clustering (HAC) to perform clustering of
@@ -17,113 +14,126 @@ The clustering operates at the modality level:
 \item Quantitative variables: discretization into bins, each bin becomes a modality
 }
 
-The predict() method allows analysis of illustrative variables by computing
-their association with clusters via the Dice index, Chi-square test, and
-Cramer's V coefficient.
+The predict() method predicts the cluster assignment for new variables by projecting
+them into the AFDM space and calculating distances to cluster centers.
+}
+\section{Methods}{
 
-Observations are assigned to clusters using the Dice similarity index, which
-measures the overlap between an observation's active modalities and each cluster's
-modalities. This provides a mathematically sound and interpretable assignment method.
+\describe{
+\item{\code{initialize(K, n_bins, method_cah, n_factors, scale, na_action, ...)}}{
+Initialize a new TandemVarClust object.
 }
-\details{
-\subsection{Workflow}{
-\enumerate{
-\item \strong{Data Preparation}: Mixed data (quantitative and categorical) are transformed
-into a complete disjunctive table
-\item \strong{MCA}: Multiple Correspondence Analysis for dimensionality reduction
-\item \strong{HAC}: Hierarchical Agglomerative Clustering on factorial coordinates
-\item \strong{Assignment}: Observations assigned to clusters using Dice similarity index
+\item{\code{fit(X, ...)}}{
+Fit the model to the data (inherited from ClusterAnalysis).
+}
+\item{\code{predict(new_data)}}{
+Predict cluster assignment for new illustrative variables (inherited from ClusterAnalysis).
+}
+\item{\code{refit_with_k(new_k)}}{
+Refit the clustering with a different number of clusters without re-running MCA.
+}
+\item{\code{get_variable_summary()}}{
+Get a summary of how variables are distributed across clusters.
+}
+\item{\code{get_modalities_of_variable(variable_name)}}{
+Get the cluster assignments for all modalities of a specific variable.
+}
+\item{\code{get_modalities_of_cluster(cluster_id)}}{
+Get all modalities belonging to a specific cluster.
+}
+\item{\code{get_tree()}}{
+Get the hierarchical clustering tree (hclust object).
+}
+\item{\code{check_results_integrity()}}{
+Verify the integrity of clustering results.
+}
 }
 }
 
-\subsection{Methods}{
-\itemize{
-\item \code{initialize(K, n_bins, method_cah, n_factors, scale, na_action)}: Create a new TandemVarClust object
-\item \code{fit(X)}: Fit the model to data
-\item \code{refit_with_k(new_k)}: Refit with a different number of clusters
-\item \code{predict(newdata)}: Predict association of illustrative variables
-\item \code{get_variable_summary()}: Get summary by original variable
-\item \code{get_modalities_of_variable(variable_name)}: Get modalities of a specific variable
-\item \code{get_modalities_of_cluster(cluster_id)}: Get modalities of a specific cluster
-\item \code{get_tree()}: Get the dendrogram (hclust object)
-\item \code{check_results_integrity()}: Verify results integrity
+\section{Active Bindings}{
+
+\describe{
+\item{\code{K}}{Get or set the number of clusters. Setting K will re-cut the tree.}
+\item{\code{Groupes}}{Get the cluster assignments for all modalities (read-only).}
+\item{\code{NbModalites}}{Get the total number of modalities (read-only).}
+\item{\code{Tree}}{Get the hierarchical clustering tree (read-only).}
+\item{\code{VarianceExplained}}{Get the percentage of variance explained by each factorial axis (read-only).}
+\item{\code{Inertie}}{Get the total inertia from MCA (read-only).}
+\item{\code{DisjunctiveTable}}{Get the disjunctive (indicator) table (read-only).}
+\item{\code{FactorialCoords}}{Get the factorial coordinates of modalities (read-only).}
+\item{\code{CategoricalVars}}{Get the names of categorical variables (read-only).}
+\item{\code{NumericVars}}{Get the names of numeric variables (read-only).}
+\item{\code{VariableClusters}}{Get the cluster assignment for each original variable (read-only).}
 }
 }
 
-\subsection{Active Bindings}{
-\itemize{
-\item \code{K}: Number of clusters
-\item \code{Groupes}: Assignment of modalities to clusters
-\item \code{NbModalites}: Total number of modalities
-\item \code{Tree}: Hierarchical tree (hclust object)
-\item \code{VarianceExplained}: Variance explained by factorial axes (percent)
-\item \code{Inertie}: Total inertia
-\item \code{DisjunctiveTable}: Complete disjunctive table
-\item \code{FactorialCoords}: Factorial coordinates of modalities
-\item \code{CategoricalVars}: Names of categorical variables
-\item \code{NumericVars}: Names of quantitative variables
-}
-}
-}
 \examples{
 \dontrun{
-# Example with iris data (mixed: quantitative + categorical)
-iris_mixed <- iris
-iris_mixed$Species_group <- as.character(iris$Species)
+# Create mixed data
+data <- data.frame(
+  cat1 = sample(c("A", "B", "C"), 100, replace = TRUE),
+  cat2 = sample(c("X", "Y"), 100, replace = TRUE),
+  num1 = rnorm(100),
+  num2 = runif(100, 0, 10)
+)
 
-# Create and fit model
-model <- TandemVarClust$new(K = 3, n_bins = 5, n_factors = 3)
-model$fit(iris_mixed)
+# Fit model
+model <- TandemVarClust$new(K = 3, n_bins = 4)
+model$fit(data)
 
-# Examine results
-model$K  # Number of clusters
-model$NbModalites  # Number of modalities
+# Access results
+print(model$Groupes)
+print(model$VariableClusters)
 
-# Variable summary
-summary_table <- model$get_variable_summary()
-print(summary_table)
-
-# Modalities of a specific variable
-model$get_modalities_of_variable("Sepal.Length")
-
-# Modalities in a specific cluster
-model$get_modalities_of_cluster(1)
+# Get variable summary
+summary <- model$get_variable_summary()
 
 # Refit with different K
 model$refit_with_k(4)
 
-# Predict with illustrative variable
-results <- model$predict(newdata = data.frame(Species = iris$Species))
-print(results)
+# Predict new variables
+new_data <- data.frame(
+  new_cat = sample(c("A", "B"), 100, replace = TRUE)
+)
+predictions <- model$predict(new_data)
 }
 
-}
-\references{
-Escofier, B. (1979). Traitement simultané de variables quantitatives et qualitatives.
-Les Cahiers de l'Analyse des Données, IV(2), 137-146.
-
-Pagès, J. (2004). Analyse factorielle de données mixtes. Revue de Statistique
-Appliquée, 52(4), 93-111.
-
-Ward, J. H. (1963). Hierarchical grouping to optimize an objective function.
-Journal of the American Statistical Association, 58(301), 236-244.
-
-Dice, L. R. (1945). Measures of the amount of ecologic association between species.
-Ecology, 26(3), 297-302.
-
-Husson, F., Lê, S., & Pagès, J. (2016). Analyse de données avec R (2e éd.).
-Presses Universitaires de Rennes.
-}
-\seealso{
-\link{ClusterAnalysis},\link{VAR_CAH}, \link{TandemVarClust}, \code{\link[=roller_clust]{roller_clust()}}
 }
 \section{Super class}{
 \code{\link[RollerClustR:ClusterAnalysis]{RollerClustR::ClusterAnalysis}} -> \code{TandemVarClust}
+}
+\section{Active bindings}{
+\if{html}{\out{<div class="r6-active-bindings">}}
+\describe{
+\item{\code{K}}{Get or set the number of clusters. Setting K will re-cut the hierarchical tree.}
+
+\item{\code{Groupes}}{Get the cluster assignments for all modalities (named integer vector).}
+
+\item{\code{NbModalites}}{Get the total number of modalities.}
+
+\item{\code{Tree}}{Get the hierarchical clustering tree (hclust object).}
+
+\item{\code{VarianceExplained}}{Get the percentage of variance explained by each factorial axis.}
+
+\item{\code{Inertie}}{Get the total inertia from MCA.}
+
+\item{\code{DisjunctiveTable}}{Get the disjunctive (indicator) table.}
+
+\item{\code{FactorialCoords}}{Get the factorial coordinates of modalities.}
+
+\item{\code{CategoricalVars}}{Get the names of categorical variables.}
+
+\item{\code{NumericVars}}{Get the names of numeric variables.}
+
+\item{\code{VariableClusters}}{Get the cluster assignment for each original variable (based on majority rule).}
+}
+\if{html}{\out{</div>}}
 }
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{
 \item \href{#method-TandemVarClust-new}{\code{TandemVarClust$new()}}
+\item \href{#method-TandemVarClust-fit}{\code{TandemVarClust$fit()}}
 \item \href{#method-TandemVarClust-refit_with_k}{\code{TandemVarClust$refit_with_k()}}
 \item \href{#method-TandemVarClust-get_variable_summary}{\code{TandemVarClust$get_variable_summary()}}
 \item \href{#method-TandemVarClust-get_modalities_of_variable}{\code{TandemVarClust$get_modalities_of_variable()}}
@@ -136,7 +146,6 @@ Presses Universitaires de Rennes.
 \if{html}{\out{
 <details open><summary>Inherited methods</summary>
 <ul>
-<li><span class="pkg-link" data-pkg="RollerClustR" data-topic="ClusterAnalysis" data-id="fit"><a href='../../RollerClustR/html/ClusterAnalysis.html#method-ClusterAnalysis-fit'><code>RollerClustR::ClusterAnalysis$fit()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="RollerClustR" data-topic="ClusterAnalysis" data-id="predict"><a href='../../RollerClustR/html/ClusterAnalysis.html#method-ClusterAnalysis-predict'><code>RollerClustR::ClusterAnalysis$predict()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="RollerClustR" data-topic="ClusterAnalysis" data-id="summary"><a href='../../RollerClustR/html/ClusterAnalysis.html#method-ClusterAnalysis-summary'><code>RollerClustR::ClusterAnalysis$summary()</code></a></span></li>
 </ul>
@@ -146,24 +155,15 @@ Presses Universitaires de Rennes.
 \if{html}{\out{<a id="method-TandemVarClust-new"></a>}}
 \if{latex}{\out{\hypertarget{method-TandemVarClust-new}{}}}
 \subsection{Method \code{new()}}{
-do_fit method: fits TandemVarClust algorithm
-
-
-do_predict method: predict association of illustrative variables
-
-
-do_summary method: display TandemVarClust summary
-
-
-Constructor
+Initialize a new TandemVarClust object
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{TandemVarClust$new(
-  K,
-  n_bins = 5,
+  K = 2,
+  n_bins = 3,
   method_cah = "ward.D2",
   n_factors = NULL,
   scale = TRUE,
-  na_action = "omit",
+  na_action = "fail",
   ...
 )}\if{html}{\out{</div>}}
 }
@@ -171,26 +171,64 @@ Constructor
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{K}}{Number of desired clusters (integer >= 2)}
+\item{\code{K}}{Integer, number of clusters (must be >= 2)}
 
-\item{\code{n_bins}}{Number of bins for discretizing quantitative variables (default: 5)}
+\item{\code{n_bins}}{Integer, number of bins for discretizing numeric variables (default: 3)}
 
-\item{\code{method_cah}}{HAC method: "ward.D2" (default), "ward.D", "single", "complete", "average", "mcquitty", "median", "centroid"}
+\item{\code{method_cah}}{Character, linkage method for hierarchical clustering (default: "ward.D2")}
 
-\item{\code{n_factors}}{Number of factorial axes to retain for HAC (NULL = all axes)}
+\item{\code{n_factors}}{Integer or NULL, number of factorial axes to use (default: NULL = all axes)}
 
-\item{\code{scale}}{Standardize quantitative variables before discretization (default: TRUE)}
+\item{\code{scale}}{Logical, whether to scale numeric variables before discretization (default: TRUE)}
 
-\item{\code{na_action}}{Action for missing values: "omit" (default) or "fail"}
+\item{\code{na_action}}{Character, how to handle missing values (default: "fail")}
+
+\item{\code{...}}{Additional arguments passed to parent class}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+A new TandemVarClust object
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-TandemVarClust-fit"></a>}}
+\if{latex}{\out{\hypertarget{method-TandemVarClust-fit}{}}}
+\subsection{Method \code{fit()}}{
+Fit the TandemVarClust model to the data
+
+This performs the following steps:
+\enumerate{
+\item Prepare mixed data (identify categorical and numeric variables)
+\item Build disjunctive table (indicator matrix for all modalities)
+\item Perform Multiple Correspondence Analysis (MCA)
+\item Cluster modalities using Hierarchical Agglomerative Clustering (HAC)
+}
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{TandemVarClust$fit(X, ...)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{X}}{A data.frame containing the variables to cluster}
+
+\item{\code{...}}{Additional arguments (not used)}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+Invisible self (for method chaining)
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TandemVarClust-refit_with_k"></a>}}
 \if{latex}{\out{\hypertarget{method-TandemVarClust-refit_with_k}{}}}
 \subsection{Method \code{refit_with_k()}}{
-Refit the model with a different number of clusters
+Refit the clustering with a different number of clusters
+
+This method re-cuts the hierarchical tree without re-running the MCA,
+which is much faster than fitting a new model from scratch.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{TandemVarClust$refit_with_k(new_k)}\if{html}{\out{</div>}}
 }
@@ -198,26 +236,39 @@ Refit the model with a different number of clusters
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{new_k}}{New number of clusters for refitting}
+\item{\code{new_k}}{Integer, new number of clusters}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+Invisible self (for method chaining)
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TandemVarClust-get_variable_summary"></a>}}
 \if{latex}{\out{\hypertarget{method-TandemVarClust-get_variable_summary}{}}}
 \subsection{Method \code{get_variable_summary()}}{
-Get summary by original variable
+Get a summary of how variables are distributed across clusters
+
+For each original variable, this method calculates:
+\itemize{
+\item The number of modalities
+\item The principal cluster (most frequent cluster among modalities)
+\item The purity (proportion of modalities in the principal cluster)
+}
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{TandemVarClust$get_variable_summary()}\if{html}{\out{</div>}}
 }
 
+\subsection{Returns}{
+A data.frame with columns: variable, n_modalites, cluster_principal, purity
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TandemVarClust-get_modalities_of_variable"></a>}}
 \if{latex}{\out{\hypertarget{method-TandemVarClust-get_modalities_of_variable}{}}}
 \subsection{Method \code{get_modalities_of_variable()}}{
-Get modalities of a specific variable
+Get the cluster assignments for all modalities of a specific variable
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{TandemVarClust$get_modalities_of_variable(variable_name)}\if{html}{\out{</div>}}
 }
@@ -225,16 +276,19 @@ Get modalities of a specific variable
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{variable_name}}{Name of the variable to query}
+\item{\code{variable_name}}{Character, name of the variable}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+A data.frame with columns: modalite, cluster
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TandemVarClust-get_modalities_of_cluster"></a>}}
 \if{latex}{\out{\hypertarget{method-TandemVarClust-get_modalities_of_cluster}{}}}
 \subsection{Method \code{get_modalities_of_cluster()}}{
-Get modalities of a specific cluster
+Get all modalities belonging to a specific cluster
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{TandemVarClust$get_modalities_of_cluster(cluster_id)}\if{html}{\out{</div>}}
 }
@@ -242,30 +296,45 @@ Get modalities of a specific cluster
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{cluster_id}}{Cluster identifier (integer between 1 and K)}
+\item{\code{cluster_id}}{Integer, cluster number (between 1 and K)}
 }
 \if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+A data.frame with columns: variable, modalite
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TandemVarClust-get_tree"></a>}}
 \if{latex}{\out{\hypertarget{method-TandemVarClust-get_tree}{}}}
 \subsection{Method \code{get_tree()}}{
-Get the dendrogram (hclust object)
+Get the hierarchical clustering tree
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{TandemVarClust$get_tree()}\if{html}{\out{</div>}}
 }
 
+\subsection{Returns}{
+An hclust object representing the hierarchical tree
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TandemVarClust-check_results_integrity"></a>}}
 \if{latex}{\out{\hypertarget{method-TandemVarClust-check_results_integrity}{}}}
 \subsection{Method \code{check_results_integrity()}}{
-Verify results integrity
+Verify the integrity of clustering results
+
+Checks for:
+\itemize{
+\item Empty clusters
+\item Invalid modality names
+}
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{TandemVarClust$check_results_integrity()}\if{html}{\out{</div>}}
 }
 
+\subsection{Returns}{
+TRUE if no issues are found, FALSE otherwise (with warnings)
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-TandemVarClust-clone"></a>}}

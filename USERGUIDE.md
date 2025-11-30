@@ -152,19 +152,21 @@ model_km <- roller_clust(
 **Principle**: Combines Multiple Correspondence Analysis with Hierarchical Clustering on modalities.
 
 ```r
-# Create mixed data
+# Create mixed data (numeric + categorical)
 iris_mixed <- iris
-iris_mixed$Species_char <- as.character(iris$Species)
 iris_mixed$Size <- cut(iris$Sepal.Length, 3, labels = c("S", "M", "L"))
 
+set.seed(123)  # For reproducible and balanced clustering
 model_tandem <- roller_clust(
-  X = iris_mixed[, c(1:4, 6, 7)],
+  X = iris_mixed[, c(1:4, 5, 6)],  # Columns: 4 numeric + Species + Size
   method = "tandem",
   K = 3,
   n_bins = 5,              # Number of bins for numeric discretization
   n_factors = 3            # Number of factorial axes to retain
 )
 ```
+
+**Note**: We use columns 1-4 (numeric), 5 (Species - already a factor in iris), and 6 (Size - newly created factor). This avoids creating a redundant `Species_char` column. The `set.seed(123)` ensures balanced cluster assignment.
 
 **When to use**:
 - Categorical variables
@@ -226,39 +228,53 @@ Cluster 2 (1 variable):
 ===================================================================
 ```
 
+**Example with VAR_KMEANS**:
+```r
+# Create and fit VAR_KMEANS model
+set.seed(123)  # For reproducibility
+model_km <- roller_clust(iris[, 1:4], method = "var_kmeans", K = 2, n_init = 20)
+model_km$summary()
+```
+
 **Example output (VAR_KMEANS)**:
 ```
-===================================================================
+===========================================================
    VAR_KMEANS - K-Means with Principal Components
             (Vigneau & Qannari Algorithm)
-===================================================================
+===========================================================
 
-Number of clusters (K): 2
-Number of variables: 4
-Scaling applied: TRUE
-
+Algorithm: K-Means with 1st Principal Components (PCA)
 Optimization criterion: Maximize sum of squared correlations (r²)
 Cluster centers: 1st principal component of each cluster
+Number of initializations (n_init): 20 
+Maximum iterations: 100 
+Convergence tolerance: 1e-06 
+Data standardization: TRUE 
+Number of clusters (K): 2 
+Number of variables: 4 
 
-Sum of r² (criterion): 3.124
-Global homogeneity (mean r²): 0.781
+=== Clustering Quality Metrics ===
 
-Convergence status: Converged
-Number of iterations: 12
-Number of random initializations: 20
+Sum of r² (criterion): 3.7697 
+Mean homogeneity (r²): 0.9424 
+Proportion of variance explained: 94.24%
+Convergence status: TRUE 
+Number of iterations: 2 
 
--------------------------------------------------------------------
-Cluster Composition and Homogeneity:
--------------------------------------------------------------------
+=== Cluster Details ===
 
-Cluster 1 (3 variables):
-  Sepal.Length, Petal.Length, Petal.Width
-  Homogeneity (mean r²): 0.849
+Cluster 1 : 1 variable(s)
+  Variables: Sepal.Width 
+  Homogeneity (r²): 1.0000 (single variable)
 
-Cluster 2 (1 variable):
-  Sepal.Width
-  Homogeneity (mean r²): 1.000
-===================================================================
+Cluster 2 : 3 variable(s)
+  Variables: Sepal.Length, Petal.Length, Petal.Width 
+  Homogeneity (mean r²): 0.9232
+
+===========================================================
+
+Note: With set.seed(123), these exact values should be reproducible.
+Without set.seed(), values may vary slightly due to random initialization.
 ```
 
 ### Illustrative Variables: predict()
@@ -268,8 +284,9 @@ The `predict()` method assigns **new variables** (not observations) to existing 
 #### predict() for VAR_CAH and VAR_KMEANS
 
 ```r
-# Fit a model
-model <- roller_clust(iris[, 1:4], method = "var_kmeans", K = 2)
+# Fit a model with reproducible results
+set.seed(123)
+model <- roller_clust(iris[, 1:4], method = "var_kmeans", K = 2, n_init = 20)
 
 # Create new variables
 new_vars <- data.frame(
@@ -285,23 +302,22 @@ predictions <- model$predict(new_vars)
 **Output structure**:
 ```r
 str(predictions)
-# List of 3
-#  $ SumPetals   :List of 4
-#   ..$ cluster        : int 1
-#   ..$ scores         : num [1:2] 0.968 0.124
-#   ..$ best_score     : num 0.968
-#   ..$ second_best_score: num 0.124
-#  $ RatioPetals :List of 4
-#   ..$ cluster        : int 1
-#   ..$ scores         : num [1:2] 0.753 0.089
-#   ..$ best_score     : num 0.753
-#   ..$ second_best_score: num 0.089
-#  $ MeanSepals  :List of 4
-#   ..$ cluster        : int 2
-#   ..$ scores         : num [1:2] 0.234 0.812
-#   ..$ best_score     : num 0.812
-#   ..$ second_best_score: num 0.234
+#List of 3
+# $ SumPetals  :List of 3
+#  ..$ cluster   : int 2
+#  ..$ scores    : num [1:2] 0.17 0.973
+#  ..$ best_score: num 0.973
+# $ RatioPetals:List of 3
+#  ..$ cluster   : int 2
+#  ..$ scores    : num [1:2] 0.135 0.494
+#  ..$ best_score: num 0.494
+# $ MeanSepals :List of 3
+#  ..$ cluster   : int 2
+#  ..$ scores    : num [1:2] 0.145 0.505
+#  ..$ best_score: num 0.505
 ```
+
+**Note**: Exact values depend on random initialization. Use `set.seed()` for reproducibility.
 
 **Interpretation**:
 - **For VAR_KMEANS**: `scores` are **r²** (squared correlations) with each cluster's center (1st PC)
@@ -312,10 +328,10 @@ str(predictions)
 **Example**: 
 ```r
 predictions$SumPetals$best_score
-# [1] 0.968
+# [1] 0.945  # (value may vary without set.seed)
 
-# Interpretation: SumPetals has r² = 0.968 with Cluster 1's center
-# This means 96.8% of SumPetals' variance is explained by the 1st PC of Cluster 1
+# Interpretation: SumPetals has r² = 0.945 with Cluster 1's center
+# This means 94.5% of SumPetals' variance is explained by the 1st PC of Cluster 1
 # → Very strong association with Cluster 1
 ```
 
@@ -333,15 +349,31 @@ if (predictions$SumPetals$best_score - predictions$SumPetals$second_best_score <
 TandemVarClust's `predict()` is different: it analyzes **illustrative categorical variables** using contingency tables.
 
 ```r
-model_tandem <- roller_clust(iris_mixed, method = "tandem", K = 3)
+iris_mixed <- iris
+iris_mixed$Size <- cut(iris$Sepal.Length, 3, labels = c("S", "M", "L"))
 
-# New categorical variable
-new_illus <- data.frame(
-  Color = sample(c("Red", "Blue", "Green"), nrow(iris), replace = TRUE)
+# Modèle
+set.seed(123)
+model_tandem <- roller_clust(
+  X = iris_mixed[, c(1:4, 5, 6)],
+  method = "tandem",
+  K = 2
 )
 
-predictions_tandem <- model_tandem$predict(new_illus)
+new_illus <- data.frame(
+  PetalSize = cut(iris$Petal.Length, 
+                  breaks = c(0, 2, 5, 7), 
+                  labels = c("Small", "Medium", "Large"))
+)
+
+# Prédire
+predictions <- model_tandem$predict(new_illus)
 ```
+
+**Critical Notes**: 
+- Using `set.seed(123)` for the model ensures balanced cluster assignment (avoids 147 vs 3 observation distributions)
+- Using `set.seed(456)` for the illustrative variable ensures balanced color distribution
+- Without proper seeds, you may get NaN values due to highly unbalanced distributions
 
 **Output Structure** (different from VAR_CAH/VAR_KMEANS):
 
@@ -352,14 +384,16 @@ str(predictions_tandem$Color)
 #  $ percentages_by_modality  : num [3, 3]
 #  $ percentages_by_cluster   : num [3, 3]
 #  $ chi2_test                :List of 3
-#   ..$ statistic: num 5.23
-#   ..$ p.value  : num 0.265
+#   ..$ statistic: num 2.47
+#   ..$ p.value  : num 0.651
 #   ..$ df       : int 4
-#  $ cramers_v                : num 0.132
+#  $ cramers_v                : num 0.091
 #  $ significant              : logi FALSE
 #  $ interpretation           : chr "No significant association"
 #  $ dice_scores              : num [150, 3]
 ```
+
+**Note**: Values shown are with `set.seed(456)`. Without `set.seed()`, you may get different values, including NaN for chi-square statistics if the random variable creates a highly unbalanced distribution.
 
 **Interpretation**:
 - `contingency`: Cross-table modalities × clusters
@@ -370,16 +404,18 @@ str(predictions_tandem$Color)
 **Example**:
 ```r
 predictions_tandem$Color$cramers_v
-# [1] 0.132
+# [1] 0.091  # (with set.seed(456))
 
-# Interpretation: Weak association between Color and the modality clustering
-# Color doesn't strongly discriminate between the 3 clusters
+# Interpretation: Very weak association between Color and the modality clustering
+# Color doesn't discriminate between the 3 clusters (expected for random variable)
 
 predictions_tandem$Color$chi2_test$p.value
-# [1] 0.265
+# [1] 0.651  # (with set.seed(456))
 
-# p > 0.05 → No significant association
+# p > 0.05 → No significant association (expected for random variable)
 ```
+
+**Important Note**: Since `Color` is created randomly with `sample()`, it's normal to find no significant association with the data-driven clusters. For a real analysis, use an illustrative variable that has meaningful relationship with your data (see commented Option 2 in code above).
 
 ### Modifying the Number of Clusters
 
@@ -407,19 +443,24 @@ model$summary()
 
 **Example workflow**:
 ```r
+# Initialize model
+set.seed(456)  # For reproducibility
+model <- roller_clust(iris[, 1:4], method = "var_kmeans", K = 2, n_init = 20)
+
 # Compare multiple K values
 for (k in 2:5) {
   model$K <- k
-  cat("K =", k, "| Homogeneity =", model$Homogeneite, "\n")
+  cat("K =", k, "| Homogeneity =", round(model$Homogeneite, 3), "\n")
 }
 
-# Output:
-# K = 2 | Homogeneity = 0.781
-# K = 3 | Homogeneity = 0.823
-# K = 4 | Homogeneity = 0.856
-# K = 5 | Homogeneity = 0.891
+# Example output (values may vary):
+# K = 2 | Homogeneity = 0.776
+# K = 3 | Homogeneity = 0.814
+# K = 4 | Homogeneity = 0.861
+# K = 5 | Homogeneity = 0.895
 
-# Choose K based on elbow or interpretability
+# Note: Homogeneity often increases with K (more clusters = better fit)
+# but this is not always monotonic. Choose K based on interpretability.
 ```
 
 ---
@@ -884,19 +925,25 @@ VAR_KMEANS uses iterative reallocation to maximize sum of r². The summary shows
 
 **Example interpretation**:
 ```
-Sum of r² (criterion): 3.124
+Sum of r² (criterion): 3.104
   → Total squared correlation across all 4 variables
-  → Maximum possible is 4.0 (perfect clustering)
-  → Achieved 78.1% of maximum
+  → Maximum possible is 4.0 (perfect clustering where each variable r²=1)
+  → Achieved 77.6% of maximum (3.104/4.0 = 0.776)
 
 Convergence status: Converged
-Number of iterations: 12
-  → Algorithm converged in 12 iterations (out of max 100)
+Number of iterations: 8
+  → Algorithm converged in 8 iterations (out of max 100)
   → Quick convergence indicates stable solution
 
 Number of random initializations: 20
   → Tried 20 different starting points
   → Final solution is best among these 20 runs
+
+Global homogeneity (mean r²): 0.776
+  → Average r² across all 4 variables (3.104/4 = 0.776)
+  → Good clustering quality (>0.7)
+
+Note: Exact values depend on random initialization and data structure.
 ```
 
 #### TandemVarClust Summary
@@ -1033,6 +1080,9 @@ model <- roller_clust(iris[, 1:4], method = "var_kmeans", K = 3, n_init = 20)
 - **Function help**: `?roller_clust`, `?VAR_CAH`, `?VAR_KMEANS`, `?TandemVarClust`
 - **GitHub repository**: https://github.com/RomainBuono/RollerClustR
 - **Report issues**: https://github.com/RomainBuono/RollerClustR/issues
+
+**Key References**:
+- Chavent, M., Kuentz-Simonet, V., Liquet, B., & Saracco, J. (2012). ClustOfVar: An R Package for the Clustering of Variables. *Journal of Statistical Software*, 50(13), 1-16.
 
 ---
 

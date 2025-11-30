@@ -57,6 +57,7 @@ print(model$Groupes)
 
 ```r
 # K-means clustering with 1st principal components
+set.seed(123)
 model_km <- roller_clust(
   X = iris[, 1:4],
   method = "var_kmeans",
@@ -68,7 +69,7 @@ model_km$summary()
 
 # Access homogeneity (mean r²)
 print(model_km$Homogeneite)
-# [1] 0.7845
+# [1] 0.9424
 ```
 
 ### Example 3: Illustrative Variables with `predict()`
@@ -81,14 +82,14 @@ new_vars <- data.frame(
 )
 
 # Predict their cluster membership
-predictions <- model$predict(new_vars)
+predictions <- model_km$predict(new_vars)
 
 # View results
 print(predictions$SumPetals$cluster)
-# [1] 1
+# [1] 2
 
 print(predictions$SumPetals$best_score)
-# [1] 0.9682  # r² with cluster center
+# [1] 0.9733  # r² with cluster center
 ```
 
 **Understanding predict() output:**
