@@ -523,31 +523,44 @@ groups <- model$Groupes
 #### VAR_CAH Advanced Methods
 
 ```r
+# Create model
 model_cah <- VAR_CAH$new(K = 3)
 model_cah$fit(iris[, 1:4])
 
-# Get hierarchical tree
+# Get hierarchical tree 
 tree <- model_cah$get_tree()
 # hclust object → can be used with plot(), cutree(), etc.
 
-# Plot dendrogram
+# Plot dendrogram 
 plot(tree, main = "Variable Dendrogram")
 rect.hclust(tree, k = 3, border = "red")
 
-# Get variables in specific cluster
+# Get variables in specific cluster 
 vars_cluster_1 <- model_cah$get_cluster_variables(cluster_id = 1)
-# Character vector: c("Sepal.Length", "Petal.Length", "Petal.Width")
+print(vars_cluster_1)
 
-# Get synthetic variable (1st PC) for a cluster
-centers <- model_cah$get_cluster_centers()
-# Matrix with 1 column per cluster
-
-# Get quality metrics
-quality <- model_cah$get_quality_metrics()
+# Get quality metrics 
+quality <- model_cah$inertie()  # NOT get_quality_metrics()
+print(quality)
 # List with:
-# $intra       : Within-cluster inertia
-# $inter       : Between-cluster inertia
-# $pct_expliquee: % variance explained by clustering
+# $totale        : Total inertia
+# $intra         : Within-cluster inertia
+# $inter         : Between-cluster inertia
+# $pct_expliquee : % variance explained by clustering
+
+# If you need cluster centers (synthetic variables), access private field
+# This is a workaround since there's no public getter
+# Option 1: Access through environment (hacky)
+private_env <- model_cah$.__enclos_env__$private
+synthetic_vars <- private_env$FVariablesSynthetiques
+colnames(synthetic_vars) <- paste0("Cluster_", 1:3)
+print(head(synthetic_vars))
+
+# Option 2: Better - get representative variable for each cluster
+for (k in 1:3) {
+  rep_var <- model_cah$get_representative_variable(cluster_id = k)
+  cat("Cluster", k, "- Representative variable:", rep_var, "\n")
+}
 ```
 
 #### VAR_KMEANS Advanced Methods
@@ -764,130 +777,6 @@ table(model_cah$Groupes, model_km$Groupes)
 
 # Interpretation: Both methods agree on variable assignments
 ```
-
----
-
-## Detailed Use Cases
-
-### Use Case 1: Multicollinearity Detection in Regression
-
-**Problem**: You have 15 predictors with suspected multicollinearity.
-
-```r
-# Your dataset
-data <- read.csv("regression_data.csv")
-predictors <- data[, 1:15]
-
-# Cluster variables
-model <- roller_clust(predictors, method = "var_kmeans", K = 5, n_init = 20)
-
-# Identify highly correlated groups
-model$summary()
-
-# For each cluster, keep only one representative
-representatives <- sapply(1:5, function(k) {
-  vars <- model$get_cluster_variables(k)
-  vars[1]  # Take first variable from each cluster
-})
-
-# Build regression with representatives
-reduced_data <- data[, c(representatives, "Response")]
-lm_model <- lm(Response ~ ., data = reduced_data)
-```
-
-**Benefit**: Reduced from 15 to 5 predictors while preserving information.
-
-### Use Case 2: Survey Data Dimensionality Reduction
-
-**Problem**: Customer survey with 40 Likert-scale questions.
-
-```r
-survey_data <- read.csv("survey.csv")
-
-# Cluster questions
-model <- roller_clust(survey_data, method = "var_kmeans", K = 6, n_init = 20)
-
-# Examine clusters to identify themes
-for (k in 1:6) {
-  cat("\n=== Theme", k, "===\n")
-  vars <- model$get_cluster_variables(k)
-  cat("Questions:", paste(vars, collapse = "\n  "), "\n")
-}
-
-# Create composite scores
-composite_scores <- sapply(1:6, function(k) {
-  vars <- model$get_cluster_variables(k)
-  rowMeans(survey_data[, vars], na.rm = TRUE)
-})
-colnames(composite_scores) <- paste0("Theme_", 1:6)
-
-# Use composite scores for subsequent analysis
-```
-
-**Benefit**: 40 questions → 6 themes, easier interpretation.
-
-### Use Case 3: Feature Selection for Machine Learning
-
-**Problem**: 100 features, need to reduce before training ML model.
-
-```r
-features <- training_data[, 1:100]
-
-# Hierarchical clustering to explore
-model_cah <- roller_clust(features, "var_cah", K = 10)
-plot(model_cah$get_tree())
-
-# K-means for optimal partitioning
-model_km <- roller_clust(features, "var_kmeans", K = 10, n_init = 50)
-
-# Select one variable per cluster (highest correlation with cluster center)
-selected_features <- character(10)
-
-for (k in 1:10) {
-  vars <- model_km$get_cluster_variables(k)
-  
-  # Predict each variable's association with its cluster
-  preds <- model_km$predict(features[, vars, drop = FALSE])
-  
-  # Select variable with highest r²
-  scores <- sapply(preds, function(p) p$best_score)
-  selected_features[k] <- vars[which.max(scores)]
-}
-
-# Train ML model with selected features
-train_reduced <- training_data[, c(selected_features, "Target")]
-rf_model <- randomForest(Target ~ ., data = train_reduced)
-```
-
-**Benefit**: Systematic feature reduction with interpretability.
-
-### Use Case 4: Mixed Data Customer Segmentation
-
-**Problem**: Customer database with demographics (categorical) and behavior (numeric).
-
-```r
-customers <- read.csv("customers.csv")
-
-# Prepare mixed data
-mixed_data <- customers[, c("Age", "Income", "Education", "Region", "Membership")]
-
-# TandemVarClust for mixed data
-model <- roller_clust(mixed_data, method = "tandem", K = 4, n_bins = 5)
-
-# Examine modality clusters
-model$summary()
-
-# Illustrative analysis: Does "Churn" status relate to clusters?
-churn_analysis <- model$predict(data.frame(Churn = customers$Churn))
-
-if (churn_analysis$Churn$significant) {
-  cat("Churn is significantly associated with the clustering!\n")
-  print(churn_analysis$Churn$contingency)
-}
-```
-
-**Benefit**: Understand how categorical/numeric variables group in customer base.
-
 ---
 
 ## Interpreting Outputs
