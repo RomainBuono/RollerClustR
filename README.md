@@ -148,6 +148,8 @@ library(shiny)
 
 # Launch the Shiny app (assuming app files are in inst/shiny/)
 runApp(system.file("shiny", package = "RollerClustR"))
+or directly using runRollerClustR()
+
 ```
 
 The Shiny app provides:
