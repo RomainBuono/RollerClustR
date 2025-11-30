@@ -1,5 +1,5 @@
 <div align="center">
-
+  
 <img src="img/Logo_RollerClusteR.jpg" width="400px" alt="RollerClustR Logo"/>
 
 # RollerClustR
@@ -38,6 +38,7 @@ library(RollerClustR)
 data(iris)
 
 # Create and fit model in one command
+set.seed(123)  # For reproducibility
 model <- roller_clust(
   X = iris[, 1:4],
   method = "var_cah",
@@ -57,7 +58,7 @@ print(model$Groupes)
 
 ```r
 # K-means clustering with 1st principal components
-set.seed(123)
+set.seed(123)  # For reproducibility
 model_km <- roller_clust(
   X = iris[, 1:4],
   method = "var_kmeans",
@@ -76,9 +77,10 @@ print(model_km$Homogeneite)
 
 ```r
 # Create new variables for prediction
+set.seed(456)
 new_vars <- data.frame(
   SumPetals = iris$Petal.Length + iris$Petal.Width,
-  RatioPetals = iris$Petal.Length / iris$Petal.Width
+  RatioPetals = iris$Petal.Length / (iris$Petal.Width + 0.1)
 )
 
 # Predict their cluster membership
@@ -86,7 +88,7 @@ predictions <- model_km$predict(new_vars)
 
 # View results
 print(predictions$SumPetals$cluster)
-# [1] 2
+# [1] 1
 
 print(predictions$SumPetals$best_score)
 # [1] 0.9733  # r² with cluster center
@@ -102,19 +104,59 @@ print(predictions$SumPetals$best_score)
 
 ```r
 # Create mixed data
-iris_mixed <- iris
+set.seed(789)
+iris_mixed <- iris[, 1:4]
 iris_mixed$Size <- cut(iris$Sepal.Length, breaks = 3, 
                        labels = c("Small", "Medium", "Large"))
+iris_mixed$Species <- iris$Species
 
 # Tandem clustering
 model_tandem <- roller_clust(
-  X = iris_mixed[, c(1:4, 6)],
+  X = iris_mixed,
   method = "tandem",
-  K = 3
+  K = 3,
+  n_bins = 5
 )
 
 model_tandem$summary()
+
+# Predict illustrative variable (new approach with AFDM projection)
+new_cat <- data.frame(
+  Color = sample(c("Red", "Blue", "Green"), 150, replace = TRUE)
+)
+
+pred_result <- model_tandem$predict(new_cat)
+print(pred_result$Color$cluster)  # Assigned cluster
+print(pred_result$Color$distances)  # Distances to cluster centers
+print(pred_result$Color$cramers_v)  # Association strength
 ```
+
+**TandemVarClust predict() features:**
+- **AFDM Projection**: Projects new variables into factorial space
+- **Distance-based assignment**: Calculates distances to cluster centers
+- **Statistical metrics**: Chi², Cramér's V, contingency tables, Dice scores
+- **Rich interpretation**: Multiple perspectives on variable-cluster association
+
+---
+
+## Shiny Application
+
+Launch the interactive Shiny interface for exploring clustering results:
+
+```r
+library(RollerClustR)
+library(shiny)
+
+# Launch the Shiny app (assuming app files are in inst/shiny/)
+runApp(system.file("shiny", package = "RollerClustR"))
+```
+
+The Shiny app provides:
+- Data import and preprocessing
+- Interactive algorithm configuration
+- Visual results exploration (dendrograms, factorial maps, silhouette)
+- Prediction of illustrative variables
+- Session history and export functionality
 
 ---
 
@@ -180,13 +222,14 @@ model$WithinClusterInertia  # Sum of r² (VAR_KMEANS) or inertia (VAR_CAH)
 
 **VAR_KMEANS**: Implements Vigneau & Qannari algorithm using K-means with cluster centers represented by first principal components. Maximizes sum of squared correlations (r²).
 
-**TandemVarClust**: Combines Multiple Correspondence Analysis (MCA) with Hierarchical Agglomerative Clustering (HAC) for categorical and mixed data.
+**TandemVarClust**: Combines Multiple Correspondence Analysis (MCA) with Hierarchical Agglomerative Clustering (HAC) for categorical and mixed data. The `predict()` method uses AFDM projection to assign new variables based on distances to cluster centers in factorial space, enriched with statistical association metrics (Chi², Cramér's V, Dice).
 
 ---
 
 ## Complete Documentation
 
 - **Full User Guide**: See `USERGUIDE.md`
+- **Technical Notices**: Detailed algorithm documentation in `/doc`
 - **Function Documentation**: `?roller_clust`, `?VAR_CAH`, `?VAR_KMEANS`, `?TandemVarClust`
 - **Vignettes**: `browseVignettes("RollerClustR")`
 
@@ -197,19 +240,20 @@ model$WithinClusterInertia  # Sum of r² (VAR_KMEANS) or inertia (VAR_CAH)
 If you use **RollerClustR** in your research, please cite:
 
 ```
-Romain Buono. (2025). RollerClustR: Variable Clustering in R.
+Romain Buono, Nico Dena, Mohamed Habib Bah. (2025). RollerClustR: Variable Clustering in R.
 R package version 1.0.0. https://github.com/RomainBuono/RollerClustR
 ```
 
 **Key References**:
 
 - Chavent, M., Kuentz-Simonet, V., Liquet, B., & Saracco, J. (2012). ClustOfVar: An R Package for the Clustering of Variables. *Journal of Statistical Software*, 50(13), 1-16.
+- Vigneau, E., & Qannari, E. M. (2003). Clustering of variables around latent components. *Communications in Statistics-Simulation and Computation*, 32(4), 1131-1150.
 
 ---
 
 ## License
 
-GPL-3 © Romain Buono
+GPL-3 © Romain BUONO, Nico DENA, Mohamed Habib BAH
 
 ---
 
