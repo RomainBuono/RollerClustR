@@ -104,7 +104,6 @@ model <- roller_clust(
 **Principle**: Bottom-up approach starting with individual variables and progressively merging them.
 
 ```r
-set.seed(123)  # For reproducibility
 model_cah <- roller_clust(
   X = iris[, 1:4],
   method = "var_cah",
@@ -129,7 +128,6 @@ model_cah <- roller_clust(
 **Principle**: Iterative reallocation algorithm where cluster centers are represented by first principal components (Vigneau & Qannari algorithm). Maximizes sum of squared correlations (r²).
 
 ```r
-set.seed(123)  # For reproducibility
 model_km <- roller_clust(
   X = iris[, 1:4],
   method = "var_kmeans",
@@ -168,8 +166,7 @@ model_tandem <- roller_clust(
   method = "tandem",
   K = 3,
   n_bins = 5
-
-model_tandem$summary()
+)
 ```
 
 **When to use**:
