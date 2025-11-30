@@ -33,6 +33,20 @@ Imports:
     stats,
     utils,
     graphics
+    shiny,
+    shinydashboard,
+    shinyWidgets,
+    ggplot2,
+    plotly,
+    DT,
+    R6,
+    cluster,
+    factoextra,
+    readxl,
+    writexl,
+    gridExtra,
+    tsne,
+    umap
 Suggests:
     testthat (>= 3.0.0),
     knitr,
