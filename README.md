@@ -104,7 +104,6 @@ print(predictions$SumPetals$best_score)
 
 ```r
 # Create mixed data
-set.seed(789)
 iris_mixed <- iris[, 1:4]
 iris_mixed$Size <- cut(iris$Sepal.Length, breaks = 3, 
                        labels = c("Small", "Medium", "Large"))
@@ -116,10 +115,10 @@ model_tandem <- roller_clust(
   method = "tandem",
   K = 3,
   n_bins = 5
-)
 
 model_tandem$summary()
 
+set.seed(100)
 # Predict illustrative variable (new approach with AFDM projection)
 new_cat <- data.frame(
   Color = sample(c("Red", "Blue", "Green"), 150, replace = TRUE)
