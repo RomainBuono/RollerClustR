@@ -12,96 +12,6 @@
 #' The predict() method predicts the cluster assignment for new variables by projecting
 #' them into the AFDM space and calculating distances to cluster centers.
 #'
-#' @section Methods:
-#' \describe{
-#'   \item{\code{initialize(K, n_bins, method_cah, n_factors, scale, na_action, ...)}}{
-#'     Initialize a new TandemVarClust object.
-#'   }
-#'   \item{\code{fit(X, ...)}}{
-#'     Fit the model to the data (inherited from ClusterAnalysis).
-#'   }
-#'   \item{\code{predict(new_data)}}{
-#'     Predict cluster assignment for new illustrative variables (inherited from ClusterAnalysis).
-#'   }
-#'   \item{\code{refit_with_k(new_k)}}{
-#'     Refit the clustering with a different number of clusters without re-running MCA.
-#'   }
-#'   \item{\code{get_variable_summary()}}{
-#'     Get a summary of how variables are distributed across clusters.
-#'   }
-#'   \item{\code{get_modalities_of_variable(variable_name)}}{
-#'     Get the cluster assignments for all modalities of a specific variable.
-#'   }
-#'   \item{\code{get_modalities_of_cluster(cluster_id)}}{
-#'     Get all modalities belonging to a specific cluster.
-#'   }
-#'   \item{\code{get_tree()}}{
-#'     Get the hierarchical clustering tree (hclust object).
-#'   }
-#'   \item{\code{check_results_integrity()}}{
-#'     Verify the integrity of clustering results.
-#'   }
-#' }
-#'
-#' @section Active Bindings:
-#' \describe{
-#'   \item{\code{K}}{Get or set the number of clusters. Setting K will re-cut the tree.}
-#'   \item{\code{Groupes}}{Get the cluster assignments for all modalities (read-only).}
-#'   \item{\code{NbModalites}}{Get the total number of modalities (read-only).}
-#'   \item{\code{Tree}}{Get the hierarchical clustering tree (read-only).}
-#'   \item{\code{VarianceExplained}}{Get the percentage of variance explained by each factorial axis (read-only).}
-#'   \item{\code{Inertie}}{Get the total inertia from MCA (read-only).}
-#'   \item{\code{DisjunctiveTable}}{Get the disjunctive (indicator) table (read-only).}
-#'   \item{\code{FactorialCoords}}{Get the factorial coordinates of modalities (read-only).}
-#'   \item{\code{CategoricalVars}}{Get the names of categorical variables (read-only).}
-#'   \item{\code{NumericVars}}{Get the names of numeric variables (read-only).}
-#'   \item{\code{VariableClusters}}{Get the cluster assignment for each original variable (read-only).}
-#' }
-#'
-#' @param K Integer, number of clusters (must be >= 2).
-#' @param n_bins Integer, number of bins for discretizing numeric variables (default: 3).
-#' @param method_cah Character, linkage method for hierarchical clustering.
-#'   One of: "ward.D2" (default), "single", "complete", "average", "mcquitty", "median", "centroid".
-#' @param n_factors Integer or NULL, number of factorial axes to use for clustering.
-#'   If NULL (default), all axes are used.
-#' @param scale Logical, whether to scale numeric variables before discretization (default: TRUE).
-#' @param na_action Character, how to handle missing values. Currently only "fail" is supported.
-#' @param ... Additional arguments passed to parent class.
-#' @param new_k Integer, new number of clusters for refit_with_k().
-#' @param variable_name Character, name of the variable for get_modalities_of_variable().
-#' @param cluster_id Integer, cluster number for get_modalities_of_cluster().
-#'
-#' @examples
-#' \dontrun{
-#' # Create mixed data
-#' data <- data.frame(
-#'   cat1 = sample(c("A", "B", "C"), 100, replace = TRUE),
-#'   cat2 = sample(c("X", "Y"), 100, replace = TRUE),
-#'   num1 = rnorm(100),
-#'   num2 = runif(100, 0, 10)
-#' )
-#'
-#' # Fit model
-#' model <- TandemVarClust$new(K = 3, n_bins = 4)
-#' model$fit(data)
-#'
-#' # Access results
-#' print(model$Groupes)
-#' print(model$VariableClusters)
-#'
-#' # Get variable summary
-#' summary <- model$get_variable_summary()
-#'
-#' # Refit with different K
-#' model$refit_with_k(4)
-#'
-#' # Predict new variables
-#' new_data <- data.frame(
-#'   new_cat = sample(c("A", "B"), 100, replace = TRUE)
-#' )
-#' predictions <- model$predict(new_data)
-#' }
-#'
 #' @export
 TandemVarClust <- R6::R6Class(
   "TandemVarClust",
@@ -137,9 +47,6 @@ TandemVarClust <- R6::R6Class(
     FHclustTree = NULL,
     FGroupes = NULL,
     
-    # Model state
-    FIsFitted = FALSE,
-    
     # NOUVEAUX CHAMPS pour predict_variable
     FColMargins = NULL,
     FColWeights = NULL,
@@ -147,8 +54,6 @@ TandemVarClust <- R6::R6Class(
     FSVDv = NULL,
     FDColSqrt = NULL,
     FClusterCenters = NULL,
-    FObsClusters = NULL,
-    FDiceScores = NULL,
     
     # ═══════════════════════════════════════════════════════════════
     # MÉTHODES PRIVÉES
@@ -337,71 +242,171 @@ TandemVarClust <- R6::R6Class(
           
           intersection <- length(intersect(modalities_i, modalities_k))
           
-          dice <- 2 * intersection / (n_modalities_i + n_modalities_k)
-          dice_scores[i, k] <- dice
+          if (n_modalities_i + n_modalities_k > 0) {
+            dice_scores[i, k] <- (2 * intersection) / (n_modalities_i + n_modalities_k)
+          } else {
+            dice_scores[i, k] <- 0
+          }
         }
         
         obs_clusters[i] <- which.max(dice_scores[i, ])
       }
       
-      private$FObsClusters <- obs_clusters
-      private$FDiceScores <- dice_scores
-      
-      return(list(obs_clusters = obs_clusters, dice_scores = dice_scores))
+      return(list(
+        clusters = obs_clusters,
+        scores = dice_scores
+      ))
     },
     
-    # Méthode privée pour predict_variable (utilisée dans ClusterAnalysis)
-    predict_variable = function(var_vector, var_name = "new_var") {
-      n_train <- nrow(private$FX)
-      n_new <- length(var_vector)
+    compute_cramers_v = function(contingency) {
+      chi2_test <- suppressWarnings(chisq.test(contingency))
+      chi2 <- chi2_test$statistic
+      n <- sum(contingency)
+      min_dim <- min(nrow(contingency) - 1, ncol(contingency) - 1)
       
-      if (n_new != n_train) {
-        stop("New data must have the same number of observations as training data (", 
-             n_train, " observations)")
+      if (min_dim == 0) return(NA)
+      
+      v <- sqrt(chi2 / (n * min_dim))
+      return(as.numeric(v))
+    },
+    
+    # ========================================================================
+    # CORRECTED predict_variable() method with complete statistical output
+    # ========================================================================
+    predict_variable = function(new_var, var_name = "new_var") {
+      
+      if (is.null(private$FGroupes)) {
+        stop("The model is not fitted. Call $fit() first.")
       }
       
-      if (!(is.factor(var_vector) || is.character(var_vector))) {
+      if (is.null(private$FClusterCenters)) {
+        stop("Cluster centers not computed. This shouldn't happen.")
+      }
+      
+      n <- nrow(private$FX)
+      
+      if (length(new_var) != n) {
+        stop(paste0("new_var must have the same number of observations as training data. ",
+                    "Expected: ", n, ", Received: ", length(new_var)))
+      }
+      
+      # Convert to factor if needed
+      if (!(is.factor(new_var) || is.character(new_var))) {
         warning("Variable '", var_name, "' is not categorical. Converting to factor.")
-        var_vector <- as.factor(var_vector)
+        new_var <- as.factor(new_var)
       }
       
-      if (!is.factor(var_vector)) {
-        var_vector <- as.factor(var_vector)
+      if (!is.factor(new_var)) {
+        new_var <- as.factor(new_var)
       }
       
-      levels_new <- levels(var_vector)
-      n_levels <- length(levels_new)
+      levels_new <- levels(new_var)
+      n_modalities <- length(levels_new)
       
-      # Obtenir les clusters d'observations
+      # ========================================================================
+      # STEP 1: Create disjunctive table for new variable
+      # ========================================================================
+      Z_new <- matrix(0, nrow = n, ncol = n_modalities)
+      colnames(Z_new) <- paste0(var_name, ".", levels_new)
+      
+      for (j in 1:n_modalities) {
+        Z_new[, j] <- as.integer(new_var == levels_new[j])
+      }
+      
+      # ========================================================================
+      # STEP 2: AFDM projection of new modalities
+      # ========================================================================
+      # Number of factors used for clustering
+      n_factors_to_use <- if (is.null(private$FNFactors)) {
+        private$FNFactorsTotal
+      } else {
+        min(private$FNFactors, private$FNFactorsTotal)
+      }
+      
+      # Validation
+      n_factors_available <- ncol(private$FFactorialCoords)
+      if (n_factors_to_use > n_factors_available) {
+        n_factors_to_use <- n_factors_available
+      }
+      
+      # Calculate observation coordinates in factorial space
+      Z_train <- private$FDisjunctiveTable
+      col_margins_train <- private$FColMargins
+      Z_train_centered <- sweep(as.matrix(Z_train), 2, col_margins_train, "-")
+      
+      row_coords <- (1/sqrt(n)) * Z_train_centered %*% 
+                    private$FFactorialCoords[, 1:n_factors_to_use, drop = FALSE]
+      
+      # Project new modalities using observation barycenters
+      factorial_coords_new <- matrix(0, nrow = n_modalities, ncol = n_factors_to_use)
+      rownames(factorial_coords_new) <- colnames(Z_new)
+      colnames(factorial_coords_new) <- paste0("Dim", 1:n_factors_to_use)
+      
+      for (j in 1:n_modalities) {
+        obs_with_modality <- which(Z_new[, j] == 1)
+        
+        if (length(obs_with_modality) > 0) {
+          factorial_coords_new[j, ] <- colMeans(row_coords[obs_with_modality, , drop = FALSE])
+        }
+      }
+      
+      # ========================================================================
+      # STEP 3: Calculate distances to cluster centers
+      # ========================================================================
+      distances_matrix <- matrix(NA, nrow = n_modalities, ncol = private$FNbGroupes)
+      rownames(distances_matrix) <- rownames(factorial_coords_new)
+      colnames(distances_matrix) <- paste0("Cluster_", 1:private$FNbGroupes)
+      
+      for (i in 1:n_modalities) {
+        for (k in 1:private$FNbGroupes) {
+          distances_matrix[i, k] <- sqrt(sum((factorial_coords_new[i, ] - 
+                                         private$FClusterCenters[k, ])^2))
+        }
+      }
+      
+      # Average distance to each cluster
+      distances <- colMeans(distances_matrix)
+      names(distances) <- paste0("Cluster", 1:private$FNbGroupes)
+      
+      # ========================================================================
+      # STEP 4: Assignment to cluster with minimum distance
+      # ========================================================================
+      predicted_cluster <- which.min(distances)
+      
+      # Individual assignment of each modality
+      modality_clusters <- apply(distances_matrix, 1, which.min)
+      names(modality_clusters) <- levels_new
+      
+      # ========================================================================
+      # STEP 5: Get observation clusters and compute contingency
+      # ========================================================================
       obs_results <- private$assign_observations_to_clusters()
       obs_clusters <- obs_results$obs_clusters
       dice_scores <- obs_results$dice_scores
       
-      # Construire la table de contingence
-      # S'assurer que tous les clusters sont représentés
+      # Contingency table
       obs_clusters_factor <- factor(obs_clusters, levels = 1:private$FNbGroupes)
-      contingency <- table(var_vector, obs_clusters_factor)
+      contingency <- table(new_var, obs_clusters_factor)
       
-      # Test du chi-carré
+      # ========================================================================
+      # STEP 6: Statistical tests and metrics
+      # ========================================================================
       chi2_test <- tryCatch({
         suppressWarnings(chisq.test(contingency))
       }, error = function(e) {
         list(statistic = NA, p.value = NA, parameter = NA)
       })
       
-      # V de Cramer
+      # Cramér's V
       cramers_v <- tryCatch({
-        n <- sum(contingency)
+        n_total <- sum(contingency)
         chi2 <- as.numeric(chi2_test$statistic)
         min_dim <- min(nrow(contingency) - 1, ncol(contingency) - 1)
         
         if (is.na(chi2) || min_dim == 0) {
-          NA  # Ne pas utiliser return() ici !
+          NA
         } else {
-          v <- sqrt(chi2 / (n * min_dim))
-          
-          # Le V de Cramer doit être dans [0, 1]
-          # Si > 1, c'est dû à une approximation numérique
+          v <- sqrt(chi2 / (n_total * min_dim))
           min(v, 1.0)
         }
       }, error = function(e) {
@@ -410,7 +415,14 @@ TandemVarClust <- R6::R6Class(
       
       significant <- !is.na(chi2_test$p.value) && chi2_test$p.value < 0.05
       
+      # ========================================================================
+      # STEP 7: Build complete result
+      # ========================================================================
       result <- list(
+        cluster = predicted_cluster,
+        n_modalities = n_modalities,
+        modality_clusters = modality_clusters,
+        distances = distances,
         contingency = contingency,
         chi2_test = chi2_test,
         cramers_v = cramers_v,
@@ -433,6 +445,7 @@ TandemVarClust <- R6::R6Class(
     },
     
     do_predict = function(newdata) {
+      
       if (is.null(private$FGroupes)) {
         stop("The model is not fitted. Call $fit() first.")
       }
@@ -443,25 +456,21 @@ TandemVarClust <- R6::R6Class(
         stop("newdata must be a data frame or vector")
       }
       
-      # Validation des dimensions
-      n_train <- nrow(private$FX)
-      n_new <- nrow(newdata)
-      
-      if (n_new != n_train) {
-        stop("New data must have the same number of observations as training data (", 
-             n_train, " observations)")
-      }
-      
       results <- list()
       
       for (var_name in names(newdata)) {
+        
+        message("\n=== Predicting for variable: ", var_name, " ===")
+        
         tryCatch({
+          
           pred <- private$predict_variable(newdata[[var_name]], var_name)
           results[[var_name]] <- pred
           
         }, error = function(e) {
           warning("Error predicting variable '", var_name, "': ", e$message)
           results[[var_name]] <- list(
+            cluster = NA,
             error = e$message
           )
         })
@@ -506,13 +515,14 @@ TandemVarClust <- R6::R6Class(
         }
         if (!is.null(private$FNumVarNames)) {
           cat("  Numeric    : ", length(private$FNumVarNames), 
-              " (", paste(head(private$FNumVarNames, 5), collapse = ", "), 
-              if (length(private$FNumVarNames) > 5) "..." else "", ")\n", sep = "")
+              " (discretized into ", private$FNBins, " bins)\n", sep = "")
         }
       }
       
       cat("================================================================\n")
-      invisible(NULL)
+      cat("\n")
+      
+      invisible(self)
     }
   ),
   
@@ -520,139 +530,56 @@ TandemVarClust <- R6::R6Class(
   # PUBLIC METHODS
   # ============================================================================
   public = list(
-    #' @description
-    #' Initialize a new TandemVarClust object
-    #' 
-    #' @param K Integer, number of clusters (must be >= 2)
-    #' @param n_bins Integer, number of bins for discretizing numeric variables (default: 3)
-    #' @param method_cah Character, linkage method for hierarchical clustering (default: "ward.D2")
-    #' @param n_factors Integer or NULL, number of factorial axes to use (default: NULL = all axes)
-    #' @param scale Logical, whether to scale numeric variables before discretization (default: TRUE)
-    #' @param na_action Character, how to handle missing values (default: "fail")
-    #' @param ... Additional arguments passed to parent class
-    #' 
-    #' @return A new TandemVarClust object
-    initialize = function(K = 2, 
-                          n_bins = 3, 
-                          method_cah = "ward.D2", 
-                          n_factors = NULL,
-                          scale = TRUE,
-                          na_action = "fail",
-                          ...) {
+    
+    initialize = function(K, n_bins = 5, method_cah = "ward.D2",
+                          n_factors = NULL, scale = TRUE, na_action = "omit", ...) {
+      super$initialize(na_action = na_action)
+      
+      extra_args <- list(...)
+      if (length(extra_args) > 0) {
+        warning("Suspicious parameters detected and ignored: ",
+                paste(names(extra_args), collapse = ", "))
+      }
       
       if (!is.numeric(K) || K < 2) {
         stop("K must be an integer >= 2")
       }
-      private$FNbGroupes <- as.integer(K)
       
       if (!is.numeric(n_bins) || n_bins < 2 || n_bins > 20) {
         stop("n_bins must be between 2 and 20")
       }
-      private$FNBins <- as.integer(n_bins)
       
-      valid_methods <- c("ward.D", "ward.D2", "single", "complete", 
-                         "average", "mcquitty", "median", "centroid")
+      valid_methods <- c("ward.D", "ward.D2", "single", "complete", "average",
+                         "mcquitty", "median", "centroid")
       if (!method_cah %in% valid_methods) {
-        stop("invalid method_cah: ", method_cah, 
-             ". Must be one of: ", paste(valid_methods, collapse = ", "))
+        stop("invalid method_cah: ", method_cah)
       }
+      
+      if (!is.null(n_factors) && (!is.numeric(n_factors) || n_factors < 1)) {
+        stop("n_factors must be NULL or an integer >= 1")
+      }
+      
+      private$FNbGroupes <- as.integer(K)
+      private$FNBins <- as.integer(n_bins)
       private$FMethodCAH <- method_cah
-      
-      if (!is.null(n_factors)) {
-        if (!is.numeric(n_factors) || n_factors < 1) {
-          stop("n_factors must be NULL or an integer >= 1")
-        }
-        private$FNFactors <- as.integer(n_factors)
-      } else {
-        private$FNFactors <- NULL
-      }
-      
-      if (!is.logical(scale)) {
-        stop("scale must be TRUE or FALSE")
-      }
-      private$FScale <- scale
-      
-      # Vérifier les paramètres suspects (pas pour TandemVarClust)
-      dots <- list(...)
-      suspicious_params <- c("max_iter", "tolerance", "n_init", "method")
-      found_suspicious <- intersect(names(dots), suspicious_params)
-      if (length(found_suspicious) > 0) {
-        warning("Suspicious parameters detected: ", paste(found_suspicious, collapse = ", "), 
-                " not used by TandemVarClust. Did you mean to use a different algorithm?")
-      }
-      
-      super$initialize(
-        algorithm = "TandemVarClust",
-        K = K,
-        na_action = na_action,
-        ...
-      )
+      private$FNFactors <- if (!is.null(n_factors)) as.integer(n_factors) else NULL
+      private$FScale <- as.logical(scale)
     },
     
-    #' @description
-    #' Fit the TandemVarClust model to the data
-    #' 
-    #' This performs the following steps:
-    #' 1. Prepare mixed data (identify categorical and numeric variables)
-    #' 2. Build disjunctive table (indicator matrix for all modalities)
-    #' 3. Perform Multiple Correspondence Analysis (MCA)
-    #' 4. Cluster modalities using Hierarchical Agglomerative Clustering (HAC)
-    #' 
-    #' @param X A data.frame containing the variables to cluster
-    #' @param ... Additional arguments (not used)
-    #' 
-    #' @return Invisible self (for method chaining)
-    fit = function(X, ...) {
-      if (!is.data.frame(X)) {
-        stop("X must be a data.frame")
-      }
-      
-      if (nrow(X) == 0 || ncol(X) == 0) {
-        stop("X must have at least one row and one column")
-      }
-      
-      private$FX <- X
-      
-      private$prepare_mixed_data(X)
-      private$FDisjunctiveTable <- private$build_disjunctive_table(X)
-      private$perform_factorial_analysis()
-      private$perform_clustering()
-      
-      private$FIsFitted <- TRUE
-      
-      invisible(self)
-    },
-    
-    #' @description
-    #' Refit the clustering with a different number of clusters
-    #' 
-    #' This method re-cuts the hierarchical tree without re-running the MCA,
-    #' which is much faster than fitting a new model from scratch.
-    #' 
-    #' @param new_k Integer, new number of clusters
-    #' 
-    #' @return Invisible self (for method chaining)
     refit_with_k = function(new_k) {
-      if (!private$FIsFitted) {
-        stop("The model must be fitted before refitting with a new K")
+      if (is.null(private$FHclustTree)) {
+        stop("The model is not yet fitted. Call $fit() first.")
       }
       
       if (!is.numeric(new_k) || new_k < 2) {
         stop("new_k must be an integer >= 2")
       }
       
-      new_k <- as.integer(new_k)
-      
-      n_modalities <- length(private$FGroupes)
-      if (new_k > n_modalities) {
-        stop("new_k (", new_k, ") cannot exceed the number of modalities (", 
-             n_modalities, ")")
-      }
-      
-      private$FNbGroupes <- new_k
+      private$FNbGroupes <- as.integer(new_k)
       private$FGroupes <- cutree(private$FHclustTree, k = new_k)
+      names(private$FGroupes) <- names(private$FGroupes)
       
-      # Recalculer les centres de clusters
+      # CRITIQUE : Recalculer les centres de clusters après refit
       n_factors_to_use <- if (is.null(private$FNFactors)) {
         private$FNFactorsTotal
       } else {
@@ -679,23 +606,13 @@ TandemVarClust <- R6::R6Class(
       invisible(self)
     },
     
-    #' @description
-    #' Get a summary of how variables are distributed across clusters
-    #' 
-    #' For each original variable, this method calculates:
-    #' - The number of modalities
-    #' - The principal cluster (most frequent cluster among modalities)
-    #' - The purity (proportion of modalities in the principal cluster)
-    #' 
-    #' @return A data.frame with columns: variable, n_modalites, cluster_principal, purity
     get_variable_summary = function() {
       if (is.null(private$FGroupes)) {
         stop("The model is not fitted.")
       }
       
-      groupes <- private$FGroupes
-      noms_modalites <- names(groupes)
-      groupes_modalites <- as.vector(groupes)
+      groupes_modalites <- private$FGroupes
+      noms_modalites <- names(groupes_modalites)
       
       noms_variables <- sub("\\..*", "", noms_modalites)
       
@@ -727,12 +644,6 @@ TandemVarClust <- R6::R6Class(
       return(result)
     },
     
-    #' @description
-    #' Get the cluster assignments for all modalities of a specific variable
-    #' 
-    #' @param variable_name Character, name of the variable
-    #' 
-    #' @return A data.frame with columns: modalite, cluster
     get_modalities_of_variable = function(variable_name) {
       if (is.null(private$FGroupes)) {
         stop("The model is not fitted.")
@@ -757,12 +668,6 @@ TandemVarClust <- R6::R6Class(
       return(result)
     },
     
-    #' @description
-    #' Get all modalities belonging to a specific cluster
-    #' 
-    #' @param cluster_id Integer, cluster number (between 1 and K)
-    #' 
-    #' @return A data.frame with columns: variable, modalite
     get_modalities_of_cluster = function(cluster_id) {
       if (is.null(private$FGroupes)) {
         stop("The model is not fitted.")
@@ -784,10 +689,6 @@ TandemVarClust <- R6::R6Class(
       return(result)
     },
     
-    #' @description
-    #' Get the hierarchical clustering tree
-    #' 
-    #' @return An hclust object representing the hierarchical tree
     get_tree = function() {
       if (is.null(private$FHclustTree)) {
         stop("The model is not fitted.")
@@ -795,14 +696,6 @@ TandemVarClust <- R6::R6Class(
       return(private$FHclustTree)
     },
     
-    #' @description
-    #' Verify the integrity of clustering results
-    #' 
-    #' Checks for:
-    #' - Empty clusters
-    #' - Invalid modality names
-    #' 
-    #' @return TRUE if no issues are found, FALSE otherwise (with warnings)
     check_results_integrity = function() {
       if (is.null(private$FGroupes)) {
         stop("The model is not fitted.")
@@ -837,7 +730,6 @@ TandemVarClust <- R6::R6Class(
   # ACTIVE BINDINGS
   # ============================================================================
   active = list(
-    #' @field K Get or set the number of clusters. Setting K will re-cut the hierarchical tree.
     K = function(value) {
       if (missing(value)) {
         return(private$FNbGroupes)
@@ -890,7 +782,6 @@ TandemVarClust <- R6::R6Class(
       }
     },
     
-    #' @field Groupes Get the cluster assignments for all modalities (named integer vector).
     Groupes = function() {
       if (is.null(private$FGroupes)) {
         stop("The model must be fitted with $fit() before accessing Groupes.")
@@ -898,34 +789,19 @@ TandemVarClust <- R6::R6Class(
       return(private$FGroupes)
     }, 
     
-    #' @field NbModalites Get the total number of modalities.
     NbModalites = function() {
       if (is.null(private$FGroupes)) return(0)
       return(length(private$FGroupes))
     },
     
-    #' @field Tree Get the hierarchical clustering tree (hclust object).
     Tree = function() private$FHclustTree,
-    
-    #' @field VarianceExplained Get the percentage of variance explained by each factorial axis.
     VarianceExplained = function() private$FACMVariance,
-    
-    #' @field Inertie Get the total inertia from MCA.
     Inertie = function() private$FInertie,
-    
-    #' @field DisjunctiveTable Get the disjunctive (indicator) table.
     DisjunctiveTable = function() private$FDisjunctiveTable,
-    
-    #' @field FactorialCoords Get the factorial coordinates of modalities.
     FactorialCoords = function() private$FFactorialCoords,
-    
-    #' @field CategoricalVars Get the names of categorical variables.
     CategoricalVars = function() private$FCatVarNames,
-    
-    #' @field NumericVars Get the names of numeric variables.
     NumericVars = function() private$FNumVarNames,
     
-    #' @field VariableClusters Get the cluster assignment for each original variable (based on majority rule).
     VariableClusters = function() {
       if (is.null(private$FGroupes)) {
         return(NULL)
@@ -956,8 +832,6 @@ TandemVarClust <- R6::R6Class(
 )
 
 #' Print method for TandemVarClust predict results
-#' @param x A TandemVarClust_predict object
-#' @param ... Additional arguments (not used)
 #' @export
 print.TandemVarClust_predict <- function(x, ...) {
   cat("\n")
@@ -975,16 +849,49 @@ print.TandemVarClust_predict <- function(x, ...) {
       next
     }
     
-    cat("  Predicted Cluster: ", result$cluster, "\n", sep = "")
-    cat("  Number of modalities: ", result$n_modalities, "\n", sep = "")
-    cat("  Modality assignments: ", paste(result$modality_clusters, collapse = ", "), "\n", sep = "")
+    # Display cluster (may be NULL)
+    if (!is.null(result$cluster)) {
+      cat("  Predicted Cluster: ", result$cluster, "\n", sep = "")
+    } else {
+      cat("  Predicted Cluster: N/A\n")
+    }
     
+    # Display number of modalities (may be NULL)
+    if (!is.null(result$n_modalities)) {
+      cat("  Number of modalities: ", result$n_modalities, "\n", sep = "")
+    }
+    
+    # Display modality assignments (may be NULL)
+    if (!is.null(result$modality_clusters)) {
+      cat("  Modality assignments: ", 
+          paste(names(result$modality_clusters), "=", result$modality_clusters, collapse = ", "), 
+          "\n", sep = "")
+    }
+    
+    # Display distances ONLY if they exist AND are numeric
     if (!is.null(result$distances) && is.numeric(result$distances)) {
       cat("\n  Distances to cluster centers:\n")
       print(round(result$distances, 3))
     } else {
       cat("\n  Distances to cluster centers: Not calculated\n")
     }
+    
+    # Display contingency table if it exists
+    if (!is.null(result$contingency)) {
+      cat("\n  Contingency table:\n")
+      print(result$contingency)
+    }
+    
+    # Display Cramér's V if it exists
+    if (!is.null(result$cramers_v) && !is.na(result$cramers_v)) {
+      cat("\n  Cramér's V: ", round(result$cramers_v, 4), "\n", sep = "")
+    }
+    
+    # Display significance
+    if (!is.null(result$significant)) {
+      cat("  Significant association: ", result$significant, "\n", sep = "")
+    }
+    
     cat("\n")
   }
   
