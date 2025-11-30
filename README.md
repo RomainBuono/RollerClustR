@@ -115,7 +115,7 @@ model_tandem <- roller_clust(
   method = "tandem",
   K = 3,
   n_bins = 5
-
+)
 model_tandem$summary()
 
 set.seed(100)
