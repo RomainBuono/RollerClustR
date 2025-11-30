@@ -566,6 +566,7 @@ for (k in 1:3) {
 #### VAR_KMEANS Advanced Methods
 
 ```r
+# Create and fit model
 model_km <- VAR_KMEANS$new(K = 3, n_init = 20, max_iter = 100)
 model_km$fit(iris[, 1:4])
 
@@ -581,8 +582,10 @@ converged <- model_km$Converged
 n_iterations <- model_km$NIterations
 # Integer: number of iterations until convergence
 
-# Get variables in specific cluster
-vars_cluster_2 <- model_km$get_cluster_variables(cluster_id = 2)
+#  Get variables in specific cluster - CORRECTED PARAMETER NAME
+vars_cluster_2 <- model_km$get_cluster_variables(k = 2)  # NOT cluster_id
+# OR use positional argument:
+vars_cluster_2 <- model_km$get_cluster_variables(2)
 
 # Manual prediction on specific variable
 new_var <- iris$Sepal.Length + iris$Petal.Length
@@ -590,9 +593,10 @@ pred_result <- model_km$predict(data.frame(Combined = new_var))
 print(pred_result$Combined$cluster)
 # Assigned cluster
 
-# Access homogeneity by cluster
-summary_output <- capture.output(model_km$summary())
-# Parse to extract per-cluster homogeneity
+#  Access homogeneity by cluster
+model_km$summary()
+# Or access overall homogeneity directly:
+overall_homogeneity <- model_km$Homogeneite
 ```
 
 #### TandemVarClust Advanced Methods
