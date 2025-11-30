@@ -314,16 +314,10 @@ $cluster
 
 $scores
    Cluster1    Cluster2
-1 0.3456789  0.9733210
+1 0.1704781 0.9733856
 
 $best_score
-[1] 0.9733210
-
-$second_best_score
-[1] 0.3456789
-
-$ambiguity
-[1] 0.6276421  # Difference between best and second-best
+[1] 0.9733856
 ```
 
 **Interpretation**:
