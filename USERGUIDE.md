@@ -602,36 +602,127 @@ overall_homogeneity <- model_km$Homogeneite
 #### TandemVarClust Advanced Methods
 
 ```r
-model_tandem <- TandemVarClust$new(K = 3, n_bins = 5, n_factors = 3)
-model_tandem$fit(iris_mixed)
 
-# Get summary by original variable
+# TandemVarClust - mtcars Example
+
+library(RollerClustR)
+
+# Prepare mixed data
+set.seed(123)
+data(mtcars)
+
+mtcars_mixed <- data.frame(
+  mpg = mtcars$mpg,
+  hp = mtcars$hp,
+  cyl = factor(mtcars$cyl),
+  gear = factor(mtcars$gear),
+  am = factor(mtcars$am)
+)
+
+# Fit model
+model_tandem <- TandemVarClust$new(K = 3, n_bins = 4, n_factors = 3)
+model_tandem$fit(mtcars_mixed)
+model_tandem$summary()
+
+# Modality cluster assignments
+groups <- model_tandem$Groupes
+print(head(groups))
+
+# Variable summary
 var_summary <- model_tandem$get_variable_summary()
-# Shows which modalities belong to which clusters
+print(var_summary)
 
-# Get modalities of a specific variable
-mods <- model_tandem$get_modalities_of_variable("Sepal.Length")
-# Character vector of modality names
+# Get modalities of specific variables
+mods_mpg <- model_tandem$get_modalities_of_variable("mpg")
+print(mods_mpg)
 
-# Get modalities in a specific cluster
-cluster_mods <- model_tandem$get_modalities_of_cluster(cluster_id = 1)
-# All modalities assigned to cluster 1
+mods_cyl <- model_tandem$get_modalities_of_variable("cyl")
+print(mods_cyl)
 
-# Access factorial coordinates
+mods_gear <- model_tandem$get_modalities_of_variable("gear")
+print(mods_gear)
+
+# Get all modalities in each cluster
+for (k in 1:3) {
+  cluster_mods <- model_tandem$get_modalities_of_cluster(k)
+  print(cluster_mods)
+}
+
+# Factorial coordinates
 coords <- model_tandem$FactorialCoords
-# Matrix of modality coordinates in factorial space
+print(head(coords))
 
-# Access disjunctive table
+# Disjunctive table
 disj_table <- model_tandem$DisjunctiveTable
-# Complete disjunctive table (one-hot encoded)
+print(disj_table[1:6, 1:8])
 
-# Variance explained by factorial axes
+# Variance explained
 var_exp <- model_tandem$VarianceExplained
-# Percentage of variance explained by each MCA axis
+print(var_exp[1:5])
 
-# Check results integrity
+# Other properties
+model_tandem$K
+model_tandem$NbModalites
+model_tandem$Inertie
+model_tandem$CategoricalVars
+model_tandem$NumericVars
+model_tandem$VariableClusters
+
+# Check integrity
 model_tandem$check_results_integrity()
-# Validates internal consistency
+
+# Change K and refit
+model_tandem$K <- 4
+print(table(model_tandem$Groupes))
+
+var_summary <- model_tandem$get_variable_summary()
+print(var_summary)
+
+# Predict new illustrative variable
+set.seed(200)
+new_var <- data.frame(
+  Transmission = factor(sample(c("Manual", "Auto"), 32, replace = TRUE))
+)
+
+pred_result <- model_tandem$predict(new_var)
+print(pred_result)
+
+# Access prediction fields
+pred_result$Transmission$cluster
+pred_result$Transmission$distances
+pred_result$Transmission$n_modalities
+pred_result$Transmission$modality_clusters
+pred_result$Transmission$contingency
+pred_result$Transmission$cramers_v
+pred_result$Transmission$significant
+
+# Visualize dendrogram
+tree <- model_tandem$get_tree()
+plot(tree, main = "Modality Dendrogram", cex = 0.6)
+rect.hclust(tree, k = model_tandem$K, border = "red")
+
+# Detailed cluster analysis
+for (k in 1:model_tandem$K) {
+  cluster_mods <- model_tandem$get_modalities_of_cluster(k)
+  vars <- unique(cluster_mods$variable)
+  
+  for (var in vars) {
+    var_mods <- cluster_mods[cluster_mods$variable == var, ]
+    print(paste(var, ":", paste(var_mods$modalite, collapse = ", ")))
+  }
+}
+
+# Summary table
+summary_table <- data.frame(
+  Cluster = 1:model_tandem$K,
+  N_Modalities = as.vector(table(model_tandem$Groupes)),
+  Variables = sapply(1:model_tandem$K, function(k) {
+    mods <- model_tandem$get_modalities_of_cluster(k)
+    paste(unique(mods$variable), collapse = ", ")
+  })
+)
+
+print(summary_table)
 ```
 
 ### Fine-Tuning Parameters
