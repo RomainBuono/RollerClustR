@@ -214,33 +214,22 @@ model$summary()
 
 **Example output (VAR_CAH)**:
 ```
-===================================================================
+===========================================================
    VAR_CAH - Hierarchical Variable Clustering Summary
-===================================================================
+===========================================================
 
-Number of clusters (K): 2
-Number of variables: 4
-Scaling applied: TRUE
-Clustering method: Complete linkage (on correlations)
+Algorithm: Hierarchical Agglomerative Clustering (HAC) on variables
+Linkage Method: Complete (on 1 - |Correlation|)
+Data standardization: TRUE 
+Number of clusters (k): 2 
+Number of variables: 4 
 
-Within-cluster inertia (W): 0.453
-Between-cluster inertia (B): 3.547
-Total inertia (T): 4.000
-Variance explained by clustering: 88.68%
+Overall Mean Homogeneity (Mean(|Correlation Var/PC1|)): 0.9705 
 
-Global homogeneity: 0.774
-
--------------------------------------------------------------------
-Cluster Composition and Homogeneity:
--------------------------------------------------------------------
-
-Cluster 1 (3 variables):
-  Sepal.Length, Petal.Length, Petal.Width
-  Homogeneity (mean |cor|): 0.863
-
-Cluster 2 (1 variable):
-  Sepal.Width
-  Homogeneity (mean |cor|): 1.000
+Details by Cluster:
+  Cluster Nb_Vars Mean_Homogeneity
+1       1       3           0.9606
+2       2       1           1.0000
 ===================================================================
 ```
 
@@ -365,35 +354,38 @@ if (predictions$SumPetals$best_score - predictions$SumPetals$second_best_score <
 **New in version 1.0.0**: TandemVarClust uses **AFDM projection** for illustrative variable assignment, providing richer statistical analysis.
 
 ```r
+set.seed(123)
+data(mtcars)
 # Create and fit TandemVarClust model
-# IMPORTANT: Use non-redundant variables to avoid outlier modalities
-set.seed(789)
-iris_mixed <- data.frame(
-  Petal.Length = iris$Petal.Length,
-  Petal.Width = iris$Petal.Width,
-  Species = iris$Species
+mtcars_mixed <- data.frame(
+  mpg = mtcars$mpg,
+  hp = mtcars$hp,
+  cyl = factor(mtcars$cyl),
+  gear = factor(mtcars$gear)
 )
 
-model_tandem <- roller_clust(
-  iris_mixed, 
-  method = "tandem", 
-  K = 3, 
+model_mtcars <- roller_clust(
+  mtcars_mixed,
+  method = "tandem",
+  K = 3,
   n_bins = 3
 )
 
 # Verify balanced clustering
 cat("Modality distribution:\n")
-print(table(model_tandem$Groupes))
+print(table(model_mtcars$Groupes))
 
 # Create illustrative categorical variable
-set.seed(100)
-illus_var <- data.frame(
-  Color = sample(c("Red", "Blue", "Green"), 150, replace = TRUE)
+set.seed(200)
+new_var <- data.frame(
+  Transmission = factor(sample(c("Manual", "Auto"), 32, replace = TRUE))
 )
 
 # Predict
-pred_result <- model_tandem$predict(illus_var)
-print(pred_result$Color)
+pred <- model_mtcars$predict(new_var)
+print(pred$Transmission$contingency)
+
+print(pred)
 ```
 
 **Output structure** (TandemVarClust):
