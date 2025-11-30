@@ -32,7 +32,7 @@ Imports:
     R6 (>= 2.5.0),
     stats,
     utils,
-    graphics
+    graphics,
     shiny,
     shinydashboard,
     shinyWidgets,
